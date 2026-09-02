@@ -4,9 +4,9 @@
    2. HTML 一律 network-first：保证学员正常刷新即见最新（离线才回退缓存）；
    3. 带版本资源 cache-first + 后台更新（stale-while-revalidate）；
    4. 音频按需缓存进独立 Cache，FIFO 上限 30MB，防存储无限膨胀。 */
-var SHELL_CACHE = 'architect-shell-v6';
-var PAGE_CACHE = 'architect-pages-v6';
-var AUDIO_CACHE = 'architect-audio-v6';
+var SHELL_CACHE = 'architect-shell-v7';
+var PAGE_CACHE = 'architect-pages-v7';
+var AUDIO_CACHE = 'architect-audio-v7';
 var AUDIO_LIMIT = 30 * 1024 * 1024; /* 30MB */
 var SHELL = [
   './', './index.html', './review.html', './graph.html',
@@ -29,6 +29,13 @@ self.addEventListener('activate', function (e) {
 });
 
 function isAudio(url) { return url.pathname.indexOf('/audio/') >= 0; }
+
+/* 缓存键规范化：同页面不同 query 视为同一资源，防缓存键膨胀 */
+function pageKey(req) {
+  var url = new URL(req.url);
+  url.search = '';
+  return url.href;
+}
 
 /* 音频 FIFO 上限：新增后从最旧的开始删，直到总量 ≤30MB */
 function trimAudio(cache) {
@@ -61,13 +68,14 @@ self.addEventListener('fetch', function (e) {
 
   /* ① 页面导航：network-first，离线回退缓存（HTML 永远新鲜优先） */
   if (req.mode === 'navigate') {
+    var key = pageKey(req);
     e.respondWith(
       fetch(req).then(function (resp) {
         var clone = resp.clone();
-        caches.open(PAGE_CACHE).then(function (c) { c.put(req, clone); });
+        caches.open(PAGE_CACHE).then(function (c) { c.put(key, clone); });
         return resp;
       }).catch(function () {
-        return caches.match(req).then(function (hit) {
+        return caches.match(key).then(function (hit) {
           return hit || caches.match('./index.html');
         });
       })
