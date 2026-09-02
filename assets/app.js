@@ -667,6 +667,69 @@ function bindFeynman(inputSel, keywords, fbSel) {
   else fb.innerHTML = '<div class="feynman-score">在上方用大白话解释本知识点（假设听众是12岁孩子），关键词会自动点亮。</div>';
 }
 
+/* ---------------- 实验室增强：重做 / 拖回 / 点选回退（全站统一，页面零改动） ---------------- */
+function enhanceLabs() {
+  $$('.lab').forEach(function (lab) {
+    var items = $$('.drag-item', lab).filter(function (c) {
+      return c.draggable && !c.classList.contains('match-opt');
+    });
+    if (!items.length) return;
+    var slots = $$('.drag-slot', lab);
+    if (!slots.length) return;
+    var pools = [];
+    items.forEach(function (it) {
+      var p = it.parentElement;
+      if (p && !p.classList.contains('drag-slot') && pools.indexOf(p) < 0) pools.push(p);
+    });
+    if (!pools.length) pools.push(lab);
+    function sortable(container) {
+      return $$('.drag-item', container).filter(function (c) {
+        return c.draggable && !c.classList.contains('match-opt');
+      });
+    }
+    /* ↺ 重做：全部退回池并打乱，清空反馈 */
+    var fb = $('.lab-feedback', lab);
+    var reset = el('button', 'btn', '↺ 重做本实验');
+    reset.title = '把卡片退回池中重新打乱，再试一次';
+    reset.addEventListener('click', function () {
+      slots.forEach(function (s) { sortable(s).forEach(function (c) { pools[0].appendChild(c); }); });
+      var kids = sortable(pools[0]);
+      shuffle(kids).forEach(function (c) { pools[0].appendChild(c); });
+      $$('.lab-feedback', lab).forEach(function (f) { f.textContent = ''; f.className = 'lab-feedback'; });
+    });
+    var bar = fb ? fb.parentElement : lab;
+    if (fb) bar.insertBefore(reset, fb); else bar.appendChild(reset);
+    /* 槽内卡片可拖回池 */
+    var dragEl = null;
+    lab.addEventListener('dragstart', function (e) {
+      dragEl = (e.target.closest) ? e.target.closest('.drag-item') : null;
+    });
+    pools.forEach(function (p) {
+      p.addEventListener('dragover', function (e) { e.preventDefault(); });
+      p.addEventListener('drop', function (e) {
+        e.preventDefault();
+        if (dragEl) { p.appendChild(dragEl); dragEl = null; }
+      });
+    });
+    /* 双击槽内卡片退回池 */
+    lab.addEventListener('dblclick', function (e) {
+      var c = (e.target.closest) ? e.target.closest('.drag-item') : null;
+      if (c && c.draggable && !c.classList.contains('match-opt') && slots.some(function (s) { return s.contains(c); })) {
+        pools[0].appendChild(c);
+      }
+    });
+    /* 单槽实验支持点选往返（触屏友好） */
+    if (slots.length === 1) {
+      lab.addEventListener('click', function (e) {
+        var c = (e.target.closest) ? e.target.closest('.drag-item') : null;
+        if (!c || !c.draggable || c.classList.contains('match-opt')) return;
+        if (slots[0].contains(c)) pools[0].appendChild(c);
+        else slots[0].appendChild(c);
+      });
+    }
+  });
+}
+
 /* ---------------- 对外 API ---------------- */
 var CX = {
   ready: loadIndex,
@@ -704,7 +767,10 @@ document.addEventListener('DOMContentLoaded', function () {
   touchDaily();
   var conf = window.KP_CONF;
   if (!conf || !conf.id) {
-    if (typeof window.KP_BOOT === 'function') window.KP_BOOT(CX);
+    if (typeof window.KP_BOOT === 'function') {
+      try { window.KP_BOOT(CX); } catch (e) { console.error('KP_BOOT error:', e); }
+    }
+    setTimeout(enhanceLabs, 80);
     return;
   }
   if (conf.id) markVisited(conf.id);
@@ -750,6 +816,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof window.KP_BOOT === 'function') {
     try { window.KP_BOOT(CX); } catch (e) { console.error('KP_BOOT error:', e); }
   }
+  setTimeout(enhanceLabs, 80);
   /* PWA 注册（全站） */
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     var root2 = (conf && conf.root) || '.';
