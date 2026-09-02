@@ -45,6 +45,21 @@ python3 scripts/gen_narration.py                      # 重新生成脚本并更
 
 换音色：改 `scripts/synth_tts.py` 顶部 `VOICE`（如 `zh-CN-YunxiNeural` 男声），删掉 `audio/` 后重跑即可。
 
+### 本地离线引擎（不依赖微软接口，可选）
+
+`scripts/tts_local.py` 用 sherpa-onnx + **Kokoro-82M v1.1-zh**（Apache-2.0，100 个中文音色）在本机 CPU 合成（实测 RTF≈0.8，快于实时；模型 325MB 仅构建机使用，站点仍只发布 MP3）：
+
+```bash
+./.venv/bin/pip install -i https://mirrors.aliyun.com/pypi/simple/ sherpa-onnx
+# 获取模型（走 hf-mirror，放到 /tmp/kokoro：model.onnx、voices.bin、tokens.txt、
+#   lexicon-zh.txt、date/number/phone-zh.fst、dict/、espeak-ng-data/）
+# 仓库: hf-mirror.com/csukuangfj/kokoro-multi-lang-v1_1 (fp32) 或 kokoro-int8-multi-lang-v1_1
+./.venv/bin/python scripts/tts_local.py --text "试听一句。" --out /tmp/a.wav   # 单段
+./.venv/bin/python scripts/tts_local.py --all --sid 3 --speed 0.9             # 全站合成到 audio-local/
+```
+
+试听对比样例见 `docs/tts-samples/{edge,kokoro}/`。满意后用 `audio-local/` 替换 `audio/` 即切换引擎。注意：本地引擎暂无词级时间戳（无 SRT 字幕跟随）；int8 量化版在部分 macOS/arm64 ONNX 构建下输出 NaN（2026-09-02 实测），请优先用 fp32。后续可关注 sherpa-onnx 对 MOSS-TTS-Nano / Qwen3-TTS 的支持（Issue #3652 / #3104）。
+
 ## 数据与隐私
 
 
