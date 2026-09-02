@@ -1,96 +1,107 @@
-/* 架构师学堂 Service Worker：安装期预缓存全站（含 62 个知识点页），实现完整离线可用 */
-var CACHE = 'architect-exam-v5';
-var CORE = [
+/* 架构师学堂 Service Worker v6 —— 性能优化版
+   策略（依 docs/perf/baseline.md 实测制定）：
+   1. 安装期只预缓存外壳（≤300KB 预算达标）；kp 页在首次访问时运行时缓存；
+   2. HTML 一律 network-first：保证学员正常刷新即见最新（离线才回退缓存）；
+   3. 带版本资源 cache-first + 后台更新（stale-while-revalidate）；
+   4. 音频按需缓存进独立 Cache，FIFO 上限 30MB，防存储无限膨胀。 */
+var SHELL_CACHE = 'architect-shell-v6';
+var PAGE_CACHE = 'architect-pages-v6';
+var AUDIO_CACHE = 'architect-audio-v6';
+var AUDIO_LIMIT = 30 * 1024 * 1024; /* 30MB */
+var SHELL = [
   './', './index.html', './review.html', './graph.html',
   './assets/style.css', './assets/app.js', './assets/kp-index.json',
-  './manifest.webmanifest', './icon.svg',
-  './kp/01-computer-overview.html',
-  './kp/02-number-system.html',
-  './kp/03-error-check.html',
-  './kp/04-pipeline.html',
-  './kp/05-cache-memory.html',
-  './kp/06-reliability.html',
-  './kp/07-io-interrupt.html',
-  './kp/08-embedded-realtime.html',
-  './kp/09-process-thread.html',
-  './kp/10-pv-semaphore.html',
-  './kp/11-deadlock.html',
-  './kp/12-virtual-memory.html',
-  './kp/13-fs-device.html',
-  './kp/14-db-schema.html',
-  './kp/15-er-model.html',
-  './kp/16-sql-relalg.html',
-  './kp/17-normalization.html',
-  './kp/18-transaction.html',
-  './kp/19-distributed-db.html',
-  './kp/20-osi-tcpip.html',
-  './kp/21-lan-vlan.html',
-  './kp/22-ip-subnet.html',
-  './kp/23-tcp-udp.html',
-  './kp/24-app-protocols.html',
-  './kp/25-process-models.html',
-  './kp/26-requirements.html',
-  './kp/27-dfd.html',
-  './kp/28-coupling-cohesion.html',
-  './kp/29-oo-basics.html',
-  './kp/30-uml.html',
-  './kp/31-testing.html',
-  './kp/32-maintenance-cmm.html',
-  './kp/33-arch-concepts.html',
-  './kp/34-styles-dataflow.html',
-  './kp/35-styles-indep-vm.html',
-  './kp/36-styles-specific.html',
-  './kp/37-csbs-tiers.html',
-  './kp/38-microservices.html',
-  './kp/39-cloud-native.html',
-  './kp/40-middleware-eda.html',
-  './kp/41-adl-docs.html',
-  './kp/42-quality-attributes.html',
-  './kp/43-quality-tactics.html',
-  './kp/44-arch-evaluation.html',
-  './kp/45-arch-evolution.html',
-  './kp/46-principles-gof.html',
-  './kp/47-creational.html',
-  './kp/48-structural.html',
-  './kp/49-behavioral.html',
-  './kp/50-crypto.html',
-  './kp/51-network-defense.html',
-  './kp/52-attacks-malware.html',
-  './kp/53-ip-rights.html',
-  './kp/54-standards-contract.html',
-  './kp/55-pm-framework.html',
-  './kp/56-schedule-cpm.html',
-  './kp/57-earned-value.html',
-  './kp/58-ops-research.html',
-  './kp/59-bigdata.html',
-  './kp/60-ai-arch.html',
-  './kp/61-iot-edge.html',
-  './kp/62-blockchain.html'
+  './manifest.webmanifest', './icon.svg'
 ];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(SHELL_CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys().then(function (keys) {
-      return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+      return Promise.all(keys.filter(function (k) {
+        return k !== SHELL_CACHE && k !== PAGE_CACHE && k !== AUDIO_CACHE;
+      }).map(function (k) { return caches.delete(k); }));
     }).then(function () { return self.clients.claim(); })
   );
 });
+
+function isAudio(url) { return url.pathname.indexOf('/audio/') >= 0; }
+
+/* 音频 FIFO 上限：新增后从最旧的开始删，直到总量 ≤30MB */
+function trimAudio(cache) {
+  return cache.keys().then(function (keys) {
+    var chain = Promise.resolve();
+    var trimOne = function () {
+      return Promise.all(keys.map(function (k) { return cache.match(k); })).then(function (rs) {
+        var total = 0;
+        rs.forEach(function (r) { if (r) total += (parseInt(r.headers.get('content-length') || '0', 10) || 0); });
+        if (total <= AUDIO_LIMIT) return false;
+        var oldest = keys.shift();
+        return cache.delete(oldest).then(function () { return true; });
+      });
+    };
+    /* 最多循环 keys.length 次，每次超限删一条 */
+    var i = 0;
+    function loop() {
+      if (i++ > keys.length) return;
+      return trimOne().then(function (deleted) { if (deleted) return loop(); });
+    }
+    return loop();
+  });
+}
 
 self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;
+
+  /* ① 页面导航：network-first，离线回退缓存（HTML 永远新鲜优先） */
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).then(function (resp) {
+        var clone = resp.clone();
+        caches.open(PAGE_CACHE).then(function (c) { c.put(req, clone); });
+        return resp;
+      }).catch(function () {
+        return caches.match(req).then(function (hit) {
+          return hit || caches.match('./index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  /* ② 朗读音频：cache-first + 独立缓存 + 30MB FIFO 上限（首播联网，之后离线可听） */
+  if (isAudio(url)) {
+    e.respondWith(
+      caches.open(AUDIO_CACHE).then(function (cache) {
+        return cache.match(req).then(function (hit) {
+          if (hit) return hit;
+          return fetch(req).then(function (resp) {
+            if (resp && resp.ok) {
+              cache.put(req, resp.clone());
+              trimAudio(cache);
+            }
+            return resp;
+          });
+        });
+      })
+    );
+    return;
+  }
+
+  /* ③ 外壳静态资源：cache-first + 后台更新（SWR） */
   e.respondWith(
     caches.match(req).then(function (hit) {
       var fetching = fetch(req).then(function (resp) {
         if (resp && resp.ok) {
+          var target = (url.pathname.indexOf('/kp/') >= 0) ? PAGE_CACHE : SHELL_CACHE;
           var clone = resp.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, clone); });
+          caches.open(target).then(function (c) { c.put(req, clone); });
         }
         return resp;
       }).catch(function () { return hit; });
