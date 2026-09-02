@@ -141,6 +141,13 @@ table.tbl { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .
 }
 .tts-bar .hint { color: var(--text-dim); }
 .tts-bar input[type="range"] { width: 110px; }
+/* 朗读当前句高亮（CSS Highlight API；不支持的浏览器自动忽略） */
+::highlight(tts-hl) {
+  background-color: color-mix(in srgb, var(--accent-2) 42%, transparent);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-2);
+  text-underline-offset: 4px;
+}
 
 /* ---------- 动画演示 ---------- */
 .demo-stage { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft); padding: 10px; overflow-x: auto; }
