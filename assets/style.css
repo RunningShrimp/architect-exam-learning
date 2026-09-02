@@ -35,6 +35,10 @@ body {
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+/* 正文语境的链接加下划线（无障碍：不仅靠颜色区分；导航/胶囊/按钮不受影响） */
+.sec p a, .sec li a, .summary-3 a, .foreshadow a, .callout a, .case-answer a, td a, .q-exp a {
+  text-decoration: underline; text-underline-offset: 3px;
+}
 code, kbd, pre { font-family: var(--mono); font-size: .92em; }
 code { background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
 pre { background: var(--card-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; overflow-x: auto; }
