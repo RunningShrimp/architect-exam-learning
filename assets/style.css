@@ -126,6 +126,8 @@ table.tbl { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .
 
 /* ---------- 城市地图 ---------- */
 #city-map svg, .citymap svg { width: 100%; height: auto; display: block; border-radius: 10px; }
+/* 防CLS：地图容器按 SVG viewBox 800:420 预留，注入前与注入后高度一致 */
+#city-map, .citymap { aspect-ratio: 800 / 420; }
 .map-loc {
   margin-top: 8px; font-size: .9rem; color: var(--text-dim);
   display: flex; align-items: center; gap: 8px;
@@ -187,6 +189,29 @@ table.tbl { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- 防CLS：异步注入容器预留实测高度（见 docs/perf/baseline.md） ---------- */
+#tts-bar { min-height: 52px; }
+#radar-stage { min-height: 420px; }          /* 雷达画布固定 H=420 */
+#bigmap { aspect-ratio: 800 / 420; }          /* 大地图同城市地图比例 */
+#dash-stats { min-height: 194px; }            /* 桌面 2 列实测 */
+#domain-list { min-height: 520px; }           /* 域折叠态桌面实测 */
+#dash-stats:empty::after {
+  content: "仪表盘加载中…"; color: var(--text-dim); font-size: .85rem;
+}
+#radar-stage:empty::after, #bigmap:empty::after {
+  content: "加载中…"; color: var(--text-dim); font-size: .85rem;
+  display: flex; align-items: center; justify-content: center; height: 100%;
+}
+/* 域列表折叠态行 */
+details.domain-fold { border: 1px solid var(--line); border-radius: 10px; background: var(--card); margin-bottom: 8px; }
+details.domain-fold > summary {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  cursor: pointer; list-style: none;
+}
+details.domain-fold > summary::-webkit-details-marker { display: none; }
+details.domain-fold[open] > summary { border-bottom: 1px solid var(--line); }
+details.domain-fold .chips { padding: 6px; }
 
 /* ---------- 测验 ---------- */
 .q-card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 12px 0; background: var(--bg-soft); }
@@ -319,6 +344,9 @@ input[type="range"] { height: 28px; }
   .topbar .brand { font-size: .95rem; }
   .sec { padding: 14px 12px; }
   .kp-head h1 { font-size: 1.22rem; }
+  #tts-bar { min-height: 141px; }              /* 移动端换行后实测高度 */
+  #dash-stats { min-height: 371px; }           /* 移动端 1 列 4 卡实测 */
+  #domain-list { min-height: 1140px; }         /* 域折叠态移动端实测 */
   /* 触控目标加大 */
   .q-opt { padding: 12px; }
   .btn, .icon-btn, .anim-controls button { min-height: 40px; padding: 8px 14px; }

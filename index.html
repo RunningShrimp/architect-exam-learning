@@ -18,6 +18,15 @@
   </div>
 
   <section class="sec">
+    <h2><span class="secno">🧭</span>怎么用这座城</h2>
+    <ul class="summary-3">
+      <li><b>第一次来</b>：从 <a href="kp/01-computer-overview.html">01 计算机系统组成</a> 开始按顺序学，每页的「随堂测试」会自动把你的成绩写入复习调度（SM-2）。</li>
+      <li><b>每天回来</b>：进 <a href="review.html">复习中心</a> 清掉到期的记忆卡，做一张跨域混合卷，翻翻错题本。</li>
+      <li><b>迷路了</b>：看 <a href="graph.html">知识图谱</a> 找到这个概念的前置与去向；点地图任一分区也能直达。</li>
+    </ul>
+  </section>
+
+  <section class="sec">
     <h2><span class="secno">📊</span>学习仪表盘</h2>
     <div class="dash-grid" id="dash-stats"></div>
   </section>
@@ -36,17 +45,8 @@
 
   <section class="sec" id="domain-sections">
     <h2><span class="secno">📚</span>知识域与学习路径</h2>
-    <p class="foreshadow">按序号从小到大学；每个域的页都标了考频与难度。⭐=考频(1~5)，◆=难度(1~5)。带「已学/得分」标记的是你的进度。</p>
+    <p class="foreshadow">按序号从小到大学；每个域的页都标了考频与难度。⭐=考频(1~5)，◆=难度(1~5)。带「已学/得分」标记的是你的进度。点域名牌可展开/收起该域页面。</p>
     <div class="domain-list" id="domain-list"></div>
-  </section>
-
-  <section class="sec">
-    <h2><span class="secno">🧭</span>怎么用这座城</h2>
-    <ul class="summary-3">
-      <li><b>第一次来</b>：从 <a href="kp/01-computer-overview.html">01 计算机系统组成</a> 开始按顺序学，每页的「随堂测试」会自动把你的成绩写入复习调度（SM-2）。</li>
-      <li><b>每天回来</b>：进 <a href="review.html">复习中心</a> 清掉到期的记忆卡，做一张跨域混合卷，翻翻错题本。</li>
-      <li><b>迷路了</b>：看 <a href="graph.html">知识图谱</a> 找到这个概念的前置与去向；点地图任一分区也能直达。</li>
-    </ul>
   </section>
 </main>
 <footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器 localStorage<br>知识口径以《系统架构设计师教程（第2版）》与官方大纲为准 · 祝一次通关</footer>
@@ -152,29 +152,30 @@ window.KP_BOOT = function (CX) {
     });
     svgEl.appendChild(overlay);
 
-    /* 域列表 */
+    /* 域列表：默认折叠（防CLS + 首屏信息密度），展开计入用户交互不产生位移惩罚 */
     var html = '';
     domKeys.forEach(function (k) {
       var d = idx.domains[k];
       var list = pts.filter(function (p) { return p.domain === k; });
       var m = list.reduce(function (acc, p) { return acc + masteryOf(p); }, 0) / list.length;
-      html += '<div class="domain-row" id="dom-' + k + '">' +
+      html += '<details class="domain-fold"><summary id="dom-' + k + '">' +
         '<span style="font-size:1.3rem">' + d.icon + '</span>' +
-        '<div style="min-width:200px"><b>' + d.name + '</b><div class="foreshadow">' + d.blurb + ' · ' + list.length + ' 点</div></div>' +
-        '<div class="bar"><i style="width:' + Math.round(m * 100) + '%"></i></div>' +
-        '<span class="pct">' + Math.round(m * 100) + '%</span></div>';
-      html += '<div style="padding:2px 6px 8px">' + list.map(function (p) {
-        var pg = s.pages[p.id];
-        var marks = '';
-        for (var i = 0; i < p.freq; i++) marks += '⭐';
-        var dif = '';
-        for (var j = 0; j < p.diff; j++) dif += '◆';
-        var st = pg && pg.best != null ? '<span class="badge" style="border-color:var(--ok);color:var(--ok)">测试 ' + Math.round(pg.best * 100) + '%</span>'
-          : (pg && pg.visited ? '<span class="badge" style="border-color:var(--accent);color:var(--accent)">已学</span>' : '');
-        return '<a class="dep-chip" style="margin:3px 4px" href="kp/' + p.file.split('/').pop() + '" title="' + CX.esc(p.oneliner) + '">' +
-          '<span class="n">' + p.id + '</span>' + CX.esc(p.title) +
-          ' <span style="font-size:.72rem;color:var(--text-dim)">' + marks + dif + '</span>' + st + '</a>';
-      }).join('') + '</div>';
+        '<span style="min-width:0;flex:1"><b>' + d.name + '</b>' +
+        '<span class="foreshadow" style="display:block">' + d.blurb + ' · ' + list.length + ' 点</span></span>' +
+        '<span class="bar" style="flex:1;max-width:120px"><i style="display:block;height:8px;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--ok));width:' + Math.round(m * 100) + '%"></i></span>' +
+        '<span class="pct">' + Math.round(m * 100) + '%</span></summary>' +
+        '<div class="chips">' + list.map(function (p) {
+          var pg = s.pages[p.id];
+          var marks = '';
+          for (var i = 0; i < p.freq; i++) marks += '⭐';
+          var dif = '';
+          for (var j = 0; j < p.diff; j++) dif += '◆';
+          var st = pg && pg.best != null ? '<span class="badge" style="border-color:var(--ok);color:var(--ok)">测试 ' + Math.round(pg.best * 100) + '%</span>'
+            : (pg && pg.visited ? '<span class="badge" style="border-color:var(--accent);color:var(--accent)">已学</span>' : '');
+          return '<a class="dep-chip" style="margin:3px 4px" href="kp/' + p.file.split('/').pop() + '" title="' + CX.esc(p.oneliner) + '">' +
+            '<span class="n">' + p.id + '</span>' + CX.esc(p.title) +
+            ' <span style="font-size:.72rem;color:var(--text-dim)">' + marks + dif + '</span>' + st + '</a>';
+        }).join('') + '</div></details>';
     });
     U.$('domain-list').innerHTML = html;
   });
