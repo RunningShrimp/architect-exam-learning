@@ -1,0 +1,8 @@
+1
+00:00:00,100 --> 00:00:02,452
+专业英语小贴士。
+
+2
+00:00:02,402 --> 00:00:17,430
+entity（实体）、relationship（联系）、attribute（属性）；ER 等于 Entity-Relationship，英语题里 cardinality 指联系的基数（1:1、1:n、m:n）。
+

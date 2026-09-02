@@ -1,0 +1,4 @@
+1
+00:00:00,100 --> 00:00:13,583
+project charter（项目章程）；stakeholder（相关方）；process group（过程组）；integration management（整合管理）；matrix organization（矩阵型组织）。
+

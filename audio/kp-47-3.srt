@@ -1,0 +1,8 @@
+1
+00:00:00,100 --> 00:00:06,216
+singleton（单例）， factory method（工厂方法）， builder（建造者）。
+
+2
+00:00:06,166 --> 00:00:16,097
+英语题常用句式：The singleton pattern ensures that a class has only one instance and provides a global point of access to it.
+

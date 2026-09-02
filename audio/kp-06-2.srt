@@ -1,0 +1,12 @@
+1
+00:00:00,100 --> 00:00:35,597
+第一，并联把失效率直接相加，经典错例（那是串联小失效率的近似），并联必须用 1-连乘 (1-Rᵢ)；第二，MTBF 不等于 MTTF：MTBF 等于 MTTF+MTTR，可用性分母是 MTBF；第三，混联不拆层就乱乘乱加；第四，RAID 5 容量是 (n-1) 不是 (n/2)，RAID 6 是 (n-2)；RAID 0 容错是 0，不是「有 0 号所以最基础」。
+
+2
+00:00:35,597 --> 00:00:38,777
+小节，专业英语小贴士。
+
+3
+00:00:38,777 --> 00:00:59,000
+MTBF 等于 Mean Time Between Failures（平均故障间隔时间）；MTTF 等于 Mean Time To Failure（平均无故障时间）；availability（可用性）；redundancy（冗余）；RAID 等于 Redundant Array of Independent Disks（独立磁盘冗余阵列）。
+

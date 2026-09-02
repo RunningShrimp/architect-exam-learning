@@ -1,0 +1,8 @@
+1
+00:00:00,100 --> 00:00:07,897
+copyright（著作权）、patent（专利）、trademark（商标）、trade secret（商业秘密）。
+
+2
+00:00:07,847 --> 00:00:14,833
+英语题里「the right that comes into being automatically upon completion」指向 copyright。
+

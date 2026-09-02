@@ -222,10 +222,13 @@ function cityMapSVG(activeKey) {
   return s;
 }
 
-/* ---------------- TTS 声情并茂朗读 ----------------
-   逐句驱动 + 句间气口 + 标题/疑问句语调变化 + 当前句高亮（CSS Highlight API，降级无害）
+/* ---------------- TTS 三层回退播放器 ----------------
+   L1 预生成音频：audio/kp-NN.json 清单 → 分段 MP3（小晓神经音色）+ SRT 字幕跟随
+   L2 浏览器增强：页面内嵌朗读脚本(#kp-narration) + speechSynthesis 择优音色
+   L3 兼容兜底：直读 DOM（表格按口语规则转写，永不逐格朗读）
+   模式自动检测、自动降级；UI 显示当前音源。
 */
-var ttsState = { segs: [], idx: 0, playing: false, rate: 1, voice: null, timer: null, paused: false };
+var ttsState = { mode: null, segs: [], idx: 0, playing: false, rate: 1, voice: null, timer: null, paused: false, sub: null };
 function ttsVoices() {
   if (!('speechSynthesis' in window)) return [];
   return window.speechSynthesis.getVoices().filter(function (v) { return /^zh/i.test(v.lang); });
@@ -236,11 +239,18 @@ function ttsPickVoice() {
   var vs = ttsVoices();
   var i;
   for (i = 0; i < vs.length; i++) if (vs[i].voiceURI === saved) { ttsState.voice = vs[i]; return vs[i]; }
-  var prefer = ['Xiaoxiao', 'Yunxi', 'Yunyang', 'Yun', 'Ting-Ting', 'Tingting', 'Yu-Shu', 'Mei-Jia', 'Meijia', 'Sinji', 'Google'];
-  var p, j;
-  for (p = 0; p < prefer.length; p++)
-    for (j = 0; j < vs.length; j++)
-      if (vs[j].name.indexOf(prefer[p]) >= 0) { ttsState.voice = vs[j]; return vs[j]; }
+  /* 择优启发式：Natural/Neural 优先，legacy 排除，zh-CN 精确匹配加分 */
+  function score(v) {
+    var s = 0, n = v.name;
+    if (/Natural|Neural/i.test(n)) s += 100;
+    if (/Audio|Enhanced|Premium|Siri/i.test(n)) s += 40;
+    if (/legacy|Compact|Novelty|Eloquence|Whisper|Bad/i.test(n)) s -= 60;
+    if (/zh-CN/i.test(v.lang)) s += 30;
+    if (/Xiaoxiao|Xiaoyi/i.test(n)) s += 12;
+    if (v.localService) s += 4;
+    return s;
+  }
+  vs.sort(function (a, b) { return score(b) - score(a); });
   ttsState.voice = vs[0] || null;
   return ttsState.voice;
 }
@@ -254,35 +264,80 @@ function ttsSpeakable(t) {
              ['&', ' 和 '], ['——', '，'], ['·', '，'],
              ['①', '第一，'], ['②', '第二，'], ['③', '第三，'], ['④', '第四，'], ['⑤', '第五，'],
              ['⑥', '第六，'], ['⑦', '第七，'], ['⑧', '第八，'], ['⑨', '第九，'], ['⑩', '第十，'],
-             ['∑', '求和 '], ['∏', '连乘 '], ['√', '根号 ']];
+             ['∑', '求和 '], ['∏', '连乘 '], ['√', '根号 '], ['⁺', ' 加 '],
+             ['★★★★★', '5星'], ['★★★★', '4星'], ['★★★', '3星'], ['★★', '2星'], ['★', '1星'],
+             ['◆◆◆◆◆', '5星'], ['◆◆◆◆', '4星'], ['◆◆◆', '3星'], ['◆◆', '2星'], ['◆', '1星']];
   var m;
   for (m = 0; m < map.length; m++) t = t.split(map[m][0]).join(map[m][1]);
   t = t.replace(/=+\s*/g, ' 等于 ');
+  t = t.replace(/([：，、；])。+/g, '$1').replace(/。{2,}/g, '。');
   return t.trim();
 }
-/* 收集朗读片段：每个文本节点按句切分，保留 DOM 偏移用于高亮 */
-function ttsCollect(root) {
-  var segs = [];
-  var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: function (n) {
-      if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-      var p = n.parentElement;
-      if (p && (p.closest('.tts-bar') || p.closest('button') || p.tagName === 'SCRIPT' || p.tagName === 'STYLE')) return NodeFilter.FILTER_REJECT;
-      return NodeFilter.FILTER_ACCEPT;
-    }
+/* DOM 表格 → 口语转写（与生成端同一规则，供 L3 兜底） */
+function domTableSpeech(tbl, idx) {
+  var grid = [];
+  Array.prototype.slice.call(tbl.rows || []).forEach(function (tr) {
+    var cells = [];
+    Array.prototype.slice.call(tr.cells || []).forEach(function (c) {
+      var t = ttsSpeakable(c.textContent);
+      if (t) cells.push(t);
+    });
+    if (cells.length) grid.push(cells);
   });
-  var node, m;
-  var re = /[^。！？；!?;]*[。！？；!?;]+|[^。！？；!?;]+$/g;
-  while ((node = walker.nextNode())) {
-    var isHead = !!(node.parentElement && node.parentElement.closest('h3,h4,h2'));
+  if (!grid.length) return '';
+  var header = grid[0].slice(), body = grid.slice(1);
+  if (header.length && header[0] === '') header[0] = '对比项';
+  var colHeads = (header.length > 1 ? header.slice(1) : header).map(function (h) {
+    return h.replace(/（[^）]*）/g, '').trim() || h;
+  }).map(function (h) { return h === '例' ? '例子' : h; });
+  var closings = ['表格就是这些，抓住每行的差异点，就抓住了考点。', '这张表就过到这里，注意各行之间的分界线。', '对照着听一遍，比死记条文记得牢。'];
+  var lines = ['来看一张对照表。'];
+  if (colHeads.length) lines.push('表的栏目有：' + colHeads.filter(Boolean).join('、') + '。');
+  body.forEach(function (cells) {
+    var head = cells[0] || '这一行';
+    var pairs = [];
+    colHeads.forEach(function (h, i) {
+      var v = cells[i + 1];
+      if (v) pairs.push((h || '要点') + '是' + v);
+    });
+    if (pairs.length) lines.push('先看' + head + '：' + pairs.join('；') + '。');
+    else if (cells.length === 1) lines.push(head + '。');
+  });
+  var flat = grid.map(function (r) { return r.join(''); }).join('');
+  if (flat.indexOf('失效') >= 0) lines.push('特别注意：表里标了失效边界的地方，就是最容易考反的地方，务必分清。');
+  else lines.push(closings[idx % closings.length]);
+  return lines.join('');
+}
+/* 收集朗读片段：文本按句切分（保留偏移供高亮），表格转写为口语段（不直读） */
+function ttsCollect(root) {
+  var segs = [], tblIdx = 0;
+  function pushText(node, head) {
     var raw = node.nodeValue;
+    var re = /[^。！？；!?;]*[。！？；!?;]+|[^。！？；!?;]+$/g;
+    var m;
     re.lastIndex = 0;
     while ((m = re.exec(raw)) !== null) {
       if (m[0].length === 0) { re.lastIndex++; continue; }
       var sp = ttsSpeakable(m[0]);
-      if (sp) segs.push({ node: node, start: m.index, end: m.index + m[0].length, text: sp, head: isHead });
+      if (sp) segs.push({ node: node, start: m.index, end: m.index + m[0].length, text: sp, head: head });
     }
   }
+  function walk(el, head) {
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var n = el.childNodes[i];
+      if (n.nodeType === 3) {
+        if (n.nodeValue && n.nodeValue.trim() &&
+            !(n.parentElement && n.parentElement.closest('.tts-bar,button,script,style'))) {
+          pushText(n, head || !!(n.parentElement && n.parentElement.closest('h3,h4,h2')));
+        }
+      } else if (n.nodeType === 1) {
+        if (n.tagName === 'SCRIPT' || n.tagName === 'STYLE') continue;
+        if (n.tagName === 'TABLE') { segs.push({ text: domTableSpeech(n, tblIdx++) }); continue; }
+        walk(n, head);
+      }
+    }
+  }
+  walk(root, false);
   return segs;
 }
 /* 当前句高亮 */
@@ -290,7 +345,7 @@ var hlOK = false, hlCur = null;
 try { hlOK = (typeof Highlight !== 'undefined') && !!(window.CSS && window.CSS.highlights); } catch (e) {}
 function ttsHighlight(seg) {
   ttsClearHl();
-  if (!hlOK || !seg) return;
+  if (!hlOK || !seg || !seg.node) return;
   try {
     var r = document.createRange();
     r.setStart(seg.node, seg.start);
@@ -312,15 +367,34 @@ function ttsPlayFrom(root) {
   window.speechSynthesis.cancel();
   setTimeout(ttsNext, 60);
 }
+/* L2：内嵌朗读脚本 → 句子片段（脚本与 DOM 非逐字对应，故不做 DOM 高亮，用字幕行跟随） */
+function ttsPlayScript(scriptSegs) {
+  if (!('speechSynthesis' in window)) { alert('当前浏览器不支持语音朗读'); return; }
+  ttsStop();
+  var segs = [];
+  scriptSegs.forEach(function (s) {
+    var re = /[^。！？；]*[。！？；]+|[^。！？；]+$/g;
+    var m, re2 = new RegExp(re.source, 'g');
+    while ((m = re2.exec(s)) !== null) {
+      if (m[0].trim()) segs.push({ text: m[0].trim() });
+    }
+  });
+  if (!segs.length) return;
+  ttsState.segs = segs;
+  ttsState.idx = 0; ttsState.playing = true; ttsState.paused = false;
+  window.speechSynthesis.cancel();
+  setTimeout(ttsNext, 60);
+}
 function ttsNext() {
   if (!ttsState.playing || ttsState.paused) return;
   if (ttsState.idx >= ttsState.segs.length) { ttsStop(); return; }
   var seg = ttsState.segs[ttsState.idx];
   ttsHighlight(seg);
+  if (ttsState.sub) ttsState.sub.textContent = seg.text;
   var u = new SpeechSynthesisUtterance(seg.text);
   var v = ttsPickVoice();
   if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'zh-CN'; }
-  u.rate = Math.max(0.5, Math.min(2, ttsState.rate * (seg.head ? 0.94 : 1)));
+  u.rate = Math.max(0.5, Math.min(2, ttsState.rate * 0.9 * (seg.head ? 0.94 : 1)));
   u.pitch = seg.head ? 0.9 : (/[？?]/.test(seg.text) ? 1.08 : 1);
   u.onend = function () {
     if (!ttsState.playing || ttsState.paused) return;
@@ -339,11 +413,13 @@ function ttsNext() {
 function ttsPause() {
   if (!ttsState.playing || ttsState.paused) return;
   ttsState.paused = true;
+  if (ttsState.mode === 'L1') { if (l1.audio) l1.audio.pause(); return; }
   window.speechSynthesis.pause();
 }
 function ttsResume() {
   if (!ttsState.paused) return;
   ttsState.paused = false;
+  if (ttsState.mode === 'L1') { if (l1.audio) l1.audio.play(); return; }
   window.speechSynthesis.resume();
   /* 部分浏览器 resume 后不继续队列：兜底重读当前句 */
   ttsState.timer = setTimeout(function () {
@@ -357,20 +433,74 @@ function ttsStop() {
   ttsState.playing = false; ttsState.paused = false;
   clearTimeout(ttsState.timer);
   ttsClearHl();
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  if (ttsState.mode === 'L1') {
+    if (l1.audio) { l1.audio.pause(); }
+    l1.idx = 0;
+  } else if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  if (ttsState.sub) ttsState.sub.textContent = '';
 }
+/* ---------------- L1：预生成音频播放（分段连播 + SRT 字幕跟随） ---------------- */
+var l1 = { audio: null, list: [], idx: 0, cues: [], root: '.' };
+function parseSRT(t) {
+  var out = [];
+  t.trim().split(/\r?\n\r?\n/).forEach(function (b) {
+    var ls = b.split(/\r?\n/);
+    if (ls.length < 2) return;
+    var m = ls[1].match(/(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)/);
+    if (!m) return;
+    out.push({
+      start: (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]) + (+m[4]) / 1000,
+      end: (+m[5]) * 3600 + (+m[6]) * 60 + (+m[7]) + (+m[8]) / 1000,
+      text: ls.slice(2).join(' ')
+    });
+  });
+  return out;
+}
+function l1PlaySeg() {
+  var item = l1.list[l1.idx];
+  if (!item) { ttsStop(); return; }
+  if (ttsState.sub) ttsState.sub.textContent = '第 ' + (l1.idx + 1) + '/' + l1.list.length + ' 段…';
+  fetch(l1.root + '/audio/' + item.s).then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (t) { l1.cues = parseSRT(t); }).catch(function () { l1.cues = []; });
+  l1.audio.src = l1.root + '/audio/' + item.a;
+  l1.audio.playbackRate = Math.max(0.5, Math.min(2.5, ttsState.rate));
+  l1.audio.play();
+}
+function l1Start() { ttsState.playing = true; ttsState.paused = false; l1.idx = 0; l1PlaySeg(); }
+function l1Wire() {
+  l1.audio.onended = function () {
+    if (!ttsState.playing) return;
+    l1.idx++;
+    if (l1.idx >= l1.list.length) { ttsStop(); return; }
+    l1PlaySeg();
+  };
+  l1.audio.ontimeupdate = function () {
+    if (!l1.cues.length || !ttsState.playing) return;
+    var t = l1.audio.currentTime, cue = null;
+    for (var i = 0; i < l1.cues.length; i++) {
+      if (t >= l1.cues[i].start && t <= l1.cues[i].end) { cue = l1.cues[i]; break; }
+    }
+    if (cue && ttsState.sub) ttsState.sub.textContent = cue.text;
+  };
+}
+
 function buildTTSBar() {
   var bar = $('#tts-bar');
   if (!bar) return;
+  var conf = window.KP_CONF || {};
+  var target = $('#kc-text') || $('#sec3') || document.querySelector('main');
   bar.className = 'tts-bar';
   bar.innerHTML = '<button class="btn" data-tts="play">🔊 朗读本节</button>' +
     '<button class="btn" data-tts="pause" style="display:none">⏸ 暂停</button>' +
     '<button class="btn" data-tts="resume" style="display:none">▶️ 继续</button>' +
     '<button class="btn" data-tts="stop" style="display:none">⏹ 停止</button>' +
-    '<label>音色 <select data-tts="voice" style="max-width:150px;background:var(--card-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:.85rem"></select></label>' +
+    '<span class="src-badge" id="tts-src" style="font-size:.82rem;color:var(--accent-2);font-weight:600">音源检测中…</span>' +
+    '<label data-tts="voice-wrap">音色 <select data-tts="voice" style="max-width:150px;background:var(--card-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:.85rem"></select></label>' +
     '<label>语速 <input type="range" min="0.6" max="1.8" step="0.1" value="' + ttsState.rate + '"> <span class="rate-out">' + ttsState.rate.toFixed(1) + 'x</span></label>' +
-    '<span class="hint">朗读时当前句会点亮；标题降调、问句扬声、符号读中文</span>';
-  var target = $('#kc-text') || $('#sec3') || document.querySelector('main');
+    '<div class="tts-sub" style="flex-basis:100%;font-size:.86rem;color:var(--accent-2);min-height:1.4em"></div>';
+  ttsState.sub = bar.querySelector('.tts-sub');
   var btnPlay = bar.querySelector('[data-tts=play]');
   var btnPause = bar.querySelector('[data-tts=pause]');
   var btnResume = bar.querySelector('[data-tts=resume]');
@@ -382,12 +512,31 @@ function buildTTSBar() {
     btnStop.style.display = playing ? '' : 'none';
   }
   setBtns(false, false);
-  btnPlay.addEventListener('click', function () { ttsPlayFrom(target); setBtns(true, false); });
+  btnPlay.addEventListener('click', function () {
+    if (!ttsState.mode) return;
+    if (ttsState.mode === 'L1') l1Start();
+    else if (ttsState.mode === 'L2') { if (l2Segs.length) ttsPlayScript(l2Segs); }
+    else ttsPlayFrom(target);
+    setBtns(true, false);
+  });
   btnPause.addEventListener('click', function () { ttsPause(); setBtns(true, true); });
   btnResume.addEventListener('click', function () { ttsResume(); setBtns(true, false); });
   btnStop.addEventListener('click', function () { ttsStop(); setBtns(false, false); });
-  /* 音色下拉（voices 异步加载） */
+  /* 语速 */
+  var r = bar.querySelector('input[type=range]');
+  ttsState.rate = parseFloat(store.get('ttsRate', '1')) || 1;
+  r.value = ttsState.rate;
+  bar.querySelector('.rate-out').textContent = ttsState.rate.toFixed(1) + 'x';
+  r.addEventListener('input', function () {
+    ttsState.rate = parseFloat(r.value);
+    store.set('ttsRate', String(ttsState.rate));
+    bar.querySelector('.rate-out').textContent = ttsState.rate.toFixed(1) + 'x';
+    if (ttsState.mode === 'L1') { if (l1.audio) l1.audio.playbackRate = Math.max(0.5, Math.min(2.5, ttsState.rate)); }
+    else if (ttsState.playing && !ttsState.paused) { window.speechSynthesis.cancel(); ttsNext(); }
+  });
+  /* 音色（L2/L3） */
   var sel = bar.querySelector('[data-tts=voice]');
+  var voiceWrap = bar.querySelector('[data-tts=voice-wrap]');
   function fillVoices() {
     var vs = ttsVoices();
     if (!vs.length) return;
@@ -400,21 +549,47 @@ function buildTTSBar() {
   fillVoices();
   if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = fillVoices;
   sel.addEventListener('change', function () {
-    var uri = sel.value;
-    var pick = ttsVoices().filter(function (v) { return v.voiceURI === uri; })[0];
-    if (pick) { ttsState.voice = pick; store.set('voice', uri); }
-    if (ttsState.playing) { window.speechSynthesis.cancel(); ttsState.paused = false; ttsNext(); }
+    var pick = ttsVoices().filter(function (v) { return v.voiceURI === sel.value; })[0];
+    if (pick) { ttsState.voice = pick; store.set('voice', sel.value); }
+    if (ttsState.mode !== 'L1' && ttsState.playing) { window.speechSynthesis.cancel(); ttsState.paused = false; ttsNext(); }
   });
-  var r = bar.querySelector('input[type=range]');
-  ttsState.rate = parseFloat(store.get('ttsRate', '1')) || 1;
-  r.value = ttsState.rate;
-  bar.querySelector('.rate-out').textContent = ttsState.rate.toFixed(1) + 'x';
-  r.addEventListener('input', function () {
-    ttsState.rate = parseFloat(r.value);
-    store.set('ttsRate', String(ttsState.rate));
-    bar.querySelector('.rate-out').textContent = ttsState.rate.toFixed(1) + 'x';
-    if (ttsState.playing && !ttsState.paused) { window.speechSynthesis.cancel(); ttsNext(); }
-  });
+  /* L2 数据源 */
+  var l2Segs = [];
+  function shortName(n) { return n.replace(/^Microsoft |^Google /, '').slice(0, 18); }
+  function setMode(m, label) {
+    ttsState.mode = m;
+    var badge = bar.querySelector('#tts-src');
+    if (badge) badge.textContent = label;
+    voiceWrap.style.display = m === 'L1' ? 'none' : '';
+  }
+  function l2init() {
+    var emb = document.getElementById('kp-narration');
+    if (emb) {
+      try { l2Segs = JSON.parse(emb.textContent).segs || []; } catch (e) { l2Segs = []; }
+    }
+    if (l2Segs.length) {
+      var v = ('speechSynthesis' in window) ? ttsPickVoice() : null;
+      setMode('L2', '🎤 浏览器增强' + (v ? ' · ' + shortName(v.name) : ''));
+    } else {
+      setMode('L3', '🧩 兼容模式（直读页面）');
+    }
+  }
+  /* 模式检测：有预生成音频 → L1；file:// 或无音频 → 内嵌脚本 L2；再不行 L3 */
+  if (conf.id && location.protocol !== 'file:') {
+    fetch(conf.root + '/audio/kp-' + conf.id + '.json').then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (mf) {
+      if (mf && mf.segs && mf.segs.length) {
+        l1.root = conf.root;
+        l1.list = mf.segs;
+        l1.audio = new Audio();
+        l1Wire();
+        setMode('L1', '🎧 预生成音频 · ' + String(mf.voice || '').replace('zh-CN-', '').replace('Neural', ''));
+      } else l2init();
+    }).catch(l2init);
+  } else {
+    l2init();
+  }
   window.addEventListener('beforeunload', ttsStop);
 }
 

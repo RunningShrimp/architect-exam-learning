@@ -7,7 +7,7 @@ const files = ['index.html', 'review.html', 'graph.html', 'docs/demo-page.html',
 let bad = 0, checked = 0;
 for (const f of files) {
   const t = fs.readFileSync(path.join(root, f), 'utf8');
-  const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+  const re = /<script(?![^>]*\bsrc=)(?![^>]*type="application\/json")[^>]*>([\s\S]*?)<\/script>/gi;
   let m, i = 0;
   while ((m = re.exec(t))) {
     const code = m[1].trim();

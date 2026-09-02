@@ -1,0 +1,4 @@
+1
+00:00:00,100 --> 00:00:15,652
+schema（模式）、external schema / subschema（外模式/子模式）、logical data independence 与 physical data independence（逻辑/物理数据独立性，英语题常考 independence 一词）。
+

@@ -26,7 +26,28 @@ python3 -m http.server 8000
 
 每个知识点页固定十段结构：一句话核心 → Hook 场景题 + 前置点回忆 → 知识卡片（可朗读）→ 生活类比与口诀 → 动画演示（播放/暂停/单步/变速）→ 动手实验室 → 随堂测试（含交错练习题与案例分析）→ 概念桥 → 费曼检验 → 三句话小结。
 
+## 语音朗读（三层音源，自动降级）
+
+朗读按钮按以下顺序自动选择音源，UI 上会显示当前模式：
+
+1. **🎧 预生成音频**（首选）：`audio/kp-NN-*.mp3`，微软神经音色 `zh-CN-XiaoxiaoNeural`、语速 -10%、24kbps 单声道，带 SRT 字幕跟随，离线可用、与访客设备无关；
+2. **🎤 浏览器增强**：无音频文件时（含 file:// 直开），用系统 speechSynthesis 择优音色（Natural/Neural 优先）朗读页面内嵌的同一份口语脚本；
+3. **🧩 兼容模式**：两者皆不可用时直读页面 DOM（表格按口语规则转写，永不逐格朗读）。
+
+**重新生成朗读脚本与音频**（内容更新后执行，支持断点续跑）：
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -i https://mirrors.aliyun.com/pypi/simple/ edge-tts
+python3 scripts/gen_narration.py                      # 重新生成脚本并更新页面内嵌
+./.venv/bin/python scripts/synth_tts.py --shrink      # 批量合成(--only 05 可只合成某页)
+```
+
+换音色：改 `scripts/synth_tts.py` 顶部 `VOICE`（如 `zh-CN-YunxiNeural` 男声），删掉 `audio/` 后重跑即可。
+
 ## 数据与隐私
+
+
 
 - 全部学习进度存在**你自己的浏览器** localStorage 中（键前缀 `ce_v1_`），不上传任何服务器。
 - 更换浏览器 / 清理浏览器数据会丢失进度；如需迁移，可复制 localStorage 中 `ce_v1_` 开头的键值。

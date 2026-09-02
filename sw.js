@@ -1,5 +1,5 @@
 /* 架构师学堂 Service Worker：安装期预缓存全站（含 62 个知识点页），实现完整离线可用 */
-var CACHE = 'architect-exam-v4';
+var CACHE = 'architect-exam-v5';
 var CORE = [
   './', './index.html', './review.html', './graph.html',
   './assets/style.css', './assets/app.js', './assets/kp-index.json',
