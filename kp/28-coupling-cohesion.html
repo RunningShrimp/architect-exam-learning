@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28 · 模块设计与内聚耦合 · 架构师学堂</title>
+<meta name="description" content="高内聚=一个人只干一类活，低耦合=同事之间少互相打扰。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="27-dfd.html">前置 27</a></span>
+    <h1>28 · 模块设计与内聚耦合</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">高内聚=一个人只干一类活，低耦合=同事之间少互相打扰。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>工地上的机电班组要改一台发动机的型号：A 工地里，机电班自己换完就完事；B 工地里，机电班要冲进木工班翻他们的料仓、还要口头通知水电班「看到红色旗子就停工」。三个月后两个工地的返工成本差了 5 倍。把班组换成软件模块：是什么属性决定了「改一处、动全身」还是「改一处、只一处」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>两个属性：<strong>内聚</strong>（模块内部各成分联系紧不紧）和<strong>耦合</strong>（模块之间联系多不多）。B 工地的问题一是「班组内干杂活」=低内聚，二是「班组间互相翻料仓、传暗号」=高耦合。设计目标是<strong>高内聚、低耦合</strong>——像维修店街：每家店只修一类东西（专精），店与店只递一张单据（传数据），绝不冲进对方店里拆零件。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>27 · 结构化分析与数据流图</b>（DFD 的加工就是未来要划分的模块）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>内聚（Cohesion）</strong>衡量一个模块内部各成分之间的联系紧密程度，<strong>越高越好</strong>；<strong>耦合（Coupling）</strong>衡量模块之间的联系紧密程度，<strong>越低越好</strong>。两者合称「模块独立性」——这是把 27 页 DFD 里的加工划分成模块时的两大设计准则。</p>
+      <h3>解决什么问题</h3>
+      <p>模块划分的本质是「分工」：分得太碎且互相纠缠，改一处崩全身（高耦合）；一个模块里塞进不相干的杂活，读不懂也改不动（低内聚）。高内聚低耦合的系统，修改成本被<strong>隔离在单个模块内部</strong>。</p>
+      <h3>核心机制：两级排序（必背，方向别背反）</h3>
+      <table class="tbl">
+        <tr><th>方向</th><th>内聚七级（低→高）</th><th>耦合七级（低→高，即最好→最差）</th></tr>
+        <tr><td>口诀</td><td><strong>偶逻时过通顺功</strong></td><td><strong>非数标控外公内</strong></td></tr>
+        <tr><td>1</td><td>偶然内聚：杂活凑一班（把不相干的语句凑在一个模块）</td><td>非直接耦合：两模块毫无关系，各自独立</td></tr>
+        <tr><td>2</td><td>逻辑内聚：同类活选着干（如一个模块按参数选择打印日志/账单）</td><td>数据耦合：只传简单数据值</td></tr>
+        <tr><td>3</td><td>时间内聚：同一时间一起干（如系统初始化把一堆活凑一起）</td><td>标记耦合：传递整个数据结构名（只用到其中一部分）</td></tr>
+        <tr><td>4</td><td>过程内聚：按固定流程先后干</td><td>控制耦合：传递开关/标志控制对方怎么干</td></tr>
+        <tr><td>5</td><td>通信内聚：对同一数据集做不同操作（读入后分别算平均和打印）</td><td>外部耦合：都依赖同一外部环境（如同一 I/O 设备格式）</td></tr>
+        <tr><td>6</td><td>顺序内聚：前一个活动的输出是后一个的输入</td><td>公共耦合：共享全局数据区</td></tr>
+        <tr><td>7</td><td>功能内聚：只干一件事，干到底（计算利息）</td><td>内容耦合：直接进对方内部改代码/数据、goto 跳入</td></tr>
+      </table>
+      <p>注：个别教材在通信与顺序之间还列「信息内聚」，软考主流口径为上表七级，答题按题目给定的排序口径。</p>
+      <h3>关键细节：易混三级辨析</h3>
+      <ul>
+        <li><strong>逻辑 vs 时间内聚</strong>：逻辑=「功能同类、由参数选择执行哪一个」；时间=「执行时间相同但功能不相干」。初始化一堆不相干模块是<strong>时间</strong>，不是逻辑。</li>
+        <li><strong>通信 vs 顺序内聚</strong>：通信=「围绕同一数据做几件不同的事」；顺序=「前一活动输出正好是后一活动输入」。</li>
+        <li><strong>数据 vs 标记 vs 控制耦合</strong>：传数值=数据；传结构名但只用一部分=标记；传标志位改变对方逻辑=控制。</li>
+        <li><strong>公共 vs 内容耦合</strong>：共享全局数据区=公共；闯进对方内部（改对方代码/数据、goto 进入）=内容，最恶劣。</li>
+      </ul>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①<strong>方向</strong>是最大的坑：内聚「越高越好」，耦合「越低越好」；考题问「从低到高排列」还是「耦合由强到弱」，先读清方向再落笔。②「传递标志位」是控制耦合不是数据耦合。③共享全局数组是公共耦合；直接修改对方模块内部数据是内容耦合，二者别混。④「模块越小越好」是误区：拆得过碎反而增加耦合（调用关系变多）。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>cohesion 内聚 · coupling 耦合 · module independence 模块独立性 · control coupling 控制耦合</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>高内聚低耦合 = <strong>维修店街</strong>：修车的只修车、修表的只修表（每家专精一类活=功能内聚）；换零件递一张单据给配件店（只传数据=数据耦合），绝不冲进对方仓库自己翻箱倒柜（拒绝内容/公共耦合）。若一条街上每家店都「顺带干所有活」（偶然内聚），任何一家改营业时间，全街都得跟着折腾。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>修车店只修车</td><td>功能内聚</td><td>成立</td></tr>
+      <tr><td>递单据订零件</td><td>数据耦合（传必要数据）</td><td>成立</td></tr>
+      <tr><td>冲进对方仓库翻零件</td><td>公共/内容耦合</td><td>成立</td></tr>
+      <tr><td>传「看到红旗就停工」暗号</td><td>控制耦合</td><td>成立</td></tr>
+      <tr><td>店越小越好，一条街开店越多越好</td><td>模块粒度</td><td><b>失效</b>：模块过碎会引入大量调用接口，耦合反而上升；粒度要合适</td></tr>
+    </table>
+    <div class="rhyme">内聚偶逻时过通顺功，一级更比一级浓；<br>耦合非数标控外公内，越低越松越轻松；<br>高内聚来低耦合，专精少扰维修街；<br>标志位是控制耦，全局共享公共黏。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「修改传播」：一个修改请求落在模块 A，耦合度越高，波及的模块越多、独立性越差。拖动「耦合度」滑块观察波纹范围变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>耦合度 <input type="range" id="cp-slider" min="0" max="100" step="5" value="30"> <span id="cp-out">30</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把内聚七级从低到高排好</h4>
+      <p class="foreshadow">口诀「偶逻时过通顺功」。把卡片拖入槽中排成从低到高：</p>
+      <div id="ch-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="ch-slot"></div>
+      <button class="btn" id="ch-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：工程场景 ↔ 耦合类型</h4>
+      <p class="foreshadow">先点左列场景，再点右列耦合类型：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="cp-left"></div>
+        <div id="cp-right"></div>
+      </div>
+      <button class="btn" id="cp-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（场景判断）：这是哪种内聚？</h4>
+      <p class="foreshadow">逐条判断内聚类型，判错会告诉你错在哪一步：</p>
+      <div id="co-list"></div>
+      <div class="lab-feedback" id="lab3-fb">点击第一条开始。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>27 页 DFD 画出了「有哪些加工」；本页回答「这些加工怎么组合成模块才好改」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「高内聚低耦合」在 <b>46 · 设计原则与GoF总览</b> 里长成单一职责、接口隔离、开闭原则等成文规则；</li><li>「降低耦合」的架构级做法在 <b>38 · SOA与微服务</b> 变成按业务拆店、接口通信。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>内聚</th><th>耦合</th></tr>
+      <tr><td>度量对象</td><td>模块<strong>内部</strong>成分间的联系</td><td>模块<strong>之间</strong>的联系</td></tr>
+      <tr><td>好坏方向</td><td>越高越好（偶然→功能）</td><td>越低越好（非直接→内容）</td></tr>
+      <tr><td>易错点</td><td>把时间内聚（初始化一堆杂活）当功能内聚</td><td>把传标志位（控制耦合）当数据耦合</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">内聚看「一个模块像不像一个人」，耦合看「一群模块像不像一支互不拆台的队伍」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——我们班分组做值日……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 内聚低→高「偶逻时过通顺功」，越高越好；耦合低→高「非数标控外公内」，越低越好。</li><li>② 最常考的三组辨析：逻辑vs时间（看是否同类功能）、通信vs顺序（看输出是否恰好是下一输入）、数据vs标记vs控制（传值/传结构/传开关）。</li><li>③ 设计目标「高内聚低耦合」=维修店街：专精一门、递单据不拆台。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '28', domain: 'se', loc: 'construction', root: '..',
+  title: '模块设计与内聚耦合', prev: '27-dfd.html', prevTitle: '27 · 结构化分析与数据流图',
+  next: '29-oo-basics.html', nextTitle: '29 · 面向对象基础',
+  keywords: ['内聚','耦合','功能内聚','数据耦合','控制耦合','公共耦合','内容耦合','模块独立性']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·27】DFD 中「每个加工必须有输入且有输出」这条铁律，与模块设计的哪个目标最相关？',
+    opts: [
+      { t: '加工（未来的模块）职责完整、边界清晰，正是高内聚低耦合的前身', why: '对。DFD 加工的进出清晰，划分模块时才谈得上内聚与耦合。' },
+      { t: '数据字典的符号规范', why: '字典管数据定义，不管模块划分。' },
+      { t: '父图子图平衡', why: '平衡是图与图之间的对照规则，不是模块质量目标。' }
+    ],
+    ans: 0, tag: '回忆:27', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '按内聚程度<strong>从低到高</strong>排列，正确的是？',
+      opts: [
+        { t: '偶然、逻辑、时间、过程、通信、顺序、功能', why: '对。口诀「偶逻时过通顺功」正是低到高。' },
+        { t: '偶然、时间、逻辑、过程、通信、顺序、功能', why: '时间和逻辑次序颠倒：逻辑内聚低于时间内聚。' },
+        { t: '功能、顺序、通信、过程、时间、逻辑、偶然', why: '这是从高到低，方向反了。' },
+        { t: '逻辑、偶然、时间、过程、顺序、通信、功能', why: '偶然应最低，通信在顺序之前。' }
+      ],
+      ans: 0, tag: '排序', src: '仿真题' },
+    { q: '模块 P 给模块 Q 传一个「标志位」，Q 根据它的值走完全不同的处理逻辑。P 与 Q 之间是？',
+      opts: [
+        { t: '数据耦合', why: '数据耦合传的是「供处理用的数值」，不改变对方逻辑分支。' },
+        { t: '控制耦合', why: '对。传递控制信号（开关/标志）支配对方怎么执行，就是控制耦合。' },
+        { t: '公共耦合', why: '公共耦合是共享全局数据区，与传标志无关。' },
+        { t: '标记耦合', why: '标记耦合传的是数据结构名（只用其一部分），不是控制信号。' }
+      ],
+      ans: 1, tag: '耦合判断', src: '仿真题' },
+    { q: '某模块把「系统初始化、打开日志文件、给员工发工资」三个不相干的活凑在一起，因为它们都在开机后第一件事执行。该模块的内聚类型是？',
+      opts: [
+        { t: '逻辑内聚', why: '逻辑内聚要求功能同类、按参数择一执行，这三件事不同类。' },
+        { t: '时间内聚', why: '对。执行时间相同但功能不相干，是典型时间内聚。' },
+        { t: '偶然内聚', why: '偶然内聚连「同一时间执行」的关联都没有，纯属凑代码。' },
+        { t: '过程内聚', why: '过程内聚强调按固定流程先后执行的相关活动。' }
+      ],
+      ans: 1, tag: '内聚判断', src: '仿真题' },
+    { q: '【交错复习·27】模块划分经常直接以 DFD 的加工为基础。27 页学过，DFD 加工的子加工编号「1.1、1.2」体现的层级关系，对应模块结构图中的什么？',
+      opts: [
+        { t: '模块间的调用层次（上层模块调用下层模块）', why: '对。编号层级映射为调用层次：父加工细化的子加工成为被调用模块。' },
+        { t: '模块间的数据耦合强度', why: '编号只表达分解层级，不表达耦合类型。' },
+        { t: '模块的内聚级别', why: '内聚要看模块内部成分，编号看不出内聚。' }
+      ],
+      ans: 0, tag: '交错复习:27', src: '仿真题' },
+    { q: '下列耦合方式中，最容易导致「改 A 模块的一行内部代码，B 模块就崩溃」的是？',
+      opts: [
+        { t: '数据耦合', why: '只传数据值，改动内部实现只要接口不变就不影响对方。' },
+        { t: '外部耦合', why: '外部耦合共享外部环境约定，不至于改内部代码即崩。' },
+        { t: '内容耦合', why: '对。内容耦合直接进入对方内部改代码/数据或 goto 跳入，内部一变对方即崩。' },
+        { t: '控制耦合', why: '控制耦合通过标志影响对方逻辑分支，恶劣程度不及内容耦合。' }
+      ],
+      ans: 2, tag: '耦合判断', src: '仿真题' }
+  ], { kpId: '28', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某进销存系统的模块结构：模块 M1「主控」向 M2「统计」传递全局数组 sharedData，同时传一个标志位 printType 决定 M2 打印报表还是打印明细；M2 内部既做数据汇总，又做图表绘制，还顺带校验用户权限；M3「图表库」直接读写 M2 模块内部的数组元素。',
+    q: '(1) 逐一指出 M1-M2、M2 内部、M2-M3 各存在什么问题（引用内聚/耦合术语）；(2) 说明每个问题带来的维护风险；(3) 给出对应的重构方向。',
+    ref: '(1) 问题：①M1 与 M2 之间既共享全局数据（公共耦合）又传标志位（控制耦合）；②M2 内部汇总/绘图/权限校验三类不相关活动混杂，属于低内聚（至多为偶然/逻辑级）；③M3 直接读写 M2 内部数据，属内容耦合。(2) 风险：公共+控制耦合使 M1 的任何调整（数组结构、标志取值）都牵动 M2；M2 职责混杂导致改绘图可能破坏权限校验；内容耦合使 M2 内部数据布局一变 M3 即崩——整体表现为「改一处、动全身」。(3) 重构：①以参数传递 M2 所需的具体数据替代全局数组（降为数据耦合），把「打印类型」改为两个独立调用替代标志位（消除控制耦合）；②按职责拆分 M2 为「统计汇总」「图表绘制」「权限校验」三个功能内聚模块；③M3 改为通过参数接收绘图数据（数据耦合），不直接访问 M2 内部。',
+    points: ['准确使用术语定位三处问题（公共+控制耦合/低内聚/内容耦合）', '风险与问题一一对应，说出「改一处动全身」机理', '重构方向针对性强：数据耦合替代、职责拆分、接口化访问'],
+    frame: '答题框架：逐处「术语定位→风险说明→重构方案」三段式，先静态诊断再给改造路线。',
+    kpId: '28'
+  });
+  CX.renderCase('#case2', {
+    stem: '评审会上，新人主张「模块拆得越小越好，一个函数一个模块，独立性一定高」；老工程师说「上次把读文件模块拆成 8 个小模块后，8 个模块互相传中间结果，改动一处读文件格式，8 个模块都要跟着改」。',
+    q: '(1) 用内聚/耦合的语言解释两人说法的分歧实质；(2) 给出判断「模块粒度是否合适」的两条准则；(3) 说明为什么「高内聚」与「低耦合」要同时追求。',
+    ref: '(1) 分歧实质：新人只看模块「内部」（以为小=内聚高），忽略了模块「之间」的耦合——拆得过碎使中间结果必须跨模块传递，调用接口暴增，耦合上升；老工程师的例子正是「碎片化→高耦合」的反例。(2) 两条准则：①功能准则——一个模块应能以一句话（无「并且」）说清职责（功能内聚），说清就不再拆；②接口准则——模块间应只传必要的输入/输出数据（数据耦合为主），若发现大量中间结果跨模块流动，说明粒度过碎。(3) 两者必须同时追求：只追求高内聚可能拆出大量小模块导致高耦合；只追求低耦合可能把不相干功能塞进一个巨型模块导致低内聚。独立性=高内聚且低耦合，缺一不可。',
+    points: ['点出「只看内部忽略之间」的分歧实质', '给出可操作的粒度判断准则（职责一句话/接口数据量）', '论证内聚与耦合必须同时追求及其相互制约'],
+    frame: '答题框架：翻译分歧（术语化）→给准则（可操作）→辩证收尾（互相制约）。',
+    kpId: '28'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '一条小吃街：A 店「做啥看心情」、B 店「早上做包子、中午做炒菜（按到店时间切换）」、C 店「只做肠粉做到极致」。对顾客口碑最好的分工方式与本页哪个概念对应？',
+    opts: [
+      { t: 'B 店的时间内聚', why: '按时间凑活恰恰不是好分工，口碑不会好。' },
+      { t: 'C 店的功能内聚：只做一件事做到极致', why: '对。功能内聚=只干一类活、干到底，正是「高内聚」的生活版。' },
+      { t: 'A 店的偶然内聚', why: '杂活凑一班是最低的内聚，最差分工。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['27'], 'prev');
+  CX.depChain('#bridge-next', ['46'], 'next');
+
+  /* ---- 动画：修改传播与耦合度 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var cp = 30;
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="修改传播演示">';
+    s += '<defs><marker id="arwC" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--bad)"/></marker></defs>';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 三家维修店=模块A B C */
+    var shops = [{ x: 90, y: 110, n: '模块A 维修店', hit: true }, { x: 320, y: 110, n: '模块B 配件店', hit: cp >= 35 }, { x: 550, y: 110, n: '模块C 洗车行', hit: cp >= 65 }];
+    var wave = t * 420;
+    shops.forEach(function (sh) {
+      var on = sh.hit && wave > (sh.x - 90) * 0.6;
+      s += '<rect x="' + sh.x + '" y="' + sh.y + '" width="130" height="70" rx="10" fill="' + (on ? 'var(--bad)' : 'var(--card)') + '" opacity="' + (on ? '.85' : '1') + '" stroke="var(--line)"/>';
+      s += '<text x="' + (sh.x + 65) + '" y="' + (sh.y + 40) + '" text-anchor="middle" font-size="13" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + sh.n + '</text>';
+    });
+    /* 耦合连线：线宽随耦合度 */
+    if (cp >= 20) s += '<line x1="220" y1="145" x2="320" y2="145" stroke="var(--bad)" stroke-width="' + (1 + cp / 25) + '" opacity=".7"' + (cp < 35 ? ' stroke-dasharray="6 5"' : '') + '/>';
+    if (cp >= 50) s += '<line x1="450" y1="145" x2="550" y2="145" stroke="var(--bad)" stroke-width="' + (1 + cp / 25) + '" opacity=".7"' + (cp < 65 ? ' stroke-dasharray="6 5"' : '') + '/>';
+    if (cp >= 80) s += '<path d="M 155 110 C 200 40, 520 40, 615 110" fill="none" stroke="var(--bad)" stroke-width="' + (cp / 22) + '" opacity=".55"/>';
+    /* 修改波纹 */
+    if (t > 0.05) {
+      s += '<circle cx="155" cy="145" r="' + Math.min(wave, 26) + '" fill="none" stroke="var(--accent)" stroke-width="3"/>';
+      s += '<circle cx="155" cy="145" r="' + Math.min(wave * 0.9 + 30, 500) + '" fill="none" stroke="var(--accent)" stroke-width="1.2" opacity=".5"/>';
+      s += '<text x="155" y="98" text-anchor="middle" font-size="12" fill="var(--accent)">改发动机型号</text>';
+    }
+    /* 受影响清单 */
+    var affected = (cp >= 35 ? 1 : 0) + (cp >= 65 ? 1 : 0);
+    s += '<text x="360" y="232" text-anchor="middle" font-size="14" fill="' + (affected ? 'var(--bad)' : 'var(--ok)') + '">耦合度 ' + cp + '：本次修改波及 ' + (affected + 1) + ' 个模块，模块独立性 ' + (100 - cp) + '/100</text>';
+    s += '<text x="360" y="262" text-anchor="middle" font-size="13" fill="var(--text-dim)">' + (cp <= 30 ? '递单据订零件（数据耦合）：修改被隔离在模块 A 内部' : cp <= 60 ? '互相传暗号（控制耦合）：B 也要跟着改判断逻辑' : '互闯仓库（公共/内容耦合）：全街一起返工') + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.3) cap = '第一步：修改请求落在模块 A，波纹开始扩散';
+    else if (t < 0.6) cap = cp >= 35 ? '波纹沿粗耦合线撞到模块 B——它被迫跟着改' : '耦合低：波纹到店门口就停了，B 与 C 安然无恙';
+    else cap = cp >= 65 ? '高耦合：C 也被殃及（甚至被直连线拖下水），独立性只剩 ' + (100 - cp) : '低耦合：修改只伤到 A 自己，这就是「低耦合」的价值';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 18, duration: 9, onTick: draw });
+  var cpsl = CX.utils.$('cp-slider');
+  cpsl.addEventListener('input', function () {
+    cp = +cpsl.value;
+    CX.utils.$('cp-out').textContent = cp;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：内聚七级排序 ---- */
+  (function () {
+    var expect = ['偶然内聚（杂活凑一班）', '逻辑内聚（同类活选着干）', '时间内聚（同一时间一起干）', '过程内聚（按固定流程干）', '通信内聚（同一数据不同操作）', '顺序内聚（输出即下一输入）', '功能内聚（只干一件事）'];
+    var pool = CX.utils.$('ch-pool'), slot = CX.utils.$('ch-slot');
+    CX.shuffle(expect.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]') || slot.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('ch-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab1-fb');
+      if (got.length < 7) { fb.textContent = '还有 ' + (7 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      var hints = ['最低级：纯凑代码；', '同类但按参数择一执行；', '只是时间凑到一起；', '按流程先后但围绕不同数据；', '围绕同一数据集做多件事；', '前一活动输出恰好是后一输入；', '最高级：只做一件事做到底。'];
+      for (var i = 0; i < 7; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 位放错了：你放了「' + got[i] + '」。提示：' + hints[i] + '（口诀：偶逻时过通顺功）';
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 排序正确：偶逻时过通顺功——内聚越高模块越专精。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验二：场景↔耦合类型匹配 ---- */
+  (function () {
+    var pairs = [
+      ['A 模块把常数 3.14 传给 B 计算', '数据耦合'],
+      ['A 把整个「员工记录」结构传给 B，B 只用到其中工号', '标记耦合'],
+      ['A 传标志位决定 B 执行打印还是保存', '控制耦合'],
+      ['A 与 B 都依赖同一个全局数据区', '公共耦合'],
+      ['A 直接修改 B 模块内部的代码语句', '内容耦合']
+    ];
+    var lBox = CX.utils.$('cp-left'), rBox = CX.utils.$('cp-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab2-fb').textContent = '已选场景，请在右列点耦合类型。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个场景。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+            CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab2-fb').textContent = '❌ 判断错了。逐问排查：传的是什么？数值=数据、结构名=标记、开关信号=控制；共享谁？全局区=公共、对方内部=内容。';
+            CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('cp-reset').addEventListener('click', function () { build(); CX.utils.$('lab2-fb').textContent = ''; });
+  })();
+
+  /* ---- 实验三：内聚类型场景判断 ---- */
+  (function () {
+    var items = [
+      { t: '模块「打印输出」：根据参数分别选择打印工资表、打印发票、打印清单', ans: 1, name: '逻辑内聚',
+        why: '功能同类、由参数择一执行，是逻辑内聚（注意不是时间）。' },
+      { t: '模块「开机初始化」：把打开日志、加载配置、清零计数器凑在一起执行', ans: 2, name: '时间内聚',
+        why: '执行时间相同但功能不相干，是时间内聚。' },
+      { t: '模块「库存日结」：先读入当日流水计算汇总，再把汇总结果写入报表文件', ans: 3, name: '顺序内聚',
+        why: '前一活动的输出恰好是后一活动的输入，顺序内聚。' },
+      { t: '模块「月报处理」：读同一份销售数据，分别计算增长率并打印图表', ans: 4, name: '通信内聚',
+        why: '围绕同一数据集做多个不同操作，是通信内聚（不是顺序：两个活动都直接用原始数据）。' }
+    ];
+    var names = ['偶然内聚', '逻辑内聚', '时间内聚', '顺序内聚', '通信内聚', '功能内聚'];
+    var box = CX.utils.$('co-list'), idx = 0, okCnt = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>判断完成：答对 ' + okCnt + '/' + items.length + '。</p>';
+        CX.utils.$('lab3-fb').textContent = okCnt === items.length ? '✅ 四个易混级别全对：逻辑看「择一执行」，时间看「凑时间」，顺序看「输出接输入」，通信看「同一数据多操作」。' : '重点复习易混对：逻辑vs时间、通信vs顺序。';
+        CX.utils.$('lab3-fb').className = okCnt === items.length ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      var it = items[idx];
+      var html = '<p><b>' + (idx + 1) + '. ' + it.t + '</b></p><div style="display:flex;gap:8px;flex-wrap:wrap">';
+      names.forEach(function (n, i) { html += '<button class="btn" data-i="' + i + '">' + n + '</button>'; });
+      box.innerHTML = html + '</div>';
+      CX.utils.$$('button[data-i]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i = +b.getAttribute('data-i'), fbx = CX.utils.$('lab3-fb');
+          if (i === it.ans) { okCnt++; fbx.textContent = '✅ 对，是' + it.name + '：' + it.why; fbx.className = 'lab-feedback ok'; }
+          else { fbx.textContent = '❌ 你选了' + names[i] + '。错在判据没对准——' + it.why; fbx.className = 'lab-feedback bad'; }
+          idx++; setTimeout(render, 900);
+        });
+      });
+    }
+    render();
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

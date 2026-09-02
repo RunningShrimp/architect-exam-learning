@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25 · 软件过程模型 · 架构师学堂</title>
+<meta name="description" content="瀑布直走、螺旋打转、敏捷小跑——选过程模型就是选施工组织方式。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <h1>25 · 软件过程模型</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">瀑布直走、螺旋打转、敏捷小跑——选模型就是选施工组织方式。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>公司中标「智慧园区能耗监测平台」。启动会上业主说"先把大概样子做出来给我看看，边看边改"；可验收条款又白纸黑字要求每阶段提交评审记录与正式文档。团队吵翻了：有人喊瀑布，有人喊敏捷。你是技术负责人，怎么定施工组织方式？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这不是二选一，而是先拆开看：哪部分需求不确定？<strong>界面与展示</strong>不确定（业主想"看了再说"），哪部分必须文档严谨？<strong>验收与合规</strong>。常见解法是组合拳：总体计划按阶段走、关键评审文档保留（满足验收），界面与报表部分先做<strong>原型</strong>给业主确认（吸收不确定性），开发过程用小步迭代交付（吸收变更）。考点上的启示：模型没有最好，只有适不适配——需求明确度、风险高低、能否分期交付，是选型的三个核心依据。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本点是软件工程域的第一站（无前置依赖）。上一站 <b>24 · 应用层协议与安全设备</b> 刚学完，先回忆一下：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>过程模型规定了软件从<strong>需求到交付</strong>要经过哪些阶段、按什么顺序做、什么时候回头返工——它就是软件的「施工组织方式」。在建设工地的隐喻里：需求是业主诉求书，编码是砌墙，测试是监理验收，而过程模型决定的是<strong>这些工序怎么排班</strong>。</p>
+      <h3>解决什么问题</h3>
+      <p>没有组织方式的工地会乱成一团：返工无度、风险爆雷、交付遥遥无期。不同项目的「需求明确度、风险高低、变更频率」差别巨大，所以需要不同的组织方式来匹配。</p>
+      <h3>核心机制（六大模型逐个过）</h3>
+      <table class="tbl">
+        <tr><th>模型</th><th>一句话机制</th><th>适用场景（一句话）</th></tr>
+        <tr><td>瀑布模型</td><td>线性顺序走完需求→设计→编码→测试→运维，文档驱动、阶段评审做里程碑</td><td>需求明确稳定、技术成熟、文档要求严的项目</td></tr>
+        <tr><td>原型模型</td><td>先快速造个「样板间」给业主试用，确认后再正式开发（分抛弃型/演化型）</td><td>需求不明确、界面交互难以事先说清的系统</td></tr>
+        <tr><td>螺旋模型</td><td>瀑布+原型+<strong>风险分析</strong>，每圈四象限：制定计划→风险分析→实施工程→客户评估</td><td>大型、复杂、高风险项目（<strong>风险驱动</strong>）</td></tr>
+        <tr><td>增量模型</td><td>分批建造分批交付，第一个增量通常是核心产品，后续增量逐步完善</td><td>需要尽早交付核心功能、可分期上线、人员分批到位</td></tr>
+        <tr><td>喷泉模型</td><td>各阶段重叠迭代、无明显间隙，<strong>面向对象</strong>开发典型模型</td><td>采用面向对象方法、需要迭代的项目</td></tr>
+        <tr><td>RUP 统一过程</td><td>用例驱动、以架构为中心、迭代增量；<strong>四阶段</strong>：初始→细化→构造→移交；<strong>九核心工作流</strong>贯穿全程</td><td>大中型项目需要可裁剪的规范迭代框架</td></tr>
+      </table>
+      <p><strong>RUP 九个核心工作流</strong>：6 个工程工作流（业务建模、需求、分析与设计、实现、测试、部署）+ 3 个支持工作流（配置与变更管理、项目管理、环境）。四阶段是「时间轴」，九工作流是「每个时间段都在干活的工种」——不是九个阶段！</p>
+      <p><strong>敏捷家族</strong>：价值观是「个体和互动、可工作的软件、客户协作、响应变化」高于过程与工具、详尽文档、合同谈判、遵循计划。<strong>Scrum</strong> 的骨架：3 个角色（产品负责人 Product Owner、Scrum Master、开发团队）、3 个工件（产品 Backlog、冲刺 Backlog、增量）、固定周期「冲刺（Sprint）」+ 每日站会 + 评审与回顾。<strong>XP 极限编程</strong>的代表实践：结对编程、测试驱动开发（TDD）、持续集成、重构、小版本发布。</p>
+      <h3>关键细节</h3>
+      <ul>
+        <li>瀑布的优点是<strong>可追溯、便于管理</strong>；死穴是「直到后期才见到可运行软件，变更代价随阶段指数上涨」。</li>
+        <li>原型的关键分类：<strong>抛弃型</strong>（样板间拆掉重盖）与<strong>演化型</strong>（样板间直接改造成正式房）。</li>
+        <li>螺旋每一圈都必须做<strong>风险分析</strong>，这是它区别于其他模型的胎记；缺点是需要有经验的风险评估人员，用不好就是「画圈圈」。</li>
+        <li>增量的「核心优先」：先交付最重要、风险最高的部分，让用户早用早反馈。</li>
+      </ul>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①螺旋模型的标签是「风险驱动」，不是「客户驱动」也不是「文档驱动」；②喷泉模型的标签是「面向对象+迭代无间隙」；③RUP 是「四阶段 + 九工作流」，千万别答成「九个阶段」；④增量与螺旋都迭代，但增量按<strong>功能分批</strong>、螺旋按<strong>风险转圈</strong>。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>spiral model 螺旋模型 · risk-driven 风险驱动 · incremental model 增量模型 · sprint 冲刺 · use-case driven 用例驱动</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在建设工地里，选过程模型就是选<strong>施工组织方式</strong>：瀑布是按图纸按部就班的正规军；原型是先盖样板间；螺旋是每盖一圈先开安全风险会；增量是一期先交房入住、二期三期再上配套；喷泉是设计施工来回倒的流水作业；敏捷是两周一次小竣工、业主随时来提意见。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>按工序一栋楼盖到顶</td><td>瀑布模型线性推进</td><td>成立</td></tr>
+      <tr><td>先盖样板间给业主看</td><td>原型确认需求</td><td>成立</td></tr>
+      <tr><td>每层楼开工前先开风险会</td><td>螺旋每圈先做风险分析</td><td>成立</td></tr>
+      <tr><td>一期主体交房、二期加配套</td><td>增量分批交付</td><td>成立</td></tr>
+      <tr><td>样板间直接当正式房卖</td><td>演化型原型</td><td>成立</td></tr>
+      <tr><td>工地盖得越快质量一定越好</td><td>敏捷=快速+高质量</td><td><b>失效</b>：敏捷靠纪律（站会/TDD/持续集成）保质量，不是单纯求快</td></tr>
+    </table>
+    <div class="rhyme">瀑布直走不回还，文档评审记周全；<br>原型样板给业主，看样确认再动砖；<br>螺旋转圈风险探，每圈先评后开钻；<br>增量分批先交付，核心功能早见面；<br>喷泉迭代面向象，阶段重叠不设槛；<br>RUP四段九流贯，用例架构中心点。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画在横轴=时间上画出六种施工组织方式的推进形态：用滑块切换模型，点播放看各模型如何随时间推进。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>选择模型 <input type="range" id="model-slider" min="0" max="5" step="1" value="0"> <span id="model-out">0 瀑布模型</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（场景选型）：给三个工地选施工组织方式</h4>
+      <p class="foreshadow">点选你认为最合适的模型，做错会告诉你错在哪一步：</p>
+      <div id="pick-list"></div>
+      <div class="lab-feedback" id="lab1-fb">请先选择场景一。</div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：把 RUP 的四个阶段按时间排好</h4>
+      <p class="foreshadow">把下方卡片拖入槽中，从项目开始到结束排序：</p>
+      <div id="rup-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="rup-slot"></div>
+      <button class="btn" id="rup-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：模型 ↔ 它的胎记关键词</h4>
+      <p class="foreshadow">先点左列一个模型，再点右列它的标志性特征：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>本点是软件工程域的第一站，没有前置依赖——你只需要带着「工地施工」的常识来。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>瀑布的第一格「需求」在 <b>26 · 需求工程</b> 展开成四道关；</li><li>V 模型的右半边在 <b>31 · 软件测试</b> 与开发阶段一一对应；</li><li>敏捷里的「重构、TDD」背后是 <b>46 · 设计原则与GoF总览</b> 的开闭原则。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>螺旋模型</th><th>增量模型</th></tr>
+      <tr><td>差异点</td><td>每圈必做风险分析，按「风险」组织迭代</td><td>按「功能批次」组织交付，风险分析不是标配</td></tr>
+      <tr><td>典型项目</td><td>大型高风险（航天、核心银行）</td><td>要尽早上线核心功能的产品</td></tr>
+      <tr><td>易错点</td><td>只记得「迭代」忘了「风险驱动」</td><td>与螺旋混为一谈，忽略「第一个增量=核心产品」</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">螺旋是风险驱动的转圈，增量是功能驱动的分期。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——盖房子有几种盖法……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 选模型=选施工组织方式，三个依据：需求明确度、风险高低、能否分期交付。</li><li>② 记住胎记词：瀑布=文档阶段、原型=样板间、螺旋=风险驱动、增量=核心先行、喷泉=OO迭代、RUP=四阶段九工作流。</li><li>③ 敏捷不是「快而糙」，Scrum 管角色工件事件、XP 管工程实践（结对/TDD/持续集成）。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '25', domain: 'se', loc: 'construction', root: '..',
+  title: '软件过程模型', prev: '24-app-protocols.html', prevTitle: '24 · 应用层协议与安全设备',
+  next: '26-requirements.html', nextTitle: '26 · 需求工程',
+  keywords: ['瀑布模型','原型模型','螺旋模型','风险驱动','增量模型','喷泉模型','RUP','敏捷']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（无同域前置，回忆上一站 24） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·24】浏览器与网站之间要「给管道上锁加密」，靠的是哪个协议？',
+    opts: [
+      { t: 'HTTP', why: 'HTTP 是明文窗口办事流程，没有加密。' },
+      { t: 'HTTPS = HTTP + SSL/TLS 加密层', why: '对。24 页说过：HTTPS 给管道加上锁，防窃听防篡改。' },
+      { t: 'DNS', why: 'DNS 是查号台，负责域名到 IP，不负责加密。' }
+    ],
+    ans: 1, tag: '回忆:24', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '螺旋模型每一圈都必须进行的标志性活动是？',
+      opts: [
+        { t: '用户验收测试', why: '验收测试不是每圈的标志，那是交付关口的事。' },
+        { t: '风险分析', why: '对。螺旋=瀑布+原型+风险分析，每圈四象限中「风险分析」是它的胎记。' },
+        { t: '代码走查', why: '属于编码阶段质量活动，不是螺旋模型的标志。' },
+        { t: '编制投标书', why: '与过程模型的迭代活动无关。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '某系统需求高度不明确、业主自己「想清楚了再改」，最适合首先采用哪个模型探明需求？',
+      opts: [
+        { t: '瀑布模型', why: '瀑布要求需求先定死，需求不明确时走瀑布会大量返工。' },
+        { t: '原型模型', why: '对。先造「样板间」给业主看和用，把模糊需求变成看得见的东西。' },
+        { t: '喷泉模型', why: '喷泉解决的是「面向对象+迭代」，不是探明需求的手段。' },
+        { t: 'RUP', why: 'RUP 是完整过程框架，探需求首选的轻量手段是原型。' }
+      ],
+      ans: 1, tag: '选型', src: '仿真题' },
+    { q: 'RUP 的九个核心工作流中，下列哪一项属于支持工作流而不是工程工作流？',
+      opts: [
+        { t: '业务建模', why: '这是六个工程工作流之一。' },
+        { t: '测试', why: '这是六个工程工作流之一。' },
+        { t: '配置与变更管理', why: '对。九工作流 = 6 工程（业务建模/需求/分析设计/实现/测试/部署）+ 3 支持（配置与变更管理/项目管理/环境）。' },
+        { t: '部署', why: '这是六个工程工作流之一。' }
+      ],
+      ans: 2, tag: '记忆', src: '仿真题' },
+    { q: '【交错复习·24】在 HTTP 与网站服务器之间部署反向代理做「给管道上锁」，终端浏览器到代理之间使用的协议是？',
+      opts: [
+        { t: 'HTTP', why: '明文传输，起不到加密作用。' },
+        { t: 'HTTPS', why: '对。上一站学过：HTTPS 是给管道加锁的 HTTP，SSL/TLS 负责加密与身份认证。' },
+        { t: 'FTP', why: '文件传输协议，与网页加密管道无关。' },
+        { t: 'SMTP', why: '邮件协议，与此场景无关。' }
+      ],
+      ans: 1, tag: '交错复习:24', src: '仿真题' },
+    { q: '「需求在合同中已明确稳定、法规要求每阶段留正式评审文档、几乎不允许变更」，最合适的模型是？',
+      opts: [
+        { t: '瀑布模型', why: '对。需求稳定+文档可追溯正是瀑布的主场。' },
+        { t: '原型模型', why: '原型针对需求模糊场景，此处需求已明确，不需要样板间。' },
+        { t: 'XP', why: 'XP 适合需求频繁变化的小团队快速迭代。' },
+        { t: '喷泉模型', why: '喷泉面向对象迭代，与「文档严谨、变更少」不匹配。' }
+      ],
+      ans: 0, tag: '选型', src: '仿真题' }
+  ], { kpId: '25', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某初创团队要做一款面向年轻用户的社交 App：目标用户喜好不明、玩法需快速试错、融资要求每 2 个月拿出可演示版本；团队仅 8 人但工程素养好。',
+    q: '(1) 你建议采用什么过程模型（或组合）？(2) 说明选型理由；(3) 指出该选择带来的两个管理新问题及对策。',
+    ref: '(1) 建议敏捷（Scrum）为主线、关键界面先做原型（抛弃型原型探需求）。(2) 理由：需求不确定→用迭代+原型吸收变更；两个月可演示→用 2~4 周冲刺天然对齐融资节奏；小团队协作紧密适合 Scrum 轻流程。(3) 新问题一：需求蔓延失控——对策是产品 Backlog 统一排序、每个冲刺目标锁定；新问题二：文档不足影响后续交接——对策是把必要文档（接口、数据字典）纳入「完成定义」DoD。',
+    points: ['给出敏捷/原型组合且与「需求不确定、快速演示」对应', '理由中至少联系场景两个特征（不确定/演示节奏/团队规模）', '主动指出需求蔓延与文档缺失两类新问题并给对策'],
+    frame: '答题框架：识别场景特征→候选模型对比→给结论并逐条对应理由→预测新引入的风险与对策。',
+    kpId: '25'
+  });
+  CX.renderCase('#case2', {
+    stem: '某大型民航信息系统改造：需求相对明确，但涉及多方系统集成、历史包袱重，任何一轮大改动失败都可能造成重大事故。领导要求「每投入一大笔钱前必须先评估风险」。',
+    q: '(1) 选择合适的过程模型；(2) 描述该项目一个迭代循环（一圈）的四个阶段活动；(3) 与瀑布相比该模型的两个优势。',
+    ref: '(1) 螺旋模型（风险驱动）。(2) 每圈四象限：①制定计划——确定本轮目标、方案与约束；②风险分析——评估集成与改造风险的备选方案、做原型验证；③实施工程——按验证后的方案开发与测试；④客户评估——民航局与航司评审成果、决定下一圈计划。(3) 优势一：风险分析前置，大投入之前先评估并验证方案，失败损失可控；优势二：每圈都有可评审成果，客户早介入早纠偏，比瀑布一次性交付风险小。',
+    points: ['明确选螺旋并点出「风险驱动」', '四象限顺序正确且活动贴合民航场景', '与瀑布对比优势成立（风险前置、客户早介入）'],
+    frame: '答题框架：选型结论→胎记特征→把通用四象限翻译成项目语言→对比优势（不可只说名词不说理由）。',
+    kpId: '25'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '保险理赔系统要 1 个月内先上线「报案登记」核心功能，之后每两个月追加一批功能。这与本页哪个模型的思想一致？',
+    opts: [
+      { t: '瀑布模型', why: '瀑布一次交付，不满足「先上核心」的节奏。' },
+      { t: '增量模型：核心功能作为第一个增量先交付', why: '对。增量=分批建造分批交付，第一个增量是核心产品。' },
+      { t: '原型模型', why: '原型是为了探明需求，不是为了分期上线。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', [], 'prev');
+  CX.depChain('#bridge-next', ['26', '31'], 'next');
+
+  /* ---- 动画：六种施工组织方式的时间轴形态 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var MODEL_NAMES = ['瀑布模型', '原型模型', '螺旋模型', '增量模型', '喷泉模型', 'RUP 统一过程'];
+  var cur = 0;
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function rbox(x, y, w, h, label, on, txtSize) {
+    var s = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>';
+    s += '<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + (txtSize ? txtSize / 2 - 1 : 5)) + '" text-anchor="middle" font-size="' + (txtSize || 13) + '" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + label + '</text>';
+    return s;
+  }
+  function drawWaterfall(p) {
+    var s = '', names = ['需求分析', '概要设计', '编码', '测试', '运行维护'];
+    var act = clamp(Math.floor(p * 5), 0, 4);
+    for (var i = 0; i < 5; i++) {
+      var x = 46 + i * 128, y = 46 + i * 44, on = i <= act;
+      s += rbox(x, y, 106, 34, names[i], on);
+      if (i < 4) s += '<path d="M ' + (x + 53) + ' ' + (y + 34) + ' L ' + (x + 53) + ' ' + (y + 44) + '" stroke="var(--text-dim)" stroke-width="2" marker-end="url(#arw)"/>';
+    }
+    s += '<circle cx="' + (46 + act * 128 + 53) + '" cy="' + (46 + act * 44 + 17) + '" r="8" fill="var(--accent)"/>';
+    s += '<text x="360" y="292" text-anchor="middle" font-size="13" fill="var(--text-dim)">一道工序验收合格才进入下一道：简单、可追溯，但后段才见成品</text>';
+    return s;
+  }
+  function drawPrototype(p) {
+    var s = '', names = ['需求初稿', '快速造原型', '业主试用', '反馈修订', '确认后正式开发'];
+    var seg = clamp(p * 5, 0, 4.999), act = Math.floor(seg);
+    for (var i = 0; i < 5; i++) s += rbox(30 + i * 136, 80, 118, 40, names[i], i <= act, 12);
+    s += '<path d="M 89 120 C 89 168 225 168 225 120" fill="none" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arwB)"/>';
+    s += '<text x="157" y="188" text-anchor="middle" font-size="12" fill="var(--bad)">看不满意就改（可循环多轮）</text>';
+    s += '<circle cx="' + (30 + act * 136 + 59) + '" cy="' + clamp(100 + (seg - act) * 30 - 15, 85, 115) + '" r="8" fill="var(--accent)"/>';
+    s += '<text x="360" y="292" text-anchor="middle" font-size="13" fill="var(--text-dim)">样板间先行：用看得见的东西逼出真实需求（抛弃型 / 演化型）</text>';
+    return s;
+  }
+  function drawSpiral(p) {
+    var s = '', cx0 = 360, cy0 = 168, pts = [], N = 260;
+    for (var i = 0; i <= N; i++) {
+      var th = i / N * Math.PI * 6, r = 6 + th * 10.2;
+      var x = cx0 + r * Math.cos(th + Math.PI / 2) * 0.92, y = cy0 - r * Math.sin(th + Math.PI / 2) * 0.66;
+      pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+    }
+    var up = Math.max(2, Math.floor(p * pts.length));
+    s += '<polyline points="' + pts.slice(0, up).join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
+    s += '<text x="150" y="52" font-size="13" fill="var(--ok)">制定计划</text>';
+    s += '<text x="480" y="52" font-size="13" fill="var(--bad)">风险分析(每圈必做)</text>';
+    s += '<text x="500" y="286" font-size="13" fill="var(--ok)">实施工程</text>';
+    s += '<text x="90" y="286" font-size="13" fill="var(--ok)">客户评估</text>';
+    s += '<circle cx="' + pts[up - 1].split(',')[0] + '" cy="' + pts[up - 1].split(',')[1] + '" r="7" fill="var(--accent-2)"/>';
+    s += '<text x="360" y="306" text-anchor="middle" font-size="12" fill="var(--text-dim)">每转一圈半径增大：项目推进一层，风险分析永远在实施之前</text>';
+    return s;
+  }
+  function drawIncrement(p) {
+    var s = '', rows = [['增量1：核心功能（先交付）', 0], ['增量2：扩展功能', 1], ['增量3：完善优化', 2]];
+    rows.forEach(function (r, i) {
+      var y = 64 + i * 68, x0 = 88 + i * 112, w = 470;
+      var fill = clamp((p * 660 - i * 112) / 460, 0, 1);
+      s += '<rect x="' + x0 + '" y="' + y + '" width="' + w + '" height="36" rx="6" fill="var(--card)" stroke="var(--line)"/>';
+      s += '<rect x="' + x0 + '" y="' + y + '" width="' + (w * fill) + '" height="36" rx="6" fill="var(--accent-2)" opacity=".85"/>';
+      s += '<text x="' + (x0 + 10) + '" y="' + (y + 23) + '" font-size="13" fill="' + (fill > 0.45 ? 'var(--bg)' : 'var(--text-dim)') + '">' + r[0] + '</text>';
+      if (fill >= 1) s += '<text x="' + (x0 + w + 14) + '" y="' + (y + 23) + '" font-size="13" fill="var(--ok)">交付✔</text>';
+    });
+    s += '<text x="360" y="286" text-anchor="middle" font-size="13" fill="var(--text-dim)">三批活错峰开工：第一个增量做完就有人用，反馈带进下一批</text>';
+    return s;
+  }
+  function drawFountain(p) {
+    var s = '', names = ['分析', '设计', '编码', '测试'];
+    var act = clamp(p * 4, 0, 3.999), a = Math.floor(act);
+    for (var i = 0; i < 4; i++) {
+      var cx0 = 150 + i * 128, on = i <= a;
+      s += '<path d="M ' + (cx0 - 62) + ' 220 A 62 88 0 0 1 ' + (cx0 + 62) + ' 220" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" opacity="' + (on ? '.35' : '.8') + '" stroke="' + (on ? 'var(--accent-2)' : 'var(--line)') + '" stroke-width="2"/>';
+      s += '<text x="' + cx0 + '" y="' + (on ? 148 : 160) + '" text-anchor="middle" font-size="14" fill="' + (on ? 'var(--accent-2)' : 'var(--text-dim)') + '">' + names[i] + '</text>';
+    }
+    s += '<text x="360" y="256" text-anchor="middle" font-size="13" fill="var(--text-dim)">水喷上去又落下来：各阶段重叠、来回迭代、无明显间隙（面向对象典型模型）</text>';
+    s += '<text x="360" y="282" text-anchor="middle" font-size="13" fill="var(--bad)">当前到「' + names[a] + '」，随时可能喷回上一阶段</text>';
+    return s;
+  }
+  function drawRUP(p) {
+    var s = '', phases = ['初始', '细化', '构造', '移交'];
+    for (var i = 0; i < 4; i++) s += rbox(60 + i * 158, 34, 130, 30, phases[i], p * 640 >= i * 158, 13);
+    var waves = [{ name: '需求类工作流', amp: [46, 22, 8, 4], col: 'var(--accent)' }, { name: '分析设计类', amp: [14, 40, 20, 8], col: 'var(--ok)' }, { name: '实现测试部署类', amp: [5, 12, 44, 16], col: 'var(--bad)' }];
+    var rev = 40 + p * 620;
+    waves.forEach(function (wv) {
+      var pts = [];
+      for (var k = 0; k <= 80; k++) {
+        var x = 40 + k * 7.9; if (x > rev) break;
+        var ci = clamp(Math.floor((x - 40) / 158), 0, 3), u = ((x - 40) % 158) / 158;
+        var y = 224 - wv.amp[ci] * Math.sin(Math.PI * u);
+        pts.push(x.toFixed(1) + ',' + y.toFixed(1));
+      }
+      if (pts.length > 1) s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + wv.col + '" stroke-width="2"/>';
+    });
+    s += '<text x="60" y="268" font-size="12" fill="var(--accent)">需求类</text><text x="150" y="268" font-size="12" fill="var(--ok)">分析设计类</text><text x="250" y="268" font-size="12" fill="var(--bad)">实现测试部署类</text>';
+    s += '<text x="360" y="296" text-anchor="middle" font-size="13" fill="var(--text-dim)">四阶段是时间轴，各工种（工作流）在每个阶段都有波峰——贯穿而非串行</text>';
+    return s;
+  }
+  var CAPS = [
+    ['瀑布：先把需求定死，白纸黑字', '瀑布：设计图纸评审通过才开工', '瀑布：照图施工（编码）', '瀑布：监理验收（测试）', '瀑布：交房入住（运维），一条道走到黑'],
+    ['原型：只有一份模糊需求初稿', '原型：快速搭个能点能看的样板间', '原型：业主上手试用', '原型：提意见、改样板间（可循环）', '原型：需求清楚后按正规流程正式开发'],
+    ['螺旋：本轮目标与计划', '螺旋：先做风险分析、备选方案比较', '螺旋：按稳妥方案实施开发', '螺旋：客户评估成果，决定下一圈', '螺旋：一圈比一圈大，风险始终先被评估'],
+    ['增量：第一批核心功能开工', '增量：核心功能交付，用户先用起来', '增量：第二批扩展功能跟进', '增量：第三批完善优化交付', '增量：分批交付，每批都产生可用版本'],
+    ['喷泉：分析喷起', '喷泉：设计紧随其后（与分析重叠）', '喷泉：编码与设计互相回流', '喷泉：测试发现问题又喷回上游', '喷泉：阶段间无明确间隙，适合面向对象'],
+    ['RUP：初始阶段——定愿景与范围', 'RUP：细化阶段——架构与高风险问题', 'RUP：构造阶段——实现类工作流到波峰', 'RUP：移交阶段——交付上线', 'RUP：九个工作流贯穿四阶段，迭代增量']
+  ];
+  function draw(t) {
+    var fn = [drawWaterfall, drawPrototype, drawSpiral, drawIncrement, drawFountain, drawRUP][cur];
+    var s = '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="过程模型推进形态">';
+    s += '<defs><marker id="arw" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-dim)"/></marker>';
+    s += '<marker id="arwB" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--bad)"/></marker></defs>';
+    s += '<rect width="720" height="320" rx="12" fill="var(--bg-soft)"/>';
+    s += '<line x1="30" y1="304" x2="700" y2="304" stroke="var(--line)" stroke-width="2"/>';
+    s += '<text x="30" y="22" font-size="12" fill="var(--text-dim)">时间 →</text>';
+    s += fn(t);
+    s += '</svg>';
+    stage.innerHTML = s;
+    var caps = CAPS[cur];
+    CX.setCap('#demo1-ctl', caps[Math.min(caps.length - 1, Math.floor(t * caps.length))]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 24, duration: 12, onTick: draw });
+  var msl = CX.utils.$('model-slider');
+  msl.addEventListener('input', function () {
+    cur = +msl.value;
+    CX.utils.$('model-out').textContent = cur + ' ' + MODEL_NAMES[cur];
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：场景选型 ---- */
+  var PICKS = [
+    { scene: '场景一：银行核心账务系统，需求在合同与监管文件中已明确稳定，每阶段须留正式评审文档。', models: ['瀑布', '原型', '敏捷'], ans: 0,
+      why: ['正确：需求稳定+文档可追溯正是瀑布的主场。', '原型用于需求不明时探路，这里需求已定。', '敏捷弱文档，与监管留档要求冲突。'] },
+    { scene: '场景二：新型在线教育 App，业主自己也说不清想要什么界面，需要快速试错。', models: ['瀑布', '原型', 'RUP'], ans: 1,
+      why: ['瀑布要先定死需求，现在恰恰定不下来。', '正确：先造「样板间」让业主看着挑，把模糊需求变具体。', 'RUP 是完整框架，探明需求的第一手段仍是原型。'] },
+    { scene: '场景三：大型航天测控软件，技术风险高、一旦失败损失巨大，要求每轮投入前先评估风险。', models: ['增量', '螺旋', '喷泉'], ans: 1,
+      why: ['增量管的是分期交付，不是风险评估。', '正确：螺旋=每圈先做风险分析，正是风险驱动的转圈。', '喷泉强调 OO 迭代无间隙，没有风险评估环节。'] }
+  ];
+  (function buildPick() {
+    var box = CX.utils.$('pick-list'), cur = 0;
+    function render() {
+      var html = '<p><b>' + PICKS[cur].scene + '</b></p><div style="display:flex;gap:8px;flex-wrap:wrap">';
+      PICKS[cur].models.forEach(function (m, i) {
+        html += '<button class="btn" data-pick="' + i + '">' + m + '</button>';
+      });
+      html += '</div><p class="foreshadow">（第 ' + (cur + 1) + ' / ' + PICKS.length + ' 个场景）</p>';
+      box.innerHTML = html;
+      CX.utils.$$('button[data-pick]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i = +b.getAttribute('data-pick'), fb = CX.utils.$('lab1-fb');
+          if (i === PICKS[cur].ans) {
+            var finished = (cur === PICKS.length - 1);
+            fb.textContent = '✅ ' + PICKS[cur].why[i] + (finished ? ' 三个场景全部完成！' : ' 进入下一场景。');
+            fb.className = 'lab-feedback ok';
+            cur = Math.min(PICKS.length - 1, cur + 1);
+            if (finished) box.innerHTML = '<p>三个场景全部完成！要点：需求明确度、风险高低、变更频率决定选型。</p>';
+            else setTimeout(render, 900);
+          } else {
+            fb.textContent = '❌ 选「' + PICKS[cur].models[i] + '」不对——' + PICKS[cur].why[i];
+            fb.className = 'lab-feedback bad';
+          }
+        });
+      });
+    }
+    render();
+  })();
+
+  /* ---- 实验二：RUP 四阶段拖拽排序 ---- */
+  (function () {
+    var expect = ['初始 Inception（定愿景范围）', '细化 Elaboration（定架构与风险）', '构造 Construction（实现并测试）', '移交 Transition（交付上线）'];
+    var pool = CX.utils.$('rup-pool'), slot = CX.utils.$('rup-slot');
+    CX.shuffle(expect.map(function (t) { return t; })).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('rup-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab2-fb');
+      if (got.length < 4) { fb.textContent = '还有 ' + (4 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      var hints = ['先有愿景才有架构：初始定「做什么、值不值」；', '架构和最大风险在细化阶段解决，才能放心构造；', '构造是批量实现与测试；', '移交才是交付上线收尾。'];
+      for (var i = 0; i < 4; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 位放错了：你放了「' + got[i] + '」。提示：' + hints[i];
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 顺序正确：初始→细化→构造→移交。九个核心工作流在四阶段中贯穿进行。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验三：模型↔胎记词连线匹配 ---- */
+  (function () {
+    var pairs = [['螺旋模型', '风险驱动，每圈先评风险'], ['喷泉模型', '面向对象、迭代无间隙'], ['增量模型', '核心功能作为第一个增量先交付'], ['RUP', '用例驱动、以架构为中心'], ['瀑布模型', '文档驱动、阶段评审做里程碑']];
+    var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的胎记特征。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个模型。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+            CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab3-fb').textContent = '❌ 「' + selL.dataset.k + '」不对应「' + d.textContent + '」——回忆每个模型的胎记词再试。';
+            CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('match-reset').addEventListener('click', function () { build(); CX.utils.$('lab3-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

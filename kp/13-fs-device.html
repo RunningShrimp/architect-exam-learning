@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 · 文件系统与设备管理 · 架构师学堂</title>
+<meta name="description" content="文件目录管名字，索引节点管货位，磁盘调度让磁头少跑冤枉路。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">操作系统 · 🏛️ 市政厅</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="12-virtual-memory.html">前置 12</a></span>
+    <h1>13 · 文件系统与设备管理</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">文件目录管名字，索引节点管货位，磁盘调度让磁头少跑冤枉路。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某图片存储服务报警「No space left on device」。运维上机一查：df 显示磁盘块只用了 40%，明明还有大把空间，但任何新文件都创建不了；du 顺带统计出文件总数高达五千万个 3~10KB 的小图。问题：磁盘明明「没满」，为什么写不进去？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>「空间」在文件系统里是两种资源：<b>数据块</b>（装文件内容）和 <b>inode（索引节点）</b>（装文件元数据）。每个文件都要占用一个 inode——五千万个小文件把 inode 先耗光了，块还有 40% 也照样建不了文件。用 df 看块用量、用 df -i 看 inode 使用率一对照即可验证。这个案例是本页两条主线的交汇：inode 管什么、怎么算容量；文件建在磁盘哪个块上、谁来管理空闲块。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>12 · 分页分段与虚拟内存</b>（磁盘正是缺页时「进城调货」的目的地）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>文件系统管两件事：<b>命名</b>与<b>放置</b>。<b>文件目录</b>是「文件名 → inode 号」的检索表（逻辑视图）；<b>索引节点 inode</b> 是文件的登记卡——记录大小、权限、时间与全部数据块指针（物理视图）；空闲块由<b>位示图</b>等结构管理；设备管理则回答「数据怎么在慢速设备上高效进出」。文件的<b>逻辑结构</b>是给用户看的组织方式（顺序文件、索引文件），<b>物理结构</b>是它在磁盘块上的真实摆放（连续、链接、索引）。</p>
+      <h3>解决什么问题</h3>
+      <p>海量文件怎么命名不冲突、按名能找到；磁盘块怎么分配、空闲怎么记；磁盘是机械慢设备（寻道占访问时间大头），多个请求来了按什么顺序服务。</p>
+      <h3>核心机制一：物理结构对比</h3>
+      <table class="tbl">
+        <tr><th>物理结构</th><th>做法</th><th>优点</th><th>缺点</th></tr>
+        <tr><td>连续分配</td><td>文件占连续磁盘块</td><td>支持随机存取，顺序读快</td><td>难扩展、产生外部碎片</td></tr>
+        <tr><td>隐式链接</td><td>每块尾带下一块指针</td><td>无外部碎片，易扩展</td><td>只能顺链存取，断链全毁</td></tr>
+        <tr><td>显式链接（FAT）</td><td>链接表集中成 FAT 表</td><td>查表即知链路，FAT 可进内存</td><td>FAT 本身占空间</td></tr>
+        <tr><td>索引分配</td><td>每文件一张索引块（块号数组）</td><td>支持随机存取、易扩展</td><td>小文件也占一个索引块；大文件需多级/混合索引</td></tr>
+      </table>
+      <p>UNIX 的 <b>inode</b> 是混合索引的典范：<b>直接地址 + 一级间接 + 二级间接</b>（有的还有三级）。计算公式：<b>每块可存地址数 = 块大小 ÷ 地址项大小</b>；最大文件 = 直接块数 + 每块地址数 × 1（一级）+ 每块地址数² × 1（二级），单位是块。</p>
+      <h3>核心机制二：位示图（空闲块管理）</h3>
+      <p>用一串二进制位标记每个盘块：0 空闲 1 占用（或相反，看题目约定）。<b>块号 b → 字号 = ⌊b ÷ 字长⌋，位号 = b mod 字长</b>（本页按从 0 编号口径）；反向：<b>块号 = 字号 × 字长 + 位号</b>。做这类题先确认题目从 0 还是从 1 编号。</p>
+      <h3>核心机制三：磁盘调度</h3>
+      <table class="tbl">
+        <tr><th>算法</th><th>规则</th><th>特点</th></tr>
+        <tr><td>FCFS</td><td>按到达顺序</td><td>公平但寻道长</td></tr>
+        <tr><td>SSTF 最短寻道优先</td><td>每次选离磁头最近的</td><td>平均寻道短；远端请求可能<b>饥饿</b></td></tr>
+        <tr><td>SCAN 电梯</td><td>沿当前方向服务到头（端点）才折返</td><td>等待时间有界、公平</td></tr>
+        <tr><td>C-SCAN</td><td>单向服务，到端后快速回扫到另一端继续单向</td><td>各磁道等待更均匀</td></tr>
+      </table>
+      <p><b>磁盘存取时间 = 寻道时间 + 旋转延迟 + 传输时间</b>。变体 LOOK/C-LOOK 到「最远请求处」即折返，不到物理端点——做题必须看题干给哪种口径；C-SCAN 回扫那一段是否计入移动道数，教材口径不一，同样看题干。</p>
+      <h3>核心机制四：设备管理</h3>
+      <p>I/O 控制方式演进：<b>程序查询</b>（CPU 干等）→ <b>中断</b>（每传一段 CPU 介入一次）→ <b>DMA</b>（DMA 控制器整块搬运，CPU 只在开始初始化与结束中断时介入）→ <b>通道</b>（专用处理器，能执行通道程序）。<b>缓冲</b>用内存蓄水池缓和 CPU 与设备速度差、减少中断次数（单/双/循环缓冲与缓冲池）；<b>Spooling 假脱机</b>用磁盘排队把独占设备改造成「共享设备」（如打印队列），也是破坏死锁「互斥」条件的经典手段。</p>
+      <h3>专业英语小贴士</h3>
+      <p>inode（索引节点）、Seek Time（寻道时间）、Spooling = Simultaneous Peripheral Operations On-Line（假脱机）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>
+        ① 「还有空间却建不了文件」≠ 块耗尽，可能是 <b>inode 耗尽</b>：df 看块、df -i 看 inode。<br>
+        ② SCAN 是「到端点才折返」，LOOK 是「到最远请求就折返」——两者移动道数不同，审题先抓口径。<br>
+        ③ 位示图与磁道编号可能从 0 也可能从 1 起，公式两端口径必须一致。<br>
+        ④ SSTF 会饿死远端请求；DMA 期间 CPU 不是「完全空闲」，它与传输并行执行别的进程，只在首尾被叫。
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🏛️ 延展市政档案馆（磁盘=档案馆是全站固定比喻）：<b>文件</b>是一份案卷，<b>目录</b>是检索卡片柜——卷名后面写登记号；<b>inode</b> 是案卷的登记卡，上面列着这卷内容分布在库房哪些货位（直接货位 + 二级索引卡）；<b>位示图</b>是库房墙上的平面占用图，一格一货位；<b>磁盘调度</b>是档案员的取件路线规划——SCAN 就是「沿走廊一路取到头再折返」的电梯式走法。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>检索卡片柜</td><td>文件目录（名→inode 号）</td><td>成立</td></tr>
+      <tr><td>案卷登记卡与货位清单</td><td>inode 与索引结构</td><td>成立</td></tr>
+      <tr><td>库房平面占用图</td><td>位示图</td><td>成立</td></tr>
+      <tr><td>电梯式取件路线</td><td>SCAN 磁盘调度</td><td>成立</td></tr>
+      <tr><td>「档案员一次能抱十卷」</td><td>（错误类比）</td><td><b>失效边界</b>：磁头一次只能服务一个请求；且寻道「路费」只看跑多远、不看货多大——类比在这里断掉</td></tr>
+    </table>
+    <div class="rhyme">目录管名 inode 管位，位示图一格一块；<br>连续快扩容难，索引多级慢慢算；<br>SSTF 择近饿远客，SCAN 到头才折返；<br>DMA 大件少打扰，Spooling 独占改共享。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画在 0~199 号磁道的「马路」上跑四种磁盘调度：圆点是等待服务的请求，粗线是磁头轨迹。拖滑块改磁头初始位置，点按钮切算法与方向，逐帧看「这一步跑了几道、累计几道」。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>磁头初始磁道 <input type="range" id="demo1-pos" min="0" max="199" step="1" value="50"> <span id="demo1-pos-out">50</span></label>
+      <span id="demo1-algo">
+        <button class="btn" data-algo="FCFS">FCFS</button>
+        <button class="btn" data-algo="SSTF">SSTF</button>
+        <button class="btn" data-algo="SCAN">SCAN</button>
+        <button class="btn" data-algo="CSCAN">C-SCAN</button>
+      </span>
+      <span id="demo1-dir">
+        <button class="btn" data-dir="up">方向：向大磁道</button>
+        <button class="btn" data-dir="down">方向：向小磁道</button>
+      </span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（点击模拟）：你来当 SCAN 电梯员</h4>
+      <p class="foreshadow">磁头在 50 号磁道，当前向<b>大磁道</b>方向移动。请求队列：55, 58, 39, 18, 90, 160, 150, 38, 184。按 SCAN 规则（沿当前方向服务，没有同方向请求才折返）依次点击下一个该服务的磁道：</p>
+      <p>当前磁头：<b id="sc-cur">50</b> · 方向：<b id="sc-dir">→ 大磁道</b> · 已移动 <b id="sc-total">0</b> 道 · 已服务：<span id="sc-done">（无）</span></p>
+      <div id="sc-btns"></div>
+      <button class="btn" id="sc-reset">重做</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（分步计算）：UNIX 混合索引能装多大文件</h4>
+      <p class="foreshadow">已知：块大小 1KB（1024B），每个地址项 4B，inode 含 10 个直接地址、1 个一级间接、1 个二级间接。按顺序填空，每步即时判分：</p>
+      <p>① 每个（地址）块能存多少个地址项？<input type="number" id="in-q1" style="width:80px"></p>
+      <p>② 一级间接可覆盖多少 KB？<input type="number" id="in-q2" style="width:80px"></p>
+      <p>③ 二级间接可覆盖多少 KB？<input type="number" id="in-q3" style="width:110px"></p>
+      <p>④ 最大文件多少 KB？<input type="number" id="in-q4" style="width:110px"> <button class="btn" id="in-check">检查</button> <button class="btn" id="in-reset">重做</button></p>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（计算自测）：位示图换算</h4>
+      <p class="foreshadow">位示图字长 32 位，块号从 0 开始编号。① 块号 100 落在字号多少、位号多少？② 字 2 位 5 对应的块号是多少？</p>
+      <p>① 字号 <input type="number" id="bm-f" style="width:60px"> 位号 <input type="number" id="bm-b" style="width:60px"></p>
+      <p>② 块号 <input type="number" id="bm-blk" style="width:60px"> <button class="btn" id="bm-check">检查</button> <button class="btn" id="bm-reset">重做</button></p>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>12 · 分页分段与虚拟内存：缺页后页面的调入正发生在磁盘上——「页」放在哪个块、扫描磁道怎么排程，就是本页的磁盘调度与文件物理结构。页=按内容等分，盘块=按空间等分，思想同源。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>14 · 三级模式与两级映射：文件系统「逻辑结构 vs 物理结构」的分离，正是数据库「外模式/概念模式 vs 内模式」的先声；</li>
+      <li>05 · 存储层次（回望）：磁盘 I/O 慢在寻道与旋转，这一常识解释了为什么数据库钟爱顺序写与日志结构。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>索引文件（逻辑结构）</th><th>索引分配（物理结构）</th></tr>
+      <tr><td>差异点</td><td>面向记录：为「按键快速查找」建索引表</td><td>面向存储：为「块怎么找到块」建块号表</td></tr>
+      <tr><td>易错点</td><td>索引表存的是「键 → 记录位置」</td><td>索引块存的是「第 i 段内容 → 物理块号」</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">逻辑索引帮你「按书名找章节」，物理索引帮你「按段落号找仓库货架」——中文名字撞了车，考试要靠上下文分辨。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——图书馆里每本书都有一张登记卡，卡上写着书在哪个书架第几层……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3">
+      <li>① 文件系统三层分工：目录管「名字→inode」，inode 管「内容→块号」（直接+间接混合索引），位示图管「哪些块空着」。</li>
+      <li>② 磁盘调度四件套：FCFS 公平慢、SSTF 快但饿远客、SCAN 电梯到端点才折返、C-SCAN 单向服务最均匀；审题先抓「端点/口径」。</li>
+      <li>③ 设备管理主线是「让 CPU 少等」：中断 → DMA → 通道一路卸载，缓冲削峰填谷，Spooling 把独占设备变共享。</li>
+    </ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '13', domain: 'os', loc: 'govhall', root: '..',
+  title: '文件系统与设备管理',
+  prev: '12-virtual-memory.html', prevTitle: '12 · 分页分段与虚拟内存',
+  next: '14-db-schema.html', nextTitle: '14 · 三级模式与两级映射',
+  keywords: ['索引节点', '位示图', '磁盘调度', 'SCAN', '寻道时间', 'DMA', '缓冲', 'Spooling']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---------- 回忆题（前置 12） ---------- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·12】页表在地址翻译中起的作用是？',
+    opts: [
+      { t: '把逻辑地址的页号翻译成物理块号，页内偏移照抄', why: '对：物理地址 = 块号×页大小+偏移。本页里磁盘正是缺页调页的目的地——「块」的思想一脉相承。' },
+      { t: '把物理地址变回逻辑地址', why: '翻译方向反了，硬件按逻辑地址查页表求物理地址。' },
+      { t: '给进程分配新的页表空间', why: '分配是内核资源管理行为，页表本身只做翻译。' }
+    ],
+    ans: 0, tag: '回忆:12', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---------- 随堂 5 题 ---------- */
+  CX.renderQuiz('#quiz-main', [
+    { q: 'UNIX 文件系统：块大小 1KB，每个地址项 4B；inode 含 10 个直接地址、1 个一级间接地址、1 个二级间接地址。单个文件最大约为？',
+      opts: [
+        { t: '266 KB', why: '只算了直接 10 + 一级 256，漏掉了二级间接的大头。' },
+        { t: '65546 KB', why: '二级间接 65536 + 直接 10，把一级间接的 256 KB 漏了。' },
+        { t: '65802 KB（约 64.3 MB）', why: '对：每块地址数 = 1024÷4 = 256；最大文件 = 10 + 256 + 256×256 = 65802 KB。' },
+        { t: '16384 KB', why: '把「每块地址数」算成了 128 或把平方当成了乘 2。' }
+      ],
+      ans: 2, tag: '计算', src: '仿真题' },
+    { q: '磁道 0~199，磁头当前在 100 号磁道、正向磁道号减小方向移动。等待请求：55, 58, 39, 18, 90, 160, 150, 38, 184。按 SCAN（到端点 0 才折返）的移动总道数是？',
+      opts: [
+        { t: '284 道', why: '对：先向小磁道服务 90,58,55,39,38,18，到端点 0（100→0 共 100 道），再折返向上到 184（0→184 共 184 道），合计 284 道。' },
+        { t: '248 道', why: '这是 LOOK 口径（到最远请求 18 就折返：(100−18)+(184−18)=82+166），本题明确「到端点才折返」。' },
+        { t: '166 道', why: '只算了折返后的回程 0→184，漏了前半程 100→0 的 100 道。' },
+        { t: '302 道', why: '把端点 0 又折到 199 再回头之类口径混用，超出 SCAN 规则。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '位示图字长 32 位（块号从 0 起编号），块号 259 对应的字号与位号是？',
+      opts: [
+        { t: '字号 8，位号 3', why: '对：259 = 8×32 + 3，商是字号、余数是位号（0 起编号口径）。' },
+        { t: '字号 8，位号 4', why: '余数算错：8×32=256，259−256=3 不是 4。' },
+        { t: '字号 9，位号 3', why: '把商向上取整了：字号 9 从块 288 才开始。' },
+        { t: '字号 3，位号 8', why: '商和余数弄颠倒了。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '【交错复习:07】磁盘向内存搬运一大块数据。采用 DMA 方式时，CPU 在整个传输期间的角色是？',
+      opts: [
+        { t: '逐字节搬运数据并随时校验', why: '那是程序查询/中断方式下 CPU 的苦力活，DMA 就是为了卸掉它。' },
+        { t: '只在开始时初始化 DMA 控制器、结束时被一次中断叫醒处理善后', why: '对：整块搬运由 DMA 控制器直接在设备与内存间进行，CPU 可并行执行其他进程——这是 07 页 I/O 方式演进（查询→中断→DMA→通道）的关键一跃。' },
+        { t: '完全断开与总线的关系，什么都不参与', why: '开始时要设置传输起点、长度，结束时要收中断——首尾都有 CPU 的活。' },
+        { t: '负责给每个字节计算内存地址', why: '地址由 DMA 控制器按递增规则自动生成，不需 CPU 逐个计算。' }
+      ],
+      ans: 1, tag: '交错复习:07', src: '仿真题' },
+    { q: '操作系统中设置 I/O 缓冲区（Buffer）的主要目的是？',
+      opts: [
+        { t: '把数据持久化，防止断电丢失', why: '缓冲区恰恰是易失的；持久化靠文件与日志，缓冲反而有「丢页」风险要回写。' },
+        { t: '缓和 CPU 与 I/O 设备的速度差异，减少中断次数、提高 CPU 与设备的并行度', why: '对：缓冲是蓄水池——快的一方别等慢的一方，成批传输也把中断频率降下来。' },
+        { t: '扩大磁盘的物理容量', why: '缓冲在内存里，改变不了磁盘容量。' },
+        { t: '对传输数据进行加密', why: '加密是安全机制，与缓冲无关。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' }
+  ], { kpId: '13', mode: 'test' });
+
+  /* ---------- 案例分析 ---------- */
+  CX.renderCase('#case1', {
+    stem: '磁道号 0~199。磁头当前在 100 号磁道，且刚从 120 号磁道移动而来（即当前朝磁道号减小方向）。等待队列的请求依次到达：55, 58, 39, 18, 90, 160, 150, 38, 184。',
+    q: '(1) 按 SCAN（沿当前方向服务，到端点 0 才折返）写出服务顺序并计算移动总道数；(2) 按 SSTF 计算移动总道数并写出顺序；(3) 两种算法各牺牲了什么、换来了什么？若请求长期集中在两端，你会选谁？',
+    ref: '(1) 当前向减小方向：先服务 90, 58, 55, 39, 38, 18，到端点 0 折返，再向上服务 150, 160, 184。移动 = (100−0) + (184−0) = 284 道。(2) SSTF：100→90(10)→58(32)→55(3)→38(17)→39(1)→18(21)→150(132)→160(10)→184(24)，共 250 道。(3) SSTF 牺牲公平性（远端请求可能被源源不断的近端请求插队而饥饿），换来平均寻道更短；SCAN 牺牲一点平均寻道，换来等待时间有界、无饥饿。请求集中在两端时选 SCAN：SSTF 会在一端反复打转、远端长期得不到服务，SCAN 像电梯一样周期性扫过所有磁道，最坏等待有上界。',
+    points: ['SCAN 顺序正确：先沿当前（减小）方向到底，到端点 0 才折返', 'SCAN=284、SSTF=250 计算正确且每步移动道数可复查', '能说清「SSTF 饥饿/SCAN 有界等待」的公平性权衡', '按负载特征（两端集中）给出选型并说明理由'],
+    frame: '答题框架：确认初始方向 → 按算法规则排服务顺序 → 列小表逐步累加移动道数 → 算法对比（公平/饥饿/平均寻道）→ 按请求分布给选型结论。',
+    kpId: '13'
+  });
+  CX.renderCase('#case2', {
+    stem: '某图片存储服务：df 显示磁盘块已用仅 40%，但应用创建新文件时报「No space left on device」；统计发现文件数约五千万个，多为 3~10KB 小图，且日常只增不删。',
+    q: '(1) 定位故障根因，并给出验证手段的思路；(2) 给出清理与扩容两类处置方案；(3) 从 inode 与物理结构角度解释：为什么海量小文件既耗 inode 又伤性能？',
+    ref: '(1) 根因是 inode（索引节点）耗尽，不是数据块耗尽：每个文件必须占一个 inode，小文件海量增长使 inode 先一步用光。验证思路：df 看块使用率（40%）、df -i 看 inode 使用率（应接近 100%），两者对照即可定位。(2) 清理：删除或归档不再访问的小文件（释放 inode），把海量小图打包成归档文件或迁移到对象存储；扩容：备份数据后重新格式化并调高「每多少字节一个 inode」的比例，或改造存储形态（小图合并、大文件分块）。(3) 每个文件一个 inode（元数据+指针），文件数即 inode 消耗数；物理上，小文件不足一块也独占一块，块内碎片使 40% 的「空间」里有效利用率更低；目录项以千万计导致按名查找变慢；间接索引块本身还要占数据块——元数据与数据两头吃亏。',
+    points: ['区分「数据块耗尽」与「inode 耗尽」两种 No space 病因', '给出 df 与 df -i 对照验证的定位思路', '处置方案同时覆盖「清理释放 inode」与「扩容/改造存储形态」', '从「每文件一 inode + 块内碎片 + 目录膨胀 + 间接块开销」解释小文件的双重代价'],
+    frame: '答题框架：现象 → 区分两种「满」（块 vs inode）→ 命令验证 → 处置分层（清理/扩容/换形态）→ 根因复盘并给出预防（inode 监控告警、设计期控制文件粒度）。',
+    kpId: '13'
+  });
+
+  /* ---------- 变式迁移 ---------- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '图书馆机器人沿书架走廊取书：从一端走到另一端，途中把所有待取书取走，到走廊尽头再折返。「总挑离自己最近的书」则是另一种走法。这两种走法分别对应磁盘调度算法中的？',
+    opts: [
+      { t: 'SCAN 与 SSTF', why: '对：机器人「一路取到头再折返」是电梯式 SCAN；「总挑最近的」是最短寻道优先 SSTF。' },
+      { t: 'C-SCAN 与 FCFS', why: 'C-SCAN 单向服务后快速回扫，FCFS 按请求到达顺序，都不符题意。' },
+      { t: 'FIFO 与 SCAN', why: 'FIFO 是磁盘调度里的 FCFS 口径，题中「挑最近的」不是按到达顺序。' },
+      { t: '都是 SCAN，只是方向不同', why: '「挑最近」不看方向只看距离，与 SCAN 的方向纪律完全不同。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---------- 概念桥 ---------- */
+  CX.depChain('#bridge-prev', ['12'], 'prev');
+  CX.depChain('#bridge-next', ['14'], 'next');
+
+  /* ---------- 动画：磁盘调度 ---------- */
+  var REQS = [55, 58, 39, 18, 90, 160, 150, 38, 184];
+  var ALGO = 'SCAN';
+  var UP = true;
+  var POS = 50;
+  var stage = CX.utils.$('demo1-stage');
+  function xFor(track) { return 40 + track * 3.1; }
+  function plan(algo, pos, up) {
+    var seq = [], cur = pos, total = 0;
+    function go(t, kind) {
+      var moved = Math.abs(t - cur);
+      total += moved; cur = t;
+      seq.push({ track: t, moved: moved, total: total, kind: kind || 'req' });
+    }
+    var rest = REQS.slice();
+    if (algo === 'FCFS') {
+      rest.forEach(function (t) { go(t); });
+    } else if (algo === 'SSTF') {
+      while (rest.length) {
+        var best = 0, bd = Infinity;
+        for (var i = 0; i < rest.length; i++) {
+          var d = Math.abs(rest[i] - cur);
+          if (d < bd) { bd = d; best = i; }
+        }
+        go(rest.splice(best, 1)[0]);
+      }
+    } else if (algo === 'SCAN') {
+      rest.sort(function (a, b) { return a - b; });
+      var side = rest.filter(function (t) { return up ? t >= cur : t <= cur; });
+      var other = rest.filter(function (t) { return up ? t < cur : t > cur; });
+      side.sort(function (a, b) { return up ? a - b : b - a; });
+      side.forEach(function (t) { go(t); });
+      if (other.length) {
+        go(up ? 199 : 0, 'end');
+        other.sort(function (a, b) { return up ? b - a : a - b; });
+        other.forEach(function (t) { go(t); });
+      }
+    } else {
+      rest.sort(function (a, b) { return a - b; });
+      var side2 = rest.filter(function (t) { return up ? t >= cur : t <= cur; });
+      var other2 = rest.filter(function (t) { return up ? t < cur : t > cur; });
+      side2.sort(function (a, b) { return up ? a - b : b - a; });
+      side2.forEach(function (t) { go(t); });
+      if (other2.length) {
+        go(up ? 199 : 0, 'end');
+        go(up ? 0 : 199, 'jump');
+        other2.sort(function (a, b) { return up ? a - b : b - a; });
+        other2.forEach(function (t) { go(t); });
+      }
+    }
+    return seq;
+  }
+  function draw(t) {
+    var seq = plan(ALGO, POS, UP);
+    var idx = Math.min(seq.length - 1, Math.floor(t * 12));
+    var cur = idx >= 0 ? seq[idx].track : POS;
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="磁盘调度动画">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<line x1="40" y1="120" x2="657" y2="120" stroke="var(--line)" stroke-width="6"/>';
+    [0, 50, 100, 150, 199].forEach(function (tk) {
+      s += '<line x1="' + xFor(tk) + '" y1="112" x2="' + xFor(tk) + '" y2="128" stroke="var(--text-dim)" stroke-width="2"/>';
+      s += '<text x="' + xFor(tk) + '" y="146" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + tk + '</text>';
+    });
+    REQS.forEach(function (tk) {
+      var done = false;
+      for (var i = 0; i <= idx; i++) { if (seq[i].track === tk && seq[i].kind === 'req') { done = true; break; } }
+      s += '<circle cx="' + xFor(tk) + '" cy="92" r="9" fill="' + (done ? 'var(--ok)' : 'var(--card)') + '" stroke="var(--line)" stroke-width="2"/>';
+      s += '<text x="' + xFor(tk) + '" y="96" text-anchor="middle" font-size="9" fill="' + (done ? 'var(--bg)' : 'var(--text-dim)') + '">' + tk + '</text>';
+    });
+    var pts = POS;
+    var d = 'M ' + xFor(POS) + ' 120';
+    for (var i = 0; i <= idx; i++) {
+      var e = seq[i];
+      if (e.kind === 'jump') {
+        s += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="3" opacity=".8"/>';
+        d = 'M ' + xFor(e.track) + ' 120';
+        s += '<line x1="' + xFor(seq[i - 1].track) + '" y1="120" x2="' + xFor(e.track) + '" y2="120" stroke="var(--bad)" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>';
+      } else {
+        d += ' L ' + xFor(e.track) + ' 120';
+      }
+      pts = e.track;
+    }
+    s += '<path d="' + d + '" fill="none" stroke="var(--accent-2)" stroke-width="4" opacity=".9"/>';
+    s += '<rect x="' + (xFor(cur) - 5) + '" y="102" width="10" height="36" rx="3" fill="var(--accent-2)"/>';
+    s += '<text x="' + xFor(cur) + '" y="76" text-anchor="middle" font-size="11" fill="var(--accent-2)">磁头</text>';
+    var cap;
+    if (idx < 0) {
+      cap = '起点：磁头在磁道 ' + POS + '（' + (UP ? '向大磁道' : '向小磁道') + '），等待队列共 ' + REQS.length + ' 个请求';
+    } else {
+      var e = seq[idx];
+      cap = '第 ' + (idx + 1) + ' 步：' + (e.kind === 'jump' ? '快速回扫到磁道 ' + e.track : (e.kind === 'end' ? '到达端点 ' + e.track + '（SCAN/C-SCAN 折返点）' : '服务磁道 ' + e.track)) + '，本步移动 ' + e.moved + ' 道，累计 ' + e.total + ' 道';
+    }
+    s += '<text x="30" y="190" font-size="13" fill="var(--text)">算法：' + ALGO + ' · 当前 ' + (UP ? '↑ 向大磁道' : '↓ 向小磁道') + ' · 累计移动 ' + (idx >= 0 ? seq[idx].total : 0) + ' 道</text>';
+    s += '<text x="30" y="216" font-size="11" fill="var(--text-dim)">口径：SCAN/C-SCAN 到端点(199/0)才折返；C-SCAN 回扫段计入移动道数（教材口径不一，做题看题干）</text>';
+    s += '<text x="30" y="240" font-size="11" fill="var(--text-dim)">绿色=已服务请求 · 琥珀线=磁头轨迹 · 红虚线=C-SCAN 快速回扫</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 20, onTick: draw });
+  function refreshBtns() {
+    CX.utils.$$('#demo1-algo .btn').forEach(function (b) {
+      var on = b.getAttribute('data-algo') === ALGO;
+      b.style.borderColor = on ? 'var(--accent-2)' : '';
+      b.style.color = on ? 'var(--accent-2)' : '';
+    });
+    CX.utils.$$('#demo1-dir .btn').forEach(function (b) {
+      var on = (b.getAttribute('data-dir') === 'up') === UP;
+      b.style.borderColor = on ? 'var(--accent-2)' : '';
+      b.style.color = on ? 'var(--accent-2)' : '';
+    });
+  }
+  var posSlider = CX.utils.$('demo1-pos');
+  posSlider.addEventListener('input', function () {
+    POS = parseInt(posSlider.value, 10);
+    CX.utils.$('demo1-pos-out').textContent = POS;
+    draw(anim.t);
+  });
+  CX.utils.$$('#demo1-algo .btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ALGO = b.getAttribute('data-algo');
+      refreshBtns();
+      draw(anim.t);
+    });
+  });
+  CX.utils.$$('#demo1-dir .btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      UP = b.getAttribute('data-dir') === 'up';
+      refreshBtns();
+      draw(anim.t);
+    });
+  });
+  refreshBtns();
+
+  /* ---------- 实验一：SCAN 点击模拟 ---------- */
+  var L1 = [55, 58, 39, 18, 90, 160, 150, 38, 184];
+  var scCur, scUp, scDone, scTotal;
+  function scReset() {
+    scCur = 50; scUp = true; scDone = []; scTotal = 0;
+    CX.utils.$('lab1-fb').textContent = ''; CX.utils.$('lab1-fb').className = 'lab-feedback';
+    scRender();
+  }
+  function scRender() {
+    CX.utils.$('sc-cur').textContent = String(scCur);
+    CX.utils.$('sc-dir').textContent = scUp ? '→ 大磁道' : '← 小磁道';
+    CX.utils.$('sc-total').textContent = String(scTotal);
+    CX.utils.$('sc-done').textContent = scDone.length ? scDone.join(' → ') : '（无）';
+    var box = CX.utils.$('sc-btns');
+    box.innerHTML = '';
+    L1.forEach(function (t) {
+      if (scDone.indexOf(t) >= 0) return;
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = '磁道 ' + t;
+      b.addEventListener('click', function () { scPick(t); });
+      box.appendChild(b);
+    });
+    if (scDone.length === L1.length) {
+      var p = document.createElement('span');
+      p.textContent = ' 🎉 全部服务完毕！你累计点出 ' + scTotal + ' 道是「请求点到请求点」的距离（即 LOOK 口径）；SCAN 标准口径还要加 184→端点 199 的 15 道，共 330 道。';
+      p.style.color = 'var(--ok)';
+      box.appendChild(p);
+    }
+  }
+  function scPick(t) {
+    var fb = CX.utils.$('lab1-fb');
+    var inDir = L1.filter(function (x) {
+      return scDone.indexOf(x) < 0 && (scUp ? x >= scCur : x <= scCur);
+    });
+    if (inDir.length === 0) {
+      scUp = !scUp;
+      CX.utils.$('lab1-fb').textContent = '当前方向已无剩余请求，磁头折返（SCAN 到端点才折返）。请继续点击。';
+      CX.utils.$('lab1-fb').className = 'lab-feedback';
+      scRender();
+      return;
+    }
+    var nearest = inDir.reduce(function (a, b) { return Math.abs(b - scCur) < Math.abs(a - scCur) ? b : a; });
+    if (!inDir.some(function (x) { return x === t; })) {
+      fb.textContent = '❌ 你点了磁道 ' + t + '，但它在当前方向（' + (scUp ? '大磁道' : '小磁道') + '）的反方向。SCAN 沿当前方向服务到头才折返：当前应先在 ' + inDir.join('、') + ' 里选。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    if (t !== nearest) {
+      fb.textContent = '❌ 磁道 ' + t + ' 虽在当前方向，但不是最近的：当前方向上最近的是磁道 ' + nearest + '（SCAN 每步服务同方向上最近的请求）。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    scTotal += Math.abs(t - scCur);
+    scCur = t;
+    scDone.push(t);
+    fb.textContent = '✅ 服务磁道 ' + t + '，移动 ' + Math.abs(t - (scDone.length > 1 ? scDone[scDone.length - 2] : 50)) + ' 道，累计 ' + scTotal + ' 道。';
+    fb.className = 'lab-feedback ok';
+    scRender();
+  }
+  CX.utils.$('sc-reset').addEventListener('click', scReset);
+  scReset();
+
+  /* ---------- 实验二：inode 容量分步计算 ---------- */
+  var IN_ANS = [256, 256, 65536, 65802];
+  var IN_HINT = [
+    '① 每个（地址）块能存的地址项数 = 块大小 ÷ 地址项大小 = 1024B ÷ 4B = 256。你填的数多半把两个量相乘或弄反了。',
+    '② 一级间接块本身是一个装满「块地址」的块：256 个地址 × 每块 1KB = 256 KB。别把 256 当成 256 块之外的容量。',
+    '③ 二级间接 = 一级里每个地址再指向一个装 256 个地址的块：256 × 256 = 65536 KB（平方关系，不是翻倍）。',
+    '④ 最大文件 = 直接 10 KB + 一级 256 KB + 二级 65536 KB = 65802 KB。三项相加，别忘了直接块的 10。'
+  ];
+  CX.utils.$('in-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab2-fb');
+    for (var i = 0; i < 4; i++) {
+      var v = parseFloat(CX.utils.$(['in-q1', 'in-q2', 'in-q3', 'in-q4'][i]).value);
+      if (isNaN(v)) { fb.textContent = '第 ' + (i + 1) + ' 空还没填数字。'; fb.className = 'lab-feedback bad'; return; }
+      if (v !== IN_ANS[i]) { fb.textContent = '❌ ' + IN_HINT[i]; fb.className = 'lab-feedback bad'; return; }
+    }
+    fb.textContent = '✅ 10 + 256 + 65536 = 65802 KB ≈ 64.3 MB。公式链：每块地址数 = 块大小÷地址项大小；二级间接是平方项，它是大文件的容量大头。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('in-reset').addEventListener('click', function () {
+    ['in-q1', 'in-q2', 'in-q3', 'in-q4'].forEach(function (id) { CX.utils.$(id).value = ''; });
+    CX.utils.$('lab2-fb').textContent = ''; CX.utils.$('lab2-fb').className = 'lab-feedback';
+  });
+
+  /* ---------- 实验三：位示图换算 ---------- */
+  CX.utils.$('bm-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    var f = parseInt(CX.utils.$('bm-f').value, 10);
+    var b = parseInt(CX.utils.$('bm-b').value, 10);
+    var blk = parseInt(CX.utils.$('bm-blk').value, 10);
+    if (isNaN(f) || isNaN(b)) { fb.textContent = '① 请先填字号与位号。'; fb.className = 'lab-feedback bad'; return; }
+    if (f !== 3 || b !== 4) {
+      fb.textContent = '❌ ①错了：字号 = ⌊块号 ÷ 字长⌋ = ⌊100 ÷ 32⌋ = 3，位号 = 100 mod 32 = 4（验算 3×32+4=100）。你填的字号 ' + f + '、位号 ' + b + ' 还原回去是 ' + (f * 32 + b) + '。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    if (isNaN(blk)) { fb.textContent = '① 正确（3, 4）！② 请填块号。'; fb.className = 'lab-feedback'; return; }
+    if (blk !== 69) {
+      fb.textContent = '❌ ②错了：块号 = 字号 × 字长 + 位号 = 2×32 + 5 = 69。你填的 ' + blk + ' 检查是不是把乘加顺序弄反了。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    fb.textContent = '✅ 全对：块号→(字号,位号) 用「除以字长取商取余」，反向用「字号×字长+位号」。注意编号从 0 起的口径。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('bm-reset').addEventListener('click', function () {
+    ['bm-f', 'bm-b', 'bm-blk'].forEach(function (id) { CX.utils.$(id).value = ''; });
+    CX.utils.$('lab3-fb').textContent = ''; CX.utils.$('lab3-fb').className = 'lab-feedback';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>54 · 标准化与合同法律 · 架构师学堂</title>
+<meta name="description" content="标准四级强推有别，合同成于要约承诺，招投标不可倒置。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">信息安全与法律法规</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="53-ip-rights.html">前置 53</a></span>
+    <h1>54 · 标准化与合同法律</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">标准四级强推有别，合同成于要约承诺，招投标不可倒置。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>一场软件项目招标正在进行：某公司发布了招标公告，A 公司递交了投标文件，开标评标后招标人向 A 公司发出中标通知书。第二天钢材——不对，是人力成本暴涨，招标人反悔拒签合同，说「合同还没签呢，不欠你什么」。A 公司已经按投标方案备好了开发团队。三个问题：<b>招标公告、投标、中标通知书在法律上各是什么？现在到底有没有「合同」？招标人要赔吗？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这三步各有名分：<b>招标公告＝要约邀请</b>（只是邀请大家来报价），<b>投标文件＝要约</b>（内容具体确定、中标就得认），<b>中标通知书＝承诺</b>——承诺生效，合同即告成立，双方应在 30 日内订立书面合同。拒签不是「没合同」，而是违反已成立的合同，要承担相应责任并赔偿对方损失（如备货/组队损失）。与它并列的另一半背诵分是标准化的「四级 + 强制/推荐」，本页把两块一起打包成判断句。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>53 · 知识产权</b>（合同的知识产权条款正是从它来的）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>标准化是 🛡️ 城防司法局里的<strong>度量衡与建筑规范</strong>：让全城的螺丝钉都一个规格；合同法是<strong>立契规则</strong>：让承诺必须算数。软件考试取材两小块：标准的分级与强制性/推荐性之分，合同的订立（要约/承诺）与违约责任。</p>
+      <h3>解决什么问题</h3>
+      <p>没有标准，验收时「你说符合要求、他说不符合」没有裁判尺度；没有合同规则，招投标可以随便反悔。考试要的就是两张表：<b>代号→性质</b>、<b>行为→法律定性</b>。</p>
+      <h3>核心机制</h3>
+      <p><strong>① 标准的四级 + 国际：</strong></p>
+      <table class="tbl">
+        <tr><th>级别</th><th>代号</th><th>谁制定</th><th>适用范围</th></tr>
+        <tr><td>国家标准</td><td>GB / GB/T</td><td>国家标准化管理委员会组织制定</td><td>全国范围</td></tr>
+        <tr><td>行业标准</td><td>各行业代号（如 HB、JR 等）</td><td>国务院有关行政主管部门</td><td>全国某行业（无相应国标时）</td></tr>
+        <tr><td>地方标准</td><td>DB</td><td>省级标准化主管部门等</td><td>本行政区域（地方自然条件、管理事务等）</td></tr>
+        <tr><td>企业标准</td><td>Q/</td><td>企业自行制定</td><td>本企业内部，技术要求不得低于强制性标准</td></tr>
+      </table>
+      <p>国际标准由 <b>ISO</b>（国际标准化组织）、<b>IEC</b>（国际电工委员会）、<b>ITU</b>（国际电信联盟）等制定，国内对应机构为国家标准化管理委员会（SAC）及各专业标准化技术委员会。软件工程国家标准常见举例（教材举例口径）：GB/T 8566（软件生存周期过程）、GB/T 8567（计算机软件文档编制规范）、GB/T 11457（软件工程术语）。</p>
+      <p><strong>② 强制性 vs 推荐性（高频单选）：</strong>GB（无 T）＝<b>强制性</b>国家标准，保障人身健康与财产安全、国家安全、生态环境安全等，<b>必须执行</b>，不符合不得生产销售；GB/<b>T</b>＝<b>推荐性</b>国家标准（T＝推荐），自愿采用。行业、地方标准同样有强推之分。一句话：<b>强制是底线，推荐是参考，底线之上才谈自愿。</b></p>
+      <p><strong>③ 合同的订立：要约 → 承诺：</strong>要约＝内容具体确定、表明经受要约人承诺即受约束的意思表示；<b>要约邀请</b>＝希望他人向自己发出要约——招标公告、拍卖公告、招股说明书、寄送的价目表、商业广告（内容具体确定的可视为要约）都是要约邀请；<b>承诺</b>＝受要约人同意要约，承诺生效时合同成立。招投标三段对应：<b>招标公告＝要约邀请、投标＝要约、中标通知书＝承诺</b>；中标通知书发出后，双方应在 <b>30 日内</b>按招标文件与投标文件订立书面合同。</p>
+      <p><strong>④ 效力与违约：</strong>依法成立的合同自成立时生效；欺诈胁迫损害国家利益、恶意串通损害他人合法权益、以合法形式掩盖非法目的、损害社会公共利益、违反法律强制性规定的合同无效。违约责任＝继续履行、补救措施、赔偿损失；约定<b>违约金</b>的，过高过低可请求调整；<b>定金不得超过主合同标的额的 20%</b>，超出部分不产生定金效力；<b>违约金与定金只能择一适用</b>。软件项目合同三个必备条款：需求与验收标准、<b>知识产权归属</b>（呼应 53 页：不写就默认归受托人）、保密与变更流程。</p>
+      <h3>关键细节</h3>
+      <p>判断题式速记卡：</p>
+      <table class="tbl">
+        <tr><th>判断句</th><th>判定</th><th>点破</th></tr>
+        <tr><td>「招标公告属于要约」</td><td><b>错</b></td><td>是要约邀请——它邀请的是「来报价」</td></tr>
+        <tr><td>「投标文件属于要约」</td><td><b>对</b></td><td>内容具体确定，中标即受约束</td></tr>
+        <tr><td>「中标通知书发出即构成承诺，应在 30 日内订立书面合同」</td><td><b>对</b></td><td>承诺生效合同成立，书面合同是确认</td></tr>
+        <tr><td>「GB/T 中的 T 表示『特别』」</td><td><b>错</b></td><td>T＝推荐（推荐性国家标准）</td></tr>
+        <tr><td>「企业标准可以低于强制性国家标准」</td><td><b>错</b></td><td>强制标准是底线，谁都不能低于</td></tr>
+        <tr><td>「既约定违约金又约定定金，可同时并用」</td><td><b>错</b></td><td>守约方只能<b>择一</b>适用</td></tr>
+        <tr><td>「约定定金 50% 全部有效」</td><td><b>错</b></td><td>20% 上限，超出部分无定金效力</td></tr>
+        <tr><td>「ISO、IEC、ITU 都是国际标准化机构」</td><td><b>对</b></td><td>国际电信联盟 ITU 管通信标准</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 「价目表/橱窗价签＝要约」——错，寄送的价目表是要约邀请；但超市货架明码陈列的商品，通说按要约对待——法律看内容是否具体确定，不看名头。② 定金是担保手段，别与「订金」（预付款性质）混为一谈。③ 拒发中标通知书与中标后拒签合同是两种不同阶段的责任，答题要先定点再定责。④ 标准代号别串行：GB 国标、DB 地标、Q/ 企标、HB 等是行业标准代号。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>standardization（标准化）、mandatory standard（强制性标准）、offer（要约）、acceptance（承诺）——英语题里「a binding promise to keep the offer once accepted」描述的就是 offer。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>标准是城防司法局的<strong>度量衡与建筑规范</strong>：抗震规范（强制性）不达标不许交房，装修指南（推荐性）听不听随意。合同是<strong>立契</strong>：要约＝正式报价单（说了就要算数），要约邀请＝橱窗价签（欢迎来谈），承诺＝拍板握手成交。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>抗震规范不达标不能交房</td><td>强制性标准必须执行</td><td>成立</td></tr>
+      <tr><td>装修指南随意采不采用</td><td>推荐性标准（GB/T）自愿采用</td><td>成立</td></tr>
+      <tr><td>橱窗价签：欢迎来谈、说了不算</td><td>要约邀请（招标公告、价目表）</td><td>成立；失效点：现实价签有时内容具体到构成要约——法律看内容不看名头（这正是考点本身）</td></tr>
+      <tr><td>正式报价单：报出就要认</td><td>要约（投标文件）</td><td>成立</td></tr>
+      <tr><td>拍板握手成交</td><td>承诺（中标通知书）</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">国标行标地标企标，四级各管一层楼；<br>GB 无 T 是强制，带 T 推荐不强求；<br>招标公告先邀请，投标是要约别记漏；<br>中标通知当承诺，卅日合同写成就；<br>定金封顶两成整，违约金定金选一头。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示<strong>「要约邀请 → 要约 → 承诺」三步判定器</strong>：拖动「场景」滑块切换招投标、拍卖、价目表、商业广告四组镜头，播放看每一步的法律名分如何落定、合同何时成立。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>场景 <input type="range" id="sc-select" min="0" max="3" step="1" value="0"> <span id="sc-out">招投标</span></label>
+      <span class="kf-caption" id="sc-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：招投标流程不可倒置</h4>
+      <p class="foreshadow">把 5 个环节按正确顺序拖入槽（括号里是它的法律名分）：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：标准代号 ↔ 含义</h4>
+      <p class="foreshadow">先点左列一个代号，再点右列它的含义：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（判断快答）：这句话对吗？</h4>
+      <p class="foreshadow">逐句判断——考场上判断题的日常训练：</p>
+      <div id="tf-list"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>53 · 知识产权</b>给出默认规则「委托开发无约定归受托人」；本页的合同制度回答「怎么用条款改写默认」——知识产权归属条款是软件开发合同的必备件。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li><b>55 · 项目管理框架</b>：合同管理归入项目采购管理，招投标与合同条款将在那里变成「管理动作」；</li><li>需求工程（26）里「需求基线」与本页「验收标准条款」是同一件事在工程与法律两侧的投影。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>要约</th><th>要约邀请</th></tr>
+      <tr><td>差异点</td><td>内容<b>具体确定</b>，表明经受承诺即受约束——「说了就要算数」</td><td>希望<b>别人向自己</b>发要约——「欢迎来谈」</td></tr>
+      <tr><td>易错点</td><td>招投标中它是<b>投标文件</b>，不是招标公告</td><td>招标公告、拍卖公告、招股说明书、寄送价目表、一般商业广告</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">判断标准只有一条：这句话一旦被对方「同意」，合同能不能直接成立？能＝要约；还要再谈＝要约邀请。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——市场上的「价签」和「报价单」不一样……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 标准四级：国标 GB/GB-T、行标、地标 DB、企标 Q/，外加 ISO/IEC/ITU 国际标准；GB 强制必须执行，GB/T 推荐自愿采用，企标不得低于强制标准。</li><li>② 合同成立三步：招标公告＝要约邀请、投标＝要约、中标通知书＝承诺，承诺生效合同成立，30 日内订立书面合同。</li><li>③ 违约有度：定金不超过主合同标的额 20%，违约金与定金择一适用；合同必备知识产权归属与验收标准条款。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '54', domain: 'sec', loc: 'citadel', root: '..',
+  title: '标准化与合同法律', prev: '53-ip-rights.html', prevTitle: '53 · 知识产权',
+  next: '55-pm-framework.html', nextTitle: '55 · 项目管理框架',
+  keywords: ['国家标准', '推荐性标准', '要约', '要约邀请', '承诺', '招标', '投标', '中标通知书']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 53 · 知识产权） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·53】甲公司委托乙公司开发软件，合同没有约定著作权归属。著作权归谁？',
+    opts: [
+      { t: '甲公司（委托方）', why: '「出钱不等于拿权利」——这正是要在合同里写明归属条款的原因。' },
+      { t: '乙公司（受托方）', why: '对：委托作品合同约定优先，无约定归受托人（实际创作方）。' },
+      { t: '双方各占一半', why: '法律默认规则是归受托人，不是当然共有。' }
+    ],
+    ans: 1, tag: '回忆:53', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '国家标准代号 GB/T 中，「T」的含义是？',
+      opts: [
+        { t: '推荐（推荐性国家标准，自愿采用）', why: '对：GB 强制必须执行，GB/T 是推荐性标准。这是最高频的单考点。' },
+        { t: '特别（针对特别领域的标准）', why: '望文生义的干扰项，T 是「推荐」拼音首字母。' },
+        { t: '替代（替代旧版标准）', why: '标准版本更替由标准发布说明管理，与 T 无关。' },
+        { t: '统一（全国统一执行的标准）', why: '「统一执行」是强制性标准 GB 的特征，方向弄反了。' }
+      ],
+      ans: 0, tag: '标准分级', src: '仿真题' },
+    { q: '某企业自行制定并在本企业内部执行、代号为「Q/XX」的标准，属于？',
+      opts: [
+        { t: '国家标准', why: '国家标准代号是 GB/GB-T，由国家标准管理机构组织制定。' },
+        { t: '行业标准', why: '行业标准是国务院有关行政主管部门制定，代号如 HB、JR 等。' },
+        { t: '地方标准', why: '地方标准代号是 DB，适用本行政区域。' },
+        { t: '企业标准，且其技术要求不得低于强制性国家标准', why: '对：Q/ 是企业标准，强制标准是任何标准都不能击穿的底线。' }
+      ],
+      ans: 3, tag: '标准分级', src: '仿真题' },
+    { q: '招投标过程中，「招标公告、投标文件、中标通知书」的法律性质依次是？',
+      opts: [
+        { t: '要约、要约邀请、承诺', why: '前两个颠倒：公告只是邀请大家来投标，投标文件才是要约。' },
+        { t: '要约邀请、要约、承诺', why: '对：公告邀请报价、投标具体确定、中标通知一锤定音。' },
+        { t: '要约邀请、承诺、要约', why: '顺序全乱，承诺只可能在中标通知书这一步。' },
+        { t: '要约、承诺、合同签订', why: '把中标通知书当「签合同」，漏掉了它的承诺性质与 30 日书面合同要求。' }
+      ],
+      ans: 1, tag: '招投标定性', src: '仿真题' },
+    { q: '合同标的额 100 万元，双方约定定金 50 万元。后卖方违约，买方可主张的定金罚则是？',
+      opts: [
+        { t: '50 万元全部双倍返还', why: '超过 20% 上限的部分不具有定金效力。' },
+        { t: '仅 20 万元产生定金效力，可主张按该部分双倍返还；其余 30 万元作为预付款返还', why: '对：定金不得超过主合同标的额的 20%。' },
+        { t: '定金约定无效，一分拿不到', why: '只是超出上限部分无效，并非整体无效。' },
+        { t: '可以同时再按合同约定主张违约金', why: '违约金与定金只能择一适用。' }
+      ],
+      ans: 1, tag: '违约责任', src: '仿真题' },
+    { q: '【交错复习·53】一份软件开发合同没有写知识产权归属条款，开发完成后软件的著作权默认归谁？据此，起草合同时应当？',
+      opts: [
+        { t: '归委托方；合同无需再写', why: '默认规则恰恰不归委托方，条款缺失会直接吃亏。' },
+        { t: '归受托人；所以合同必须明确写入著作权归属条款', why: '对：委托开发无约定归受托人（53 页），用合同条款改写默认规则是甲方的必修课。' },
+        { t: '归国家；由双方申请调拨', why: '不存在这样的默认规则。' },
+        { t: '双方各半；按出资比例共有', why: '没有「按出资比例默认共有」的规则。' }
+      ],
+      ans: 1, tag: '交错复习:53', src: '仿真题' }
+  ], { mode: 'test', kpId: '54' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某公司公开招标采购一个软件项目。A 公司按招标文件递交投标文件并中标，收到中标通知书后，A 公司立即租用场地、组建了开发团队。一周后招标人反悔：称「书面合同还没签，双方不存在合同关系」，拒绝签约并另选了 B 公司。A 公司因此产生场地与团队闲置损失。',
+    q: '(1) 指出招标公告、投标文件、中标通知书各自的法律性质；(2) 招标人「没有合同」的说法是否成立？它应承担什么责任？(3) 给投标人两条防范建议。',
+    ref: '(1) 招标公告＝要约邀请；投标文件＝要约（内容具体确定、一经承诺即受约束）；中标通知书＝承诺，承诺生效时合同即告成立。(2) 不成立。中标通知书发出后合同已成立，双方应在 30 日内按招标文件与投标文件订立书面合同——书面合同是对既已成立合同的确认而非成立前提；招标人拒签属于违反已成立的合同，应承担违约责任，赔偿 A 公司的信赖与准备损失（场地租金、团队组建闲置等合理支出）。(3) 建议：①投标前评估自身报价约束（要约一旦承诺必须履行），核算履约成本；②收到中标通知书后及时书面确认并推动 30 日内签约，保留招标文件、投标文件、往来函件作为证据；必要时在招标答疑阶段澄清模糊需求。',
+    points: ['三段定性全部正确且顺序不乱', '明确「承诺生效合同成立」，30 日书面合同是确认性质', '责任定性为违约（而非缔约过失或「无责任」），赔偿范围点出准备损失', '防范建议落在「要约约束力」与「证据与签约推动」两个可操作点'],
+    frame: '答题框架：逐环节定性 → 定时点（承诺生效=合同成立）→ 定责任（违约/赔偿范围）→ 给防范（事前评估+事中留证推动签约）。',
+    kpId: '54'
+  });
+  CX.renderCase('#case2', {
+    stem: '某政务系统开发合同只写了「文档须符合国家最新标准」，未写标准编号与版本。承包商用旧版推荐性文档编制规范编写全套文档；监理依据新版文件编制规范的强制性管理条款要求整改，承包人以「签合同时旧版仍有效」拒绝。项目验收在即。',
+    q: '(1) 强制性与推荐性标准的效力差别是什么？(2) 本案的依据冲突应如何处理？(3) 以后起草合同时标准条款应该怎么写？',
+    ref: '(1) 强制性国家标准必须执行，不符合不得交付使用——是底线；推荐性国家标准（GB/T）自愿采用，一经合同约定采用即对双方有约束力。(2) 处理顺序：凡涉及强制性条款的，无条件满足，任何「合同约定」不能对抗强制标准；推荐性标准的采用以合同约定为准，约定不明的，一般按订立合同时有效的版本执行，但为满足最新强制要求与监理合规意见产生的整改应予配合；双方可就版本升级带来的额外工作量协商变更（费用与工期）。(3) 标准条款三要素：写明标准名称+编号+年份版本（或「签订时有效版本/交付时最新有效版本」的明确口径）、写明适用优先级（强制标准>合同约定的推荐标准>企业规范）、约定标准更新时的变更处理机制。',
+    points: ['讲清「强制=底线必须执行、推荐=约定后才有约束力」两级效力', '冲突处理有层次：强制条款无条件满足→推荐按约定→不明按订立时版本→协商变更', '条款建议含编号/版本/优先级/更新机制，可操作', '能联系监理与验收场景说明整改依据'],
+    frame: '答题框架：效力分级 → 冲突处理顺序（强制>约定>默认）→ 变更与费用处理 → 回到条款设计三要素收尾。',
+    kpId: '54'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '拍卖行发布拍卖公告，买家老周举牌应价 80 万元，拍卖师落槌成交。这三步的法律性质依次是？',
+    opts: [
+      { t: '要约、要约邀请、承诺', why: '顺序颠倒了：公告在前、应价在中。' },
+      { t: '要约邀请、要约、承诺——拍卖公告是邀请大家来应价，举牌应价是要约，落槌是承诺，买卖合同成立', why: '对：同一「三步定性」思想换到拍卖场景，结论与招投标完全同构。' },
+      { t: '要约邀请、要约邀请、承诺', why: '举牌应价是具体确定的报价，已经构成要约，不再是邀请。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant', kpId: '54' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['53'], 'prev');
+  CX.depChain('#bridge-next', ['55'], 'next');
+
+  /* ---- 动画：要约三步判定器 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var scSlider = CX.utils.$('sc-select');
+  var scOut = CX.utils.$('sc-out');
+  var calcOut = CX.utils.$('sc-calc');
+  var SCEN = [
+    { name: '招投标', steps: [
+      ['发布招标公告', '要约邀请', '它邀请的是「大家来报价」，本身说了不算'],
+      ['递交投标文件', '要约', '内容具体确定：一旦中标就必须履约'],
+      ['发出中标通知书', '承诺', '承诺生效合同成立；30 日内订立书面合同'] ] },
+    { name: '拍卖', steps: [
+      ['发布拍卖公告', '要约邀请', '邀请竞买人来应价'],
+      ['竞买人举牌应价', '要约', '具体确定的报价，落槌前可被更高价替代'],
+      ['拍卖师落槌', '承诺', '拍定即成交，买卖合同成立'] ] },
+    { name: '寄送价目表', steps: [
+      ['厂家寄送价目表', '要约邀请', '价目表＝「欢迎来谈」，说了不算'],
+      ['客户发函按价订购', '要约', '品名数量价格齐全，构成具体确定的意思表示'],
+      ['厂家回函接受', '承诺', '到达即生效，合同成立'] ] },
+    { name: '商业广告', steps: [
+      ['发布商业广告', '一般是要约邀请', '内容具体确定、表明即买即得的除外'],
+      ['顾客按广告下单', '要约', '选好商品提交订单＝具体确定的意思表示'],
+      ['商家确认发货', '承诺', '合同成立并进入履行'] ] }
+  ];
+  var SC = 0;
+  var TAGCOLOR = { '要约邀请': 'var(--accent)', '要约': 'var(--accent-2)', '承诺': 'var(--ok)', '一般是要约邀请': 'var(--accent)' };
+  function cap(sc, f) {
+    var st = SCEN[sc].steps;
+    if (f === 0) return '第1步：' + st[0][0] + '——' + st[0][1] + '。' + st[0][2];
+    if (f === 1) return '第2步：' + st[1][0] + '——这是要约。' + st[1][2];
+    return '第3步：' + st[2][0] + '——承诺生效，合同成立！' + st[2][2];
+  }
+  function draw(t) {
+    var f = Math.min(2, Math.floor(t * 3));
+    var sc = SCEN[SC];
+    var s = '<svg viewBox="0 0 740 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="要约三步判定器">';
+    s += '<rect width="740" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="370" y="34" text-anchor="middle" font-size="15" font-weight="bold" fill="var(--text)">场景：' + sc.name + ' · 第 ' + (f + 1) + '/3 步</text>';
+    var xs = [40, 280, 520];
+    for (var i = 0; i < 3; i++) {
+      var show = i <= f;
+      var st = sc.steps[i];
+      var tagc = TAGCOLOR[st[1]] || 'var(--text)';
+      s += '<rect x="' + xs[i] + '" y="80" width="180" height="120" rx="10" fill="var(--card)" stroke="' + (show ? tagc : 'var(--line)') + '" stroke-width="' + (show ? 2 : 1) + '" opacity="' + (show ? 1 : .35) + '"/>';
+      s += '<text x="' + (xs[i] + 90) + '" y="116" text-anchor="middle" font-size="13" font-weight="bold" fill="' + (show ? 'var(--text)' : 'var(--text-dim)') + '">' + st[0] + '</text>';
+      if (show) {
+        s += '<rect x="' + (xs[i] + 30) + '" y="132" width="120" height="24" rx="12" fill="' + tagc + '" opacity=".18"/>';
+        s += '<text x="' + (xs[i] + 90) + '" y="148" text-anchor="middle" font-size="12" font-weight="bold" fill="' + tagc + '">' + st[1] + '</text>';
+        var lines = st[2].length > 14 ? [st[2].slice(0, 14), st[2].slice(14)] : [st[2]];
+        for (var li = 0; li < lines.length; li++) s += '<text x="' + (xs[i] + 90) + '" y="' + (176 + li * 15) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + lines[li] + '</text>';
+      }
+      if (i < 2) s += '<text x="' + (xs[i] + 190) + '" y="145" text-anchor="middle" font-size="20" fill="var(--line)">→</text>';
+    }
+    if (f === 2) {
+      s += '<g transform="rotate(-8,370,246)"><rect x="290" y="226" width="160" height="40" rx="6" fill="none" stroke="var(--ok)" stroke-width="3"/><text x="370" y="252" text-anchor="middle" font-size="16" font-weight="bold" fill="var(--ok)">合同成立 ✓</text></g>';
+    }
+    s += '<text x="370" y="290" text-anchor="middle" font-size="11" fill="var(--text-dim)">判定口诀：这句话被对方一答应，合同能不能直接成立？能=要约，还要谈=要约邀请</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap(SC, f));
+    if (calcOut) calcOut.textContent = '当前场景：' + sc.name + '（拖动滑块切换 4 组镜头）';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 9, onTick: draw });
+  scSlider.addEventListener('input', function () {
+    SC = parseInt(scSlider.value, 10);
+    scOut.textContent = SCEN[SC].name;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序（招投标流程） ---- */
+  var EXPECT = ['发布招标公告（要约邀请）', '投标人递交投标文件（要约）', '开标、评标', '发出中标通知书（承诺）', '30 日内订立书面合同'];
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var items = CX.shuffle(EXPECT.slice());
+  items.forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== EXPECT[i]) {
+        var hint = '';
+        if (i === 0) hint = '提示：最先出现的永远是「邀请大家来报价」的公告。';
+        else if (i === 1) hint = '提示：投标文件内容具体确定，是要约——先有要约才谈得上承诺。';
+        else if (i === 2) hint = '提示：承诺（中标通知）之前必须先开标、评标选出中标人。';
+        else hint = '提示：中标通知书是承诺，合同就此成立，30 日内补书面手续。';
+        fb.textContent = '第 ' + (i + 1) + ' 步放错了：你放了「' + got[i] + '」，这里应是「' + EXPECT[i] + '」。' + hint;
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：公告（邀请）→ 投标（要约）→ 开标评标 → 中标通知（承诺）→ 30 日内签书面合同。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配（标准代号） ---- */
+  var pairs = [
+    ['GB', '强制性国家标准（必须执行）'],
+    ['GB/T', '推荐性国家标准（自愿采用）'],
+    ['DB', '地方标准（本行政区域）'],
+    ['Q/', '企业标准（本企业内部）'],
+    ['ISO', '国际标准化组织'],
+    ['ITU', '国际电信联盟（通信标准）']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的含义。';
+        CX.utils.$('lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个代号。'; CX.utils.$('lab2-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/6';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + d.textContent + '」不是「' + selL.dataset.k + '」。先问：它是哪一级？带不带 T？';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：判断快答 ---- */
+  var TF = [
+    { s: '招标公告在法律性质上属于要约。', a: false, e: '错。它是要约邀请——邀请大家来投标（报价）；投标文件才是要约。' },
+    { s: '企业标准的技术要求可以低于强制性国家标准。', a: false, e: '错。强制性标准是底线，企业标准只能更严不能更松。' },
+    { s: '合同中既约定了违约金又约定了定金，违约时可同时并用。', a: false, e: '错。守约方只能择一适用；定金不足以弥补损失的，可就不足部分另行请求赔偿。' },
+    { s: 'GB/T 50312 这类代号中的 T 表示推荐性。', a: true, e: '对。T＝推荐；不带 T 的 GB 才是强制性标准。' },
+    { s: '中标通知书对招标人和中标人都有法律效力，中标后拒签合同要承担责任。', a: true, e: '对。承诺生效合同已成立，拒签要承担相应责任并赔偿对方损失。' }
+  ];
+  var tfBox = CX.utils.$('tf-list');
+  TF.forEach(function (it, i) {
+    var rowEl = document.createElement('div');
+    rowEl.style.margin = '8px 0';
+    rowEl.innerHTML = '<p style="margin:0 0 4px">' + (i + 1) + '. ' + it.s + '</p>';
+    var bT = document.createElement('button'); bT.className = 'btn'; bT.textContent = '✔ 对';
+    var bF = document.createElement('button'); bF.className = 'btn'; bF.textContent = '✘ 错';
+    var out = document.createElement('span'); out.className = 'lab-feedback'; out.style.marginLeft = '8px';
+    function answer(said) {
+      bT.disabled = true; bF.disabled = true;
+      if (said === it.a) { out.textContent = ' ✅ 对！' + it.e; out.className = 'lab-feedback ok'; }
+      else { out.textContent = ' ❌ 错了。' + it.e; out.className = 'lab-feedback bad'; }
+    }
+    bT.addEventListener('click', function () { answer(true); });
+    bF.addEventListener('click', function () { answer(false); });
+    rowEl.appendChild(bT); rowEl.appendChild(bF); rowEl.appendChild(out);
+    tfBox.appendChild(rowEl);
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

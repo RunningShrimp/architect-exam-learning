@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>47 · 创建型模式 · 架构师学堂</title>
+<meta name="description" content="创建型模式把 new 的权力收归工厂：单例全家独一份，工厂按型号供货，建造者按订单组装。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">📐 标准图纸馆</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="46-principles-gof.html">前置 46</a></span>
+    <h1>47 · 创建型模式</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">创建型模式把 new 的权力收归工厂：单例全家独一份，建造者按订单组装。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>促销当晚，运营后台的数据出现诡异现象：部分用户看到的库存是旧的。排查发现——库存调度器是普通类，高并发下被两个线程各自 new 了一份，两份调度器各自维护一份内存库存，谁也不知道谁。同时，团队还要为 4 个支付渠道各写一套「App 证书 + H5 证书 + 回调验签器」的初始化代码，拷贝粘贴已开始失控。这两个问题，分别该用哪张「定型设计图」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>问题一是<strong>单例</strong>没守住：把构造器私有化、自己持有唯一实例、只发 getInstance() 一个入口，并用双检锁保证并发下也只创建一次（本页动画就是这条时序）。问题二是<strong>抽象工厂</strong>的地盘：每个渠道是一族产品（证书×2 + 验签器），要「成套创建、成套切换」，就把每族收进一个工厂，新增渠道 = 新增一个工厂子类——创建逻辑不再散落。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>46 · 设计原则与GoF总览</b>：创建型是三柜中的第一柜，背靠哪条总纲？</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>创建型模式（5 个）</strong>管一件事：<strong>把「对象怎么造、造几份、谁说了算」从使用方手里收走</strong>，封装到专门的创建结构里。调用方只说「我要一个能算账的东西」，不必知道是哪个类、怎么 new、参数怎么填。</p>
+      <h3>解决什么问题</h3>
+      <p>直接 new 有三宗罪：①<strong>写死类名</strong>——换实现要满地改代码（违依赖倒置）；②<strong>重复创建重活</strong>——重量级对象每次都从头建；③<strong>全局状态失控</strong>——该唯一的东西被造出好几份。创建型把这三类麻烦各堵一堵。</p>
+      <h3>核心机制：五张图各记「意图 + 城市比喻 + 适用场景」</h3>
+      <table class="tbl">
+        <tr><th>模式</th><th>意图</th><th>城市比喻</th><th>适用场景</th></tr>
+        <tr><td><b>单例</b> Singleton</td><td>保证一个类<strong>仅有一个实例</strong>，并提供全局访问点</td><td>全市唯一的<strong>总调度台</strong></td><td>全局唯一资源：配置中心、连接池、日志器、库存调度台</td></tr>
+        <tr><td><b>工厂方法</b> Factory Method</td><td>定义创建对象的接口，让<strong>子类决定实例化哪个类</strong></td><td><strong>预制件厂</strong>按型号供货：一个厂一条产品线</td><td>一个产品等级结构（如多种数据库连接器），新增产品靠加子类</td></tr>
+        <tr><td><b>抽象工厂</b> Abstract Factory</td><td>提供接口，创建<strong>一系列相关产品（一个产品族）</strong></td><td><strong>家具城成套供货</strong>：欧式桌+欧式椅+欧式柜一起换</td><td>多产品族成套创建与整体切换（换 UI 主题、换支付渠道全家桶）</td></tr>
+        <tr><td><b>建造者</b> Builder</td><td>把复杂对象的<strong>构建过程</strong>与<strong>表示</strong>分离，同样的步骤可组装出不同表示</td><td>装修按订单一步步来：<strong>毛坯→水电→精装</strong>，步骤固定、配置不同</td><td>参数多、组装有顺序讲究、同一过程产出不同形态（文档导出器）</td></tr>
+        <tr><td><b>原型</b> Prototype</td><td>用<strong>克隆已有实例</strong>来创建新对象</td><td><strong>复印盖章</strong>：不重新画图，复印一份再改批注</td><td>创建成本大（查库/渲染）且新对象与已有对象状态相似</td></tr>
+      </table>
+      <h3>关键细节 1：单例的线程安全——双检锁（DCL）</h3>
+      <p>并发下「先判空再创建」不是原子的：A、B 同时判空都为真，各造一份。解法是<strong>双重检查加锁</strong>：第一次判空（已存在就不必进锁，快）→ 加类锁 → <strong>第二次判空</strong>（等锁期间可能已被别人创建）→ 创建并赋值。赋值用的引用要加 <code>volatile</code>：防止「分配内存→初始化→赋引用」被指令重排成「赋引用→初始化」，导致别的线程拿到<strong>半初始化</strong>实例。更省心的写法还有静态内部类Holder 和枚举（利用类加载机制天然线程安全）。</p>
+      <h3>关键细节 2：工厂方法 vs 抽象工厂（必考对比表）</h3>
+      <table class="tbl">
+        <tr><th></th><th>工厂方法</th><th>抽象工厂</th></tr>
+        <tr><td>产品维度</td><td><strong>一个</strong>产品等级结构（一种产品多个型号）</td><td><strong>多个</strong>产品等级结构组成的<strong>产品族</strong></td></tr>
+        <tr><td>工厂提供</td><td>一个创建方法</td><td>一组创建方法（每个产品一个）</td></tr>
+        <tr><td>扩展方式</td><td>新增一个产品 → 新增一个工厂子类</td><td>新增一族产品 → 新增一个工厂子类；<strong>新增产品种类要改所有工厂（不满足开闭）</strong></td></tr>
+        <tr><td>一句话</td><td>一个厂一条产品线</td><td>一个厂一条<strong>成套</strong>生产线</td></tr>
+      </table>
+      <h3>关键细节 3：三张代表模式类图（空心三角=泛化/实现，空心菱形=聚合）</h3>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="单例类图">
+            <rect x="16" y="50" width="104" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="68" y="68" text-anchor="middle" font-size="12" fill="var(--text)">调用方</text>
+            <line x1="16" y1="75" x2="120" y2="75" stroke="var(--line)"/>
+            <text x="68" y="92" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 业务()</text>
+            <line x1="120" y1="76" x2="148" y2="76" stroke="var(--text)" stroke-dasharray="5 4"/>
+            <polyline points="148,76 139,72 148,76 139,80" fill="none" stroke="var(--text)"/>
+            <text x="134" y="68" text-anchor="middle" font-size="9" fill="var(--text-dim)">唯一入口</text>
+            <rect x="150" y="18" width="186" height="118" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="243" y="38" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">库存调度器（单例）</text>
+            <line x1="150" y1="48" x2="336" y2="48" stroke="var(--line)"/>
+            <text x="162" y="66" font-size="10" fill="var(--text-dim)">- instance: 库存调度器（静态，自己持自己）</text>
+            <text x="162" y="84" font-size="10" fill="var(--text-dim)">- 库存调度器() 私有构造</text>
+            <line x1="150" y1="94" x2="336" y2="94" stroke="var(--line)"/>
+            <text x="162" y="112" font-size="10" fill="var(--accent-2)">+ getInstance() 静态（双检锁）</text>
+            <text x="162" y="128" font-size="10" fill="var(--text-dim)">+ 扣减库存()</text>
+            <text x="243" y="158" text-anchor="middle" font-size="11" fill="var(--accent)">私有构造 + 自持唯一实例 + 静态全局访问点</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 A · 单例：三要素——私有构造、静态自持、getInstance()</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="工厂方法类图">
+            <rect x="20" y="16" width="150" height="60" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="95" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«abstract»</text>
+            <text x="95" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">计费工厂（抽象）</text>
+            <line x1="20" y1="56" x2="170" y2="56" stroke="var(--line)"/>
+            <text x="95" y="71" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ create(): 计费产品</text>
+            <rect x="230" y="16" width="150" height="60" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="305" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="305" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">计费产品</text>
+            <line x1="230" y1="56" x2="380" y2="56" stroke="var(--line)"/>
+            <text x="305" y="71" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ calc()</text>
+            <polygon points="95,76 85,94 105,94" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="95" y1="94" x2="95" y2="150" stroke="var(--text)"/>
+            <polygon points="305,76 295,94 315,94" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="305" y1="94" x2="305" y2="150" stroke="var(--text)"/>
+            <rect x="20" y="150" width="150" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="95" y="168" text-anchor="middle" font-size="12" fill="var(--text)">微信计费工厂</text>
+            <line x1="20" y1="175" x2="170" y2="175" stroke="var(--line)"/>
+            <text x="95" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ create(): 微信产品</text>
+            <rect x="230" y="150" width="150" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="305" y="168" text-anchor="middle" font-size="12" fill="var(--text)">微信计费产品</text>
+            <line x1="230" y1="175" x2="380" y2="175" stroke="var(--line)"/>
+            <text x="305" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ calc()</text>
+            <line x1="170" y1="176" x2="230" y2="176" stroke="var(--text)" stroke-dasharray="5 4"/>
+            <polyline points="230,176 221,172 230,176 221,180" fill="none" stroke="var(--text)"/>
+            <text x="200" y="168" text-anchor="middle" font-size="9" fill="var(--text-dim)">«create»</text>
+            <text x="200" y="228" text-anchor="middle" font-size="11" fill="var(--accent)">子类工厂决定造哪个产品；新增渠道=新增一对子类</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 B · 工厂方法：两条平行继承树，工厂子类与产品子类一一对应</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 400 215" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="建造者类图">
+            <rect x="14" y="30" width="120" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="74" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">指挥者</text>
+            <line x1="14" y1="56" x2="134" y2="56" stroke="var(--line)"/>
+            <text x="74" y="74" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ construct() 定步骤</text>
+            <polygon points="134,58 142,53 150,58 142,63" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="150" y1="58" x2="172" y2="54" stroke="var(--text)"/>
+            <text x="161" y="44" text-anchor="middle" font-size="9" fill="var(--text-dim)">指导</text>
+            <rect x="174" y="24" width="152" height="62" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="250" y="40" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="250" y="56" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">建造者</text>
+            <line x1="174" y1="62" x2="326" y2="62" stroke="var(--line)"/>
+            <text x="250" y="80" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ buildPart() / + getResult()</text>
+            <polygon points="250,86 240,104 260,104" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="250" y1="104" x2="250" y2="140" stroke="var(--text)"/>
+            <rect x="174" y="140" width="152" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="250" y="158" text-anchor="middle" font-size="12" fill="var(--text)">精装建造者（具体）</text>
+            <line x1="174" y1="165" x2="326" y2="165" stroke="var(--line)"/>
+            <text x="250" y="182" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ buildPart() 逐步填料</text>
+            <line x1="174" y1="166" x2="134" y2="166" stroke="var(--text)" stroke-dasharray="5 4"/>
+            <polyline points="134,166 143,162 134,166 143,170" fill="none" stroke="var(--text)"/>
+            <rect x="14" y="140" width="120" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="74" y="158" text-anchor="middle" font-size="12" fill="var(--text)">产品（房子）</text>
+            <line x1="14" y1="165" x2="134" y2="165" stroke="var(--line)"/>
+            <text x="74" y="182" text-anchor="middle" font-size="10" fill="var(--text-dim)">- 各部件状态</text>
+            <text x="200" y="208" text-anchor="middle" font-size="11" fill="var(--accent)">指挥者管步骤顺序，建造者管每步怎么做</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 C · 建造者：指挥者持抽象建造者，换建造者=换「精装/毛坯」表示</figcaption>
+        </figure>
+      </div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①双检锁漏了<strong>第二次判空</strong>会重复创建、漏 <code>volatile</code> 会拿到半初始化对象——两个漏点分别对应「多个实例」和「字段是默认值」两种事故；②工厂方法 vs 抽象工厂判据是「<strong>一个产品等级 vs 一个产品族</strong>」，不是工厂类的数量；③「简单工厂」（一个静态方法 + switch）<strong>不属于 GoF 23</strong>，它把创建逻辑堆在一个类里，新增产品要改它——恰是工厂方法要解决的；④建造者 vs 工厂方法：工厂一步造好「是什么」，建造者<strong>分步组装</strong>且步骤/表示可分离；⑤原型要区分<strong>浅拷贝与深拷贝</strong>——浅拷贝共享引用字段，克隆体改状态会串门。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>singleton（单例）· factory method（工厂方法）· builder（建造者）。英语题常用句式：The singleton pattern ensures that a class has only one instance and provides a global point of access to it.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在 <b>📐 标准图纸馆</b>的创建型抽屉里：全市只能有一个<strong>总调度台</strong>（单例），建材由<strong>预制件厂按型号供货</strong>（工厂方法），<strong>家具城成套供货</strong>——你买的是「欧式生活」这一整套（抽象工厂的<strong>产品族</strong>），装修队<strong>按订单一步步从毛坯装到精装</strong>（建造者），图纸改错了不必重画，<strong>复印盖章</strong>再改批注（原型）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>全市唯一的总调度台</td><td>单例：全局唯一实例</td><td>成立</td></tr>
+      <tr><td>预制件厂按型号供货</td><td>工厂方法：子类决定造哪个</td><td>成立</td></tr>
+      <tr><td>家具城成套供货、整体换风格</td><td>抽象工厂：产品族成套创建</td><td>成立</td></tr>
+      <tr><td>毛坯→水电→精装的固定工序</td><td>建造者：构建过程与表示分离</td><td>成立</td></tr>
+      <tr><td>复印盖章再改批注</td><td>原型：克隆创建</td><td>成立</td></tr>
+      <tr><td>复印件和原件永远独立、互不影响</td><td>克隆后的隔离性</td><td><b>失效</b>：浅拷贝仍共享引用对象——改「复印件」的引用字段会连带改原件，必须深拷贝</td></tr>
+    </table>
+    <div class="rhyme">调度全城唯一份，私造闭门自持身；<br>双检锁内再判空，volatile 防乱序；<br>一厂一型工厂法，成套换装抽象家；<br>毛坯精装分步走，复印盖章克隆花。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示单例的三种实现并发时序：播放看线程 A、B 同时冲击 getInstance()，再来看线程 C 的日常调用；拖动「实现方式」滑块切换 无锁 / 方法级锁 / 双检锁，观察实例数与调用开销的变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>实现方式 <input type="range" id="mode-slider" min="0" max="2" step="1" value="2"> <span id="mode-out">双检锁</span></label>
+      <span class="kf-caption">无锁=并发首创建会造出多份；方法级锁=安全但每次调用都排队；双检锁=只首次加锁，日常调用锁外判空直接返回。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（模式判类）：这个场景该选哪个创建型模式？</h4>
+      <p class="foreshadow">先点一条场景，再点模式名；选错会指出你把哪个意图弄混了。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-m="singleton">单例</button>
+        <button class="btn" data-m="factory">工厂方法</button>
+        <button class="btn" data-m="abstract">抽象工厂</button>
+        <button class="btn" data-m="builder">建造者</button>
+        <button class="btn" data-m="prototype">原型</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：双检锁单例的正确步骤</h4>
+      <p class="foreshadow">把五步按正确顺序拖入槽中：</p>
+      <div id="lab2-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="lab2-slot"></div>
+      <button class="btn" id="lab2-check">检查顺序</button>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：抽象工厂的「成套供货」</h4>
+      <p class="foreshadow">选一家家具城（=选一个工厂），点「下单」，看它怎么成套供货；再想想为什么不能「只换单椅不成套」。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn" data-f="eu">欧式家具城工厂</button>
+        <button class="btn" data-f="cn">中式家具城工厂</button>
+        <button class="btn primary" id="lab3-order">🛒 下单（创建一套家具）</button>
+      </div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（建造者）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>46 · 设计原则与GoF总览 给了判柜口诀与总纲：创建型 5 将是三柜第一柜——工厂方法/抽象工厂把「new 写死」改造成「依赖抽象工厂」（依赖倒置），新增产品靠加子类（开闭）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>48 · 结构型模式：创建出来的对象开始「拼装」——单例的对象常被代理/装饰包一层（如给全局调度台加访问控制）；</li><li>49 · 行为型模式：对象造好了开始「协作」——工厂常与策略/观察者搭配（按配置选策略、创建后注册进主题）；</li><li>38/39 · 微服务与云原生：单例思想放大到服务级就是「全局唯一配置中心/注册中心」，而它的新麻烦（分布式单点）也在那里等着你。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>工厂方法</th><th>抽象工厂</th></tr>
+      <tr><td>差异点</td><td>一个产品等级结构：一种产品的多个型号（一厂一型）</td><td>一个产品族：多个配套产品成套创建（一厂一套）</td></tr>
+      <tr><td>易错点</td><td>以为「有多个工厂类就是抽象工厂」——判据是产品维度不是工厂数量</td><td>以为抽象工厂处处更强——新增「产品种类」（不只是新族）要改所有工厂，反而破坏开闭</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">换「型号」用工厂方法，换「整套风格」用抽象工厂；先问要换的是一个零件还是一屋家具。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——全市的游乐场只能有一个广播站（单例）；要买建材不用自己造，预制件厂按型号送货（工厂方法）……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 创建型 5 个管「生」：单例（唯一份+双检锁）、工厂方法（一厂一型）、抽象工厂（一厂一族）、建造者（分步组装、过程与表示分离）、原型（克隆创建、注意深拷贝）。</li><li>② 单例三要素：私有构造、静态自持、getInstance()；并发正确性靠「两次判空 + 类锁 + volatile」，或静态内部类/枚举。</li><li>③ 选型先问三句：要几份（单例）？换的是型号还是整套（工厂方法/抽象工厂）？是「造什么」还是「怎么一步步装」（工厂/建造者）？创建成本大就克隆（原型）。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '47', domain: 'pt', loc: 'blueprint', root: '..',
+  title: '创建型模式', prev: '46-principles-gof.html', prevTitle: '46 · 设计原则与GoF总览',
+  next: '48-structural.html', nextTitle: '48 · 结构型模式',
+  keywords: ['单例', '双检锁', '工厂方法', '抽象工厂', '建造者', '原型', '产品族']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 46） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·46】创建型模式的共同目标，直接服务的设计原则总纲是？',
+    opts: [
+      { t: '迪米特法则', why: '迪米特管「少认识陌生人」，是辅助原则之一，不是总纲。' },
+      { t: '开闭原则：对扩展开放、对修改关闭', why: '对。创建型把「造什么」的变化隔离出去，新增产品靠新增工厂子类而非改老代码——正是开闭。' },
+      { t: '合成复用原则', why: '合成复用管「多用组合少继承」，与本柜主目标不直接对应。' },
+      { t: '单一职责', why: '单一职责管类的变化原因数量，创建型只是顺带让「创建职责」独立。' }
+    ],
+    ans: 1, tag: '回忆:46', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某团队用双检锁实现单例，压测时偶发拿到「字段全是默认值」的半初始化实例。最可能的原因是？',
+      opts: [
+        { t: '少了第一次判空，每次都进锁', why: '少第一次判空只是性能差（每次加锁），不会产生半初始化对象。' },
+        { t: '实例引用未加 volatile，指令重排使「赋引用」先于「初始化」完成', why: '对。new 的三步（分配→初始化→赋引用）可能被重排，另一线程在锁外第一次判空时看到非空引用但对象还没初始化完——补 volatile 禁止该重排。' },
+        { t: '构造器没有私有化', why: '构造器未私有会允许外部直接 new 出额外实例，但那不是「半初始化」而是正常初始化的新实例。' },
+        { t: 'getInstance 不是静态方法', why: '非静态会无法全局访问，与半初始化无关。' }
+      ],
+      ans: 1, tag: '单例双检锁', src: '仿真题' },
+    { q: '「换 UI 主题时，按钮、输入框、滚动条三种控件必须成套一起换（欧式全套/中式全套）」——最合适的模式是？',
+      opts: [
+        { t: '工厂方法', why: '工厂方法管一个产品等级结构（只换一种控件的型号），罩不住「一族产品成套换」。' },
+        { t: '抽象工厂', why: '对。三种控件=一个产品族，每个主题一个工厂，工厂里一组创建方法各管一种控件——成套创建、成套切换。' },
+        { t: '建造者', why: '建造者管「分步组装一个复杂对象」，不是成套创建一族对象。' },
+        { t: '原型', why: '原型管克隆已有实例，与族切换无关。' }
+      ],
+      ans: 1, tag: '创建型选型', src: '仿真题' },
+    { q: '关于建造者模式的核心意图，说法正确的是？',
+      opts: [
+        { t: '把创建逻辑封装进静态方法，调用更省事', why: '那是简单工厂的 convenience，不是建造者；简单工厂也不属于 GoF 23。' },
+        { t: '构建过程与表示分离：固定步骤由指挥者驱动，不同建造者组装出不同表示', why: '对。同样的「毛坯→部件→校验」步骤，换建造者就得到精装/毛坯两种成品——同过程不同表示。' },
+        { t: '保证对象全局只有一份', why: '那是单例的意图。' },
+        { t: '通过克隆省去重复初始化开销', why: '那是原型的意图。' }
+      ],
+      ans: 1, tag: '建造者', src: '仿真题' },
+    { q: '【交错复习:46】工厂方法模式中，调用方只依赖「抽象工厂 + 抽象产品」，具体由哪个子类创建在运行时才确定——这最直接体现了 46 页哪条原则？',
+      opts: [
+        { t: '依赖倒置：面向抽象编程，高层不依赖具体实现', why: '对。调用方持有抽象引用、具体实现在运行时注入/选择——46 页讲的「依赖接口不倚墙」；同时新增子类不改老代码也满足开闭，但「只依赖抽象」这半句的直接对应是依赖倒置。' },
+        { t: '迪米特法则', why: '迪米特管「不深挖陌生对象内部」，与依赖方向无关。' },
+        { t: '里氏替换', why: '里氏管子类替换父类行为正确，本题强调的是「依赖谁」而非「替换后对不对」。' },
+        { t: '接口隔离', why: '接口隔离管胖接口强加无用方法，题干没有此场景。' }
+      ],
+      ans: 0, tag: '交错复习:46', src: '仿真题' },
+    { q: '【交错复习:30】工厂方法类图中，「微信计费工厂」与「微信计费产品」之间的「«create» 创建」关系，在 UML 中通常画成？',
+      opts: [
+        { t: '空心三角实线，指向产品', why: '三角是泛化/实现（is-a），工厂与产品之间不是继承关系。' },
+        { t: '空心菱形实线，菱形在工厂端', why: '菱形是聚合（has-a 整体-部分），创建关系不是持有构件的聚合。' },
+        { t: '虚线开箭头依赖，标 «create» 构造型', why: '对。30 页的依赖关系：工厂只在方法体内创建产品（临时使用），画虚线开箭头并可加构造型标注；顺带记住三角=泛化、菱形=聚合。' },
+        { t: '实线双箭头双向关联', why: 'UML 没有这种「双向创建」画法，两个箭头混用会误读为双向多重关联。' }
+      ],
+      ans: 2, tag: '交错复习:30', src: '仿真题' }
+  ], { kpId: '47', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某电商中台有四个需求：A. 库存调度器必须进程内唯一，多线程并发初始化也只能有一份；B. 支付渠道证书初始化要「App 证书 + H5 证书 + 回调验签器」三件成套，渠道间成套切换；C. 订单导出参数 20 多个且组装顺序固定（取数→排版→渲染），要支持 Excel/PDF 两种成品；D. 商品详情页快照首次生成要查 20 张表耗时 2 秒，希望第二次起能复用已有快照改差异。',
+    q: '(1) 四个需求各选用哪个创建型模式？逐一说明选型判据；(2) 写出需求 A 在多线程下保证唯一的实现要点；(3) 需求 B 新增「银联渠道」时，哪些类要新增、哪些类不用改？这体现了什么原则？',
+    ref: '(1) A→单例（全局唯一资源，需并发防护）；B→抽象工厂（三件套=一个产品族，每渠道一个工厂成套创建、成套切换）；C→建造者（步骤固定、参数多、同一构建过程对应 Excel/PDF 两种表示——过程与表示分离）；D→原型（创建成本大且新快照与旧快照状态相似，克隆后改差异，注意深拷贝）。(2) 要点：构造器私有；静态自持唯一实例；getInstance() 中第一次判空（已存在直接返回，免加锁）→ synchronized 类锁 → 第二次判空（防等锁期间已被创建）→ 创建并赋值；实例引用加 volatile 防指令重排导致半初始化逸出；或改用静态内部类 Holder / 枚举。(3) 新增：银联证书类×2、银联验签器、银联工厂（一个工厂子类+若干产品子类）；不改：调用方代码与既有各渠道工厂/产品（调用方只依赖抽象工厂接口）。体现开闭原则（对扩展开放、对修改关闭），创建逻辑由依赖倒置支撑（依赖抽象工厂而非具体渠道）。',
+    points: ['四需求与模式一一对应且判据引用「意图」（唯一份/产品族/过程与表示分离/克隆省成本）', '双检锁要点完整：两次判空+类锁+volatile，或给出静态内部类/枚举替代', '新增银联时「新增清单」与「不改清单」分得清', '明确点出开闭原则与依赖倒置的支撑关系'],
+    frame: '答题框架：逐需求「关键特征→匹配意图→选模式」→ 高风险点（并发唯一性）展开实现细节 → 扩展性推演（新需求动哪些不动哪些）→ 升华到原则（开闭/依赖倒置）。',
+    kpId: '47'
+  });
+  CX.renderCase('#case2', {
+    stem: '某团队的单例配置管理器历史实现为：getInstance() 方法整体加 synchronized，后来「优化」为去掉锁、只保留一次判空。上线高并发后出现两类事故：①偶发出现两个配置管理器实例，各持一份内存配置导致配置漂移；②（另一版本尝试双检锁但漏加 volatile）偶发读到字段为默认值的「半初始化」配置对象。',
+    q: '(1) 分别分析两类事故的成因；(2) 给出至少两种正确实现并比较取舍；(3) 指出单例模式被滥用时的两个风险。',
+    ref: '(1) 事故①：去锁后「判空—创建」非原子，多个线程同时判空为真各自创建，产生多实例（配置漂移）。事故②：双检锁下实例引用未加 volatile，「分配内存→初始化→赋引用」被指令重排为「赋引用→初始化」，另一线程锁外第一次判空看到非空引用即返回，拿到未初始化完成的对象。(2) 方案一：标准双检锁——两次判空 + synchronized 类锁 + volatile 引用；日常调用锁外判空直接返回，性能好但写法易错。方案二：静态内部类 Holder——利用类加载机制保证线程安全与懒加载，写法最简，推荐。方案三：枚举单例——天然防反射与反序列化破坏，适合 Java 场景；不能懒加载的场景可选饿汉式（类加载即创建，简单但可能提前占用资源）。(3) 滥用风险：单例本质是受控全局状态，隐式依赖使单元测试难隔离、并发写共享状态引入隐蔽 bug；以及全局访问点成为耦合磁铁，到处 getInstance() 使依赖关系不可见（可结合依赖注入缓解）。',
+    points: ['事故①归因到「判空与创建非原子」而非「锁本身慢」', '事故②归因到指令重排与 volatile 缺失，能讲出「赋引用先于初始化」', '给出双检锁/静态内部类/枚举中至少两种并说取舍', '说出全局状态可测性与隐式耦合两个滥用风险'],
+    frame: '答题框架：现象→并发时序推演（谁和谁交错出了什么事）→ 正确实现（写法要点+取舍）→ 边界反思（滥用风险与缓解手段）。',
+    kpId: '47'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成报表场景：「报表中心要把同一份『取数→排版→渲染』流程产出 Excel、PDF、HTML 三种成品，未来还会加新格式」——除了工厂选型外，最贴合「同一构建过程、不同表示」的模式是？',
+    opts: [
+      { t: '单例', why: '单例管唯一实例，与「过程→多种成品」无关。' },
+      { t: '原型', why: '原型是克隆已有成品，不是按流程重新组装。' },
+      { t: '建造者：指挥者定流程，每类格式一个具体建造者', why: '对。取数→排版→渲染是固定构建过程；Excel/PDF/HTML 各是一个具体建造者——同一过程不同表示，加格式=加建造者（开闭）。' },
+      { t: '抽象工厂', why: '抽象工厂管一族产品的成套创建，不是「一个对象的分步组装」。' }
+    ],
+    ans: 2, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '47', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['46'], 'prev');
+  CX.depChain('#bridge-next', ['48', '49'], 'next');
+
+  /* ---- 动画：单例三种实现的并发时序 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var MODE = 2, MODE_NAME = ['无锁', '方法级锁', '双检锁'];
+  function draw(t) {
+    var p = t;
+    var ax = 70, bx = 70, cx = -30; /* 三线程当前位置 */
+    var pA = Math.min(1, p / 0.72);
+    var pB = Math.min(1, Math.max(0, (p - 0.06) / 0.72));
+    var pC = Math.min(1, Math.max(0, (p - 0.72) / 0.28));
+    function laneX(f) { return 70 + f * 560; }
+    ax = laneX(pA); bx = laneX(pB); cx = laneX(pC);
+    var created = 0, safeTxt = '', costTxt = '';
+    if (MODE === 0) {
+      created = pA > 0.5 ? 1 : 0; if (pB > 0.55) created = 2;
+      safeTxt = '否：A、B 同时判空同时创建';
+      costTxt = '无锁开销小，但并发首创建造出多份';
+    } else if (MODE === 1) {
+      created = pA > 0.5 ? 1 : 0;
+      safeTxt = '是：B 在门口排队等 A 出方法';
+      costTxt = '安全，但每次调用（含 C）都要排队加锁';
+    } else {
+      created = pA > 0.5 ? 1 : 0;
+      safeTxt = '是：两次判空，只首次创建加锁';
+      costTxt = '安全且快：C 日常调用锁外判空直接返回';
+    }
+    var s = '<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="320" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="350" y="24" text-anchor="middle" font-size="14" fill="var(--text-dim)">getInstance() 生命周期：判空① → 加锁区 → 判空② → 创建/返回　（实现：' + MODE_NAME[MODE] + '）</text>';
+    /* 阶段竖线 */
+    var zones = [[70, 200, '调用'], [200, 320, '判空①'], [320, 400, '锁'], [400, 490, '判空②'], [490, 640, '创建/返回']];
+    zones.forEach(function (z) {
+      s += '<rect x="' + z[0] + '" y="44" width="' + (z[1] - z[0]) + '" height="200" fill="var(--card)" opacity=".35"/>';
+      s += '<text x="' + ((z[0] + z[1]) / 2) + '" y="58" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + z[2] + '</text>';
+    });
+    /* 锁门 */
+    s += '<rect x="322" y="44" width="8" height="200" fill="var(--warn)" opacity="' + (MODE === 0 ? 0 : 0.9) + '"/>';
+    if (MODE > 0) s += '<text x="326" y="252" text-anchor="middle" font-size="11" fill="var(--warn)">🔒 synchronized</text>';
+    /* 三条泳道 */
+    function lane(y, name, x, color, wait) {
+      s += '<line x1="70" y1="' + y + '" x2="640" y2="' + y + '" stroke="var(--line)"/>';
+      s += '<text x="40" y="' + (y + 4) + '" font-size="11" fill="var(--text-dim)">' + name + '</text>';
+      if (x > 0) {
+        s += '<circle cx="' + x + '" cy="' + y + '" r="10" fill="' + color + '"/>';
+        if (wait) s += '<text x="' + x + '" y="' + (y - 16) + '" text-anchor="middle" font-size="11" fill="var(--warn)">⏳ 等锁</text>';
+      }
+    }
+    var bWait = MODE > 0 && pB > 0 && (bx > 300 && bx < 330) ;
+    var bWaitPos = MODE > 0 && p > 0.2 && p < 0.75 && bx >= 300 && bx < 322;
+    lane(100, '线程A', ax, 'var(--accent-2)', false);
+    lane(150, '线程B', bWaitPos ? 300 : bx, 'var(--accent)', bWaitPos || (MODE === 1 && pB > 0 && bx <= 322 && p > 0.2 && p < 0.75));
+    var cFast = (MODE !== 1) && pC > 0;
+    lane(200, '线程C', cFast ? cx : (pC > 0 ? 300 + (cx - 300) : -30), 'var(--ok)', MODE === 1 && pC > 0 && cx < 340 && pC < 1);
+    /* 创建出的实例 */
+    s += '<text x="40" y="266" font-size="12" fill="var(--text-dim)">已创建实例数：</text>';
+    for (var i = 0; i < created; i++) {
+      s += '<rect x="' + (150 + i * 120) + '" y="272" width="104" height="30" rx="6" fill="' + (created > 1 ? 'var(--bad)' : 'var(--ok)') + '" opacity=".85"/>';
+      s += '<text x="' + (202 + i * 120) + '" y="292" text-anchor="middle" font-size="11" fill="var(--bg)">总调度台 #' + (i + 1) + '</text>';
+    }
+    if (created === 0) s += '<text x="170" y="292" font-size="12" fill="var(--text-dim)">（尚未创建）</text>';
+    if (created > 1) s += '<text x="300" y="292" font-size="12" fill="var(--bad)">❌ 出现两份调度台！库存各记各的</text>';
+    s += '<text x="470" y="292" font-size="12" fill="var(--text)">并发安全：' + safeTxt + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (p < 0.2) cap = 'A、B 几乎同时调用 getInstance()——此刻实例还不存在，危险窗口开启。';
+    else if (p < 0.45) cap = '判空①：两种实现都发现「还没有实例」；无锁模式接下来就要出事了。';
+    else if (p < 0.75) cap = MODE === 0 ? '无锁：A、B 各自创建——两份总调度台，数据从此分家（事故现场）。'
+      : MODE === 1 ? '方法级锁：A 进锁创建，B 在门口排队；安全，但以后每次调用都要排队。'
+      : '双检锁：A 拿锁后判空②仍为空 → 创建；B 拿锁后判空②发现已存在 → 直接返回，不重复创建。';
+    else cap = MODE === 1 ? '线程C 日常调用：方法级锁仍要排队进锁——安全但慢。'
+      : MODE === 0 ? '线程C 日常调用：无锁下尚且正常，但下一次并发首创建还会再翻车。'
+      : '线程C 日常调用：锁外判空①直接命中，不加锁直接返回——双检锁的「快」就在这。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var animObj = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+  var ms = CX.utils.$('mode-slider');
+  ms.addEventListener('input', function () {
+    MODE = +ms.value;
+    CX.utils.$('mode-out').textContent = MODE_NAME[MODE];
+    draw(animObj.t || 0);
+  });
+
+  /* ---- 实验一：创建型判类 ---- */
+  var M1 = [
+    { t: '全城只允许一个库存调度器，多线程同时初始化也只能有一份', k: 'singleton', why: '单例：全局唯一实例 + 全局访问点（并发下用双检锁）。' },
+    { t: '报表系统对接多种数据库，每种由对应子类工厂决定创建哪种连接器，新增数据库加子类', k: 'factory', why: '工厂方法：一个产品等级结构，子类决定实例化哪个类。' },
+    { t: '换 UI 主题时按钮、输入框、滚动条要成套一起换', k: 'abstract', why: '抽象工厂：一个产品族成套创建、成套切换——判据是「族」不是工厂数量。' },
+    { t: '装配主机：CPU→内存→硬盘→自检，步骤固定，配置不同成品不同', k: 'builder', why: '建造者：固定构建过程 + 不同表示；判据是「分步组装」而非「一步 new」。' },
+    { t: '商品快照首次生成要查 20 张表耗时 2 秒，后来复制上次快照改差异', k: 'prototype', why: '原型：创建成本大且状态相似时克隆创建（注意深拷贝）。' },
+    { t: '订单对象有 20 个可选参数且必须「先底盘后轮子」按序装配', k: 'builder', why: '建造者：多可选参数+顺序讲究，正是「过程与表示分离」的地盘——别和工厂方法的「一步造好」弄混。' }
+  ];
+  var m1Sel = null, m1Correct = 0, m1Done = 0;
+  var m1Pool = CX.utils.$('lab1-pool');
+  M1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选这条场景，点上方模式名作答。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var MNAME = { singleton: '单例', factory: '工厂方法', abstract: '抽象工厂', builder: '建造者', prototype: '原型' };
+  CX.utils.$$('.lab button[data-m]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m1Sel) { fb1('先点选一条场景。', 'bad'); return; }
+      var item = null;
+      M1.forEach(function (x) { if (x.t === m1Sel.textContent) item = x; });
+      m1Done++;
+      if (btn.getAttribute('data-m') === item.k) {
+        m1Correct++;
+        m1Sel.style.borderColor = 'var(--ok)'; m1Sel.style.opacity = .5;
+        m1Sel.classList.remove('sel'); m1Sel.dataset.done = '1'; m1Sel = null;
+        fb1('✅ 正确：' + item.why + '（' + m1Correct + '/' + m1Done + '）', 'ok');
+      } else {
+        fb1('❌ 你选了「' + MNAME[btn.getAttribute('data-m')] + '」，意图混淆点：' + item.why + ' 判据口诀：要几份→单例；换型号→工厂方法；换整套→抽象工厂；分步装→建造者；克隆省→原型。', 'bad');
+        m1Sel.classList.remove('sel'); m1Sel = null;
+      }
+      if (m1Correct === M1.length) fb1('✅ 6 条全对！创建型选型只问四句：几份？型号还是整套？一步还是分步？造得贵不贵？', 'ok');
+    });
+  });
+  CX.utils.$('lab1-reset').addEventListener('click', function () {
+    m1Correct = 0; m1Done = 0; m1Sel = null;
+    CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：双检锁步骤排序 ---- */
+  var L2_ORDER = [
+    '第一次判空：实例已存在就直接返回（免加锁，日常最快路径）',
+    '进入 synchronized 类锁',
+    '第二次判空：防止等锁期间别人已创建',
+    '创建实例并赋值：引用必须 volatile（防指令重排半初始化）',
+    '后续所有调用：在第一次判空处命中，直接返回'
+  ];
+  var l2Pool = CX.utils.$('lab2-pool'), l2Slot = CX.utils.$('lab2-slot');
+  CX.shuffle(L2_ORDER.slice()).forEach(function (txt) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = txt; d.dataset.t = txt;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', txt); });
+    l2Pool.appendChild(d);
+  });
+  l2Slot.addEventListener('dragover', function (e) { e.preventDefault(); l2Slot.classList.add('hot'); });
+  l2Slot.addEventListener('dragleave', function () { l2Slot.classList.remove('hot'); });
+  l2Slot.addEventListener('drop', function (e) {
+    e.preventDefault(); l2Slot.classList.remove('hot');
+    var txt = e.dataTransfer.getData('text');
+    var src = l2Pool.querySelector('[data-t="' + txt + '"]') || l2Slot.querySelector('[data-t="' + txt + '"]');
+    if (src) l2Slot.appendChild(src);
+  });
+  function fb2(msg, cls) { var f = CX.utils.$('lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('lab2-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(l2Slot.children, function (c) { return c.dataset.t; });
+    if (got.length < L2_ORDER.length) { fb2('还有 ' + (L2_ORDER.length - got.length) + ' 张卡片没拖进槽。', 'bad'); return; }
+    for (var i = 0; i < L2_ORDER.length; i++) {
+      if (got[i] !== L2_ORDER[i]) {
+        fb2('第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。逻辑是：先锁外判空（快路径）→ 才进锁 → 锁内必须再判空（等锁窗口）→ 创建赋值要 volatile → 之后永远走快路径。第一次判空永远在最外层。', 'bad');
+        return;
+      }
+    }
+    fb2('✅ 全对！记住「两判空一锁一 volatile」：判空①管性能，判空②管正确，volatile 管半初始化。', 'ok');
+  });
+  CX.utils.$('lab2-reset').addEventListener('click', function () {
+    Array.prototype.slice.call(l2Slot.children).forEach(function (c) { l2Pool.appendChild(c); });
+    fb2('已重置。', '');
+  });
+
+  /* ---- 实验三：抽象工厂成套供货 ---- */
+  var curF = 'eu';
+  var FAM = {
+    eu: { name: '欧式家具城工厂', set: ['欧式雕花桌', '欧式软包椅', '欧式展示柜'], style: '欧式巴洛克' },
+    cn: { name: '中式家具城工厂', set: ['中式榫卯桌', '中式圈椅', '中式博古架'], style: '新中式' }
+  };
+  var fb3 = function (msg, cls) { var f = CX.utils.$('lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); };
+  CX.utils.$$('.lab button[data-f]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      curF = btn.getAttribute('data-f');
+      CX.utils.$$('.lab button[data-f]').forEach(function (b) { b.style.borderColor = ''; });
+      btn.style.borderColor = 'var(--accent-2)';
+      fb3('已选定「' + FAM[curF].name + '」——注意：调用方代码一行没改，只是换了个工厂对象。', 'ok');
+    });
+  });
+  CX.utils.$('lab3-order').addEventListener('click', function () {
+    var f = FAM[curF];
+    fb3('🛒 ' + f.name + ' 成套供货：' + f.set.join(' + ') + ' ——一套「' + f.style + '」齐活。要点：三种产品来自同一个族、风格严格一致；若只单独换一把「北欧椅」进中式屋，就是破坏了产品族一致性——这正是抽象工厂与工厂方法的分界。', 'ok');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

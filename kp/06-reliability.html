@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · 可靠性与RAID · 架构师学堂</title>
+<meta name="description" content="串联靠个个不倒，并联靠有人兜底；MTBF 与 RAID 是冗余的量化。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="03-error-check.html">前置 03</a></span>
+    <h1>06 · 可靠性与RAID</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">串联靠个个不倒，并联靠有人兜底，MTBF与RAID量化冗余。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>运维要给支付网关做双机热备，两台机器单机可靠度都是 0.9（考核期内）。他在方案里写：「并联以后失效率叠加，系统失效率翻倍，还不如单机」——被架构师当场驳回。<b>并联到底让系统更可靠还是更不可靠？两台 0.9 并联后系统可靠度是多少？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>他犯的是本页头号易错：<strong>「失效率相加」是串联近似才用的思路，并联绝不能这么算</strong>。并联的正确姿势是「都倒才倒」：R = 1-(1-R₁)(1-R₂) = 1-0.1×0.1 = <strong>0.99</strong>。两台 0.9 并联，可靠度从 0.9 提到 0.99——冗余买的就是这个「有人兜底」。反过来串联才是「一损俱损」：R = R₁×R₂ = 0.81，越串越脆。复杂系统就一条口诀：<strong>先拆层，再计算</strong>。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>03 · 校验码与纠错</b>——RAID 的容错就是校验码思想的放大：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>可靠性</strong>用可靠度 R(t) 度量：系统在规定时间 t 内正常工作的概率；失效率 λ 恒定时 R(t)=e^(-λt)（一般认为的教材口径）。<strong>可用性</strong>是「该用的时候能用」的时间占比。<strong>冗余</strong>是用多余资源换可靠度：硬件冗余（双机、RAID）、信息冗余（03 页校验码）、时间冗余（重试）都是同一思想的化身。</p>
+      <h3>解决什么问题</h3>
+      <p>任何部件都会坏，而业务承诺「全年可用 99.99%」。单机靠不住，就必须用<strong>组合</strong>：串联还是并联、怎么混联、盘怎么组阵列——都需要把「坏」算清楚。</p>
+      <h3>核心机制</h3>
+      <table class="tbl">
+        <tr><th>结构</th><th>可靠度公式</th><th>例（两台各 R=0.9）</th><th>直觉</th></tr>
+        <tr><td>串联</td><td>R = R₁×R₂×…×Rₙ</td><td>0.81</td><td>都活才算活，越串越脆</td></tr>
+        <tr><td>并联</td><td>R = 1-(1-R₁)(1-R₂)…(1-Rₙ)</td><td>0.99</td><td>一个活就活，兜底</td></tr>
+        <tr><td>模冗余（m/n 表决）</td><td>n 个中 ≥m 个正常即系统正常（多数表决）</td><td>3 中 2 表决：3R²-2R³</td><td>用票数抗单点出错</td></tr>
+      </table>
+      <p><strong>时间指标</strong>：MTTF=平均无故障时间（坏之前平均多久）=1/λ；MTTR=平均修复时间；<strong>MTBF=MTTF+MTTR</strong>（平均故障间隔，含维修）；可用性 A = MTTF/(MTTF+MTTR) = MTTF/MTBF。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>RAID 级</th><th>机制</th><th>n 块盘可用容量</th><th>容错</th><th>特点</th></tr>
+        <tr><td>RAID 0</td><td>条带，无冗余</td><td>n</td><td>0 块</td><td>最快最省，坏 1 块全丢</td></tr>
+        <tr><td>RAID 1</td><td>两两镜像</td><td>n/2</td><td>每组 1 块</td><td>成本高，读性能好</td></tr>
+        <tr><td>RAID 5</td><td>分布式奇偶校验</td><td>n-1</td><td>1 块</td><td>通用首选；坏盘重建靠异或</td></tr>
+        <tr><td>RAID 6</td><td>双重分布校验</td><td>n-2</td><td>2 块</td><td>大阵列防「重建中再坏」</td></tr>
+        <tr><td>RAID 10</td><td>镜像+条带结合</td><td>n/2</td><td>各镜像组 1 块</td><td>又快又稳又贵，数据库常用</td></tr>
+      </table>
+      <p><strong>混联系统</strong>：先把结构图按「串/并」分层，<strong>并联部分先算等效可靠度，再与串联部分连乘</strong>——顺序错了结果就错。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①并联把失效率直接相加——经典错例（那是串联小失效率的近似），并联必须用 1-∏(1-Rᵢ)；②MTBF≠MTTF：MTBF=MTTF+MTTR，可用性分母是 MTBF；③混联不拆层就乱乘乱加；④RAID 5 容量是 (n-1) 不是 (n/2)，RAID 6 是 (n-2)；RAID 0 容错是 0，不是「有 0 号所以最基础」。</div>
+      <h3>专业英语小贴士</h3>
+      <p>MTBF = Mean Time Between Failures（平均故障间隔时间）；MTTF = Mean Time To Failure（平均无故障时间）；availability（可用性）；redundancy（冗余）；RAID = Redundant Array of Independent Disks（独立磁盘冗余阵列）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>供电系统是最好的教具：<strong>串联</strong>像一串老式灯泡，坏一个全灭——可靠度连乘，越多越脆；<strong>并联</strong>像双回路供电，一条线跳闸另一条顶上——「全倒才倒」；<strong>混联</strong>像小区配电：入户的两回路先并联算出一个「等效可靠度」，再与变电站、变压器逐级串联相乘。RAID 则是档案馆的抄本制度：RAID 1 每份档案抄一份（镜像），RAID 5 全组共同维护一份「异或摘要」分页存放（分布式校验），撕一页能按摘要推算回来。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>一串灯泡坏一个全灭</td><td>串联可靠度连乘</td><td>成立</td></tr>
+      <tr><td>双回路一条断另一条顶上</td><td>并联冗余</td><td>成立</td></tr>
+      <tr><td>两路电「故障率叠加所以更不可靠」</td><td>并联失效率相加</td><td><b>失效</b>：并联失效率不可相加，这是要专门纠的错例</td></tr>
+      <tr><td>抄本和原件永远一致</td><td>镜像实时同步</td><td>基本成立；异步复制场景有延迟窗口，类比需打折</td></tr>
+    </table>
+    <div class="rhyme">串联连乘一损俱损，并联兜底一活即活；<br>失效相加属串联，并联切忌直接和；<br>先拆层来后合并，间隔含修是 MTBF；<br>零条带一镜像，五带校验六双验。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「混联先拆层」：系统 = R₁ →（R₂a ∥ R₂b）→ R₃。播放看四步——认清结构、并联等效、串联连乘、拔掉一个部件看后果。拖滑块改 R 值，结果实时重算。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>串联件 R₁=R₃ <input type="range" id="rs-slider" min="500" max="999" value="900"> <span id="rs-out">0.900</span></label>
+      <label>并联件 R₂ <input type="range" id="rp-slider" min="500" max="999" value="800"> <span id="rp-out">0.800</span></label>
+      <span class="kf-caption" id="rel-cap"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：RAID 选型台 + 需求挑战</h4>
+      <p class="foreshadow">拖盘数 n，点 RAID 等级看容量与容错；然后依次接到三个需求单，选对等级：</p>
+      <label>盘数 n <input type="range" id="n-slider" min="3" max="8" value="6"> <span id="n-out">6</span> 块</label>
+      <div>
+        <button class="btn raid-btn" data-raid="0">RAID 0</button>
+        <button class="btn raid-btn" data-raid="1">RAID 1</button>
+        <button class="btn raid-btn" data-raid="5">RAID 5</button>
+        <button class="btn raid-btn" data-raid="6">RAID 6</button>
+        <button class="btn raid-btn" data-raid="10">RAID 10</button>
+      </div>
+      <p id="raid-info" class="foreshadow">已选：无</p>
+      <p class="foreshadow"><b>需求单</b>：<button class="btn" id="req-btn">出下一张需求</button> <span id="req-text" style="font-weight:700"></span></p>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：可靠性概念 ↔ 公式与直觉</h4>
+      <p class="foreshadow">先点左列一个概念，再点右列对应内容：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：混联可靠度计算步骤</h4>
+      <p class="foreshadow">把卡片拖进槽，排出正确计算流程：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>03 页的奇偶校验在本页长成了 RAID 5：一块盘坏掉，用「其余盘异或」把数据推算回来——校验码从「发现错误」升级成「恢复数据」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「冗余换可用性」是质量属性战术的一员：到 <b>43 · 质量属性战术</b> 会看到主动冗余、被动冗余的完整清单；</li>
+    <li>可用性 99.99% 这类指标写进验收单，就是 <b>42 · 质量属性与质量场景</b> 的六要素场景；</li>
+    <li>可靠度随时间衰减的模型，在 <b>56 · 进度管理与关键路径</b> 之外还支撑着运维的容量与换件计划。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>MTTF</th><th>MTBF</th></tr>
+      <tr><td>差异点</td><td>平均无故障时间：从上线到第一次坏</td><td>平均故障间隔时间：两次故障之间，<b>含维修时间</b></td></tr>
+      <tr><td>易错点</td><td>把 MTBF 直接当 MTTF 用，算可用性时分母错</td><td>可用性 A=MTTF/MTBF=MTTF/(MTTF+MTTR)，别写成 MTTR/MTBF</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">MTTF 管「坏之前活多久」，MTBF 管「两次坏之间隔多久（含修）」，差的那截就是 MTTR。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——一串旧灯泡坏一个全灭，但两条供电线路同时断就难多了……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 串联连乘 ∏Rᵢ（一损俱损），并联 1-∏(1-Rᵢ)（有人兜底）；并联失效率相加是头号错例。</li><li>② MTBF=MTTF+MTTR，可用性 A=MTTF/MTBF；混联先拆层：并联等效后再串联连乘。</li><li>③ RAID 选型看三件事：容量利用率、容错块数、性能代价——0 求快、1 镜像、5 单校验、6 双校验、10 全都要但贵。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '06', domain: 'hw', loc: 'foundation', root: '..',
+  title: '可靠性与RAID',
+  prev: '05-cache-memory.html', prevTitle: '05 · 存储层次与Cache',
+  next: '07-io-interrupt.html', nextTitle: '07 · 中断、DMA与总线',
+  keywords: ['可靠度','串联','并联','MTBF','可用性','冗余','RAID5','热备份']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 03） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·03】奇偶校验位能帮我们做到什么？',
+    opts: [
+      { t: '发现奇数个位翻转，但不知道是哪一位、也不能纠', why: '对。1 位冗余只够「报警」；本页 RAID 5 会告诉你：把这种校验放大到整块盘，就能反过来恢复数据。' },
+      { t: '定位并纠正任意位错误', why: '那是纠错码（如海明码）的本事，1 位奇偶做不到。' },
+      { t: '防止数据被篡改', why: '防篡改是安全领域（密码学摘要）的目标，校验位防的是「意外坏」。' }
+    ],
+    ans: 0, tag: '回忆:03', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '两台可靠度均为 0.9 的服务器并联组成双机热备，系统可靠度为？',
+      opts: [
+        { t: '0.99', why: '对。并联 R=1-(1-R₁)(1-R₂)=1-0.1×0.1=0.99——「都倒才倒」。' },
+        { t: '0.81', why: '这是串联连乘的结果；并联是兜底结构，不是一损俱损。' },
+        { t: '1.8', why: '可靠度相加超过 1，概率上不成立。' },
+        { t: '0.9', why: '并联必然不低于任何单机：0.99>0.9，冗余没白加。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '关于并联系统的可靠度，下列说法正确的是？',
+      opts: [
+        { t: '各设备失效率可以直接相加', why: '错，这是本域头号错例：失效率相加是串联（小失效率近似）的算法，并联相加会得出「越并联越不可靠」的荒谬结论。' },
+        { t: 'R = 1-(1-R₁)(1-R₂)…(1-Rₙ)', why: '对。先把每个「倒下」的概率相乘，再用 1 减——全倒才倒。' },
+        { t: '并联设备越多，系统越不可靠', why: '方向反了：并联只增不减可靠度（不考虑共因失效与切换代价时）。' },
+        { t: 'R = R₁+R₂', why: '概率相加会超过 1；两条腿同时活的事件有重叠，不能直接加。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '某设备 MTTF=900 小时，MTTR=100 小时，其可用性 A 约为？',
+      opts: [
+        { t: '0.9', why: '对。A=MTTF/(MTTF+MTTR)=900/1000=0.9。' },
+        { t: '0.99', why: '数错位了：900/1000=0.9；0.99 需要维修时间缩到 9 小时左右。' },
+        { t: '9', why: '这是 MTTF÷MTTR，不是占比；可用性必在 0~1 之间。' },
+        { t: '0.1', why: '把 MTTR/MTBF 当成了可用性——那是不可用度。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '用 5 块同容量磁盘组建 RAID 5，可用容量与容错能力是？',
+      opts: [
+        { t: '可用 5 块容量，容错 0 块', why: '那是 RAID 0；RAID 5 要拿 1 块的容量存分布式校验。' },
+        { t: '可用 4 块容量，允许任意坏 1 块并重建', why: '对。校验位分布在所有盘上：坏任何 1 块，用其余盘异或即可重建。' },
+        { t: '可用 2.5 块容量，允许坏 2 块', why: '2.5 块像 RAID 1 的 50%、坏 2 块像 RAID 6——两张特征贴错了对象。' },
+        { t: '可用 3 块容量，允许坏 1 块', why: '容量算错：RAID 5 只被校验吃掉 1 块的容量，是 n-1=4。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·03】RAID 5 的一块盘坏了，控制器能用其余盘「算回」丢失的数据。这个重建依赖的是？',
+      opts: [
+        { t: '异或奇偶校验：其余数据盘与校验盘异或即得丢失块', why: '对。03 页「同位抵消」的异或性质放大到整块盘：a⊕b⊕p=a 中 b 的信息全在 a⊕p 里。' },
+        { t: '补码运算', why: '补码管有符号数表示，与数据恢复无关。' },
+        { t: '海明码 syndrome 定位', why: '海明码纠的是位级错误；RAID 5 恢复的是整块盘，机制是异或校验。' },
+        { t: 'CRC 余数反推原文', why: 'CRC 只能检错不能恢复数据，反推原文超出了它的能力。' }
+      ],
+      ans: 0, tag: '交错复习:03', src: '仿真题' }
+  ], { kpId: '06', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '存储组用 6 块 4TB 磁盘搭建阵列。业务需求：①任意坏 1 块盘数据不丢；②可用容量尽量大；③评审会上有人提议「6 块全做 RAID 0，速度和容量都是最优」。',
+    q: '(1) 计算满足需求①②的 RAID 等级及可用容量；(2) 辨析「全做 RAID 0」提议的错误；(3) 若业务升级为「重建期间再坏一块也不丢」，等级与容量如何变化？',
+    ref: '(1) 选 RAID 5：可用容量 (6-1)×4TB=20TB（利用率约 83%），任意坏 1 块可用其余盘异或重建，同时容量与读性能都不差。(2) RAID 0 只条带不冗余：可用容量 24TB、性能最好，但容错为 0——任何一块盘坏，整卷数据全丢，违背需求①。「快和省」是以「坏一块全完」为代价的，需求里写了数据不能丢，此路不通。(3) 升级为 RAID 6：双重分布校验，允许同时坏 2 块；可用容量 (6-2)×4TB=16TB（约 67%）。大阵列重建时间长，重建期间再坏的概率不可忽略，RAID 6 正是为这个窗口设计的。',
+    points: ['正确选 RAID 5 并算出 20TB 与约 83% 利用率', '指出 RAID 0 容错为 0 与「坏 1 块全丢」的后果', 'RAID 6 容量 16TB 并说出「重建窗口再坏」的动机'],
+    frame: '答题框架：先翻译需求（容量/容错/性能三指标）→对照 RAID 特性表选型→算容量→对反方案做后果推演。',
+    kpId: '06'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '支付网关承诺全年可用性 99.99%（全年 8760 小时）。现状：单机年故障约 4 次，每次平均修复 MTTR=8 小时，即年不可用约 32 小时，可用性约 99.63%。方案：双机热备（并联），假设故障相互独立、切换时间为零。',
+    q: '(1) 计算 99.99% 对应的全年允许停机时间；(2) 按并联模型估算双机热备后的年停机时间，判断是否达标；(3) 指出估算中「独立、零切换」两个假设在现实中分别对应什么风险，并各给一条缓解措施。',
+    ref: '(1) 8760×0.0001=0.876 小时≈52.6 分钟。(2) 单机可用性 A=0.9963，不可用 0.0037；并联后不可用概率=0.0037²≈1.37×10⁻⁵，年停机≈8760×1.37×10⁻⁵≈0.12 小时≈7.2 分钟，远低于 52.6 分钟，达标（理想模型）。(3) 「独立」假设对应共因失效风险：掉电、机房断网、同一有缺陷的版本同时打挂两台——缓解：双机跨机房部署、独立电源、灰度发布；「零切换」假设对应故障切换时间风险：心跳检测、VIP 漂移、事务恢复都要时间——缓解：健康检查调优与定期演练，把 MTTR 纳入指标（可用性 A=MTTF/MTBF，缩短 MTTR 同样有效）。',
+    points: ['52.6 分钟与并联 7.2 分钟两处计算正确', '主动指出共因失效与切换时间两个假设缺口', '缓解措施对应假设（跨机房隔离/演练缩短 MTTR）'],
+    frame: '答题框架：指标换算（百分比→分钟）→套并联公式估算→声明假设→逐条检查假设的现实缺口并给对策。',
+    kpId: '06'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '关键岗位安排 A、B 两人都能顶岗，一人休假业务照转，这体现了本页哪个结构？',
+    opts: [
+      { t: '串联：两人都必须在场业务才转', why: '串联是「都活才算活」，与「一人休假照转」矛盾。' },
+      { t: '并联冗余：任一人可用即业务可用，一个倒下有人兜底', why: '对。并联的本质就是「有备份顶着」；组织冗余与双机热备同构。' },
+      { t: 'RAID 0 条带化分工', why: '条带是把活拆开分头干，坏一个全瘫，与题意相反。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '06', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['03'], 'prev');
+  CX.depChain('#bridge-next', ['56']);
+
+  /* ---- 动画：混联拆层 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var Rs = 0.9, Rp = 0.8;
+  function draw(t) {
+    var RpEq = 1 - (1 - Rp) * (1 - Rp);
+    var Rsys = Rs * RpEq * Rs;
+    var phase = t < 0.2 ? 0 : (t < 0.45 ? 1 : (t < 0.65 ? 2 : (t < 0.85 ? 3 : 4)));
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    function box(x, y, label, sub, hot, fail) {
+      var fill = fail ? 'var(--bad)' : (hot ? 'var(--accent-2)' : 'var(--card-2)');
+      var stroke = fail ? 'var(--bad)' : (hot ? 'var(--accent-2)' : 'var(--line)');
+      var o = '<rect x="' + x + '" y="' + y + '" width="86" height="54" rx="8" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2"' + (hot && !fail ? ' opacity=".85"' : '') + '/>';
+      o += '<text x="' + (x + 43) + '" y="' + (y + 24) + '" text-anchor="middle" font-size="13" font-weight="700" fill="' + (hot && !fail ? 'var(--bg)' : 'var(--text)') + '">' + label + '</text>';
+      o += '<text x="' + (x + 43) + '" y="' + (y + 42) + '" text-anchor="middle" font-size="12" fill="' + (hot && !fail ? 'var(--bg)' : 'var(--text-dim)') + '">' + sub + '</text>';
+      return o;
+    }
+    var hotSeries = (phase === 2 || phase === 4), hotPar = (phase === 1 || phase === 2);
+    var failPar = (phase === 3), failSeries = (phase === 4);
+    s += '<circle cx="50" cy="110" r="7" fill="var(--text-dim)"/>';
+    s += box(90, 83, 'R₁', Rs.toFixed(3), hotSeries, failSeries);
+    s += '<line x1="176" y1="110" x2="216" y2="110" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="216" y1="70" x2="216" y2="150" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="216" y1="70" x2="256" y2="70" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="216" y1="150" x2="256" y2="150" stroke="var(--line)" stroke-width="3"/>';
+    s += box(256, 43, 'R₂a', Rp.toFixed(3), hotPar, failPar);
+    s += box(256, 123, 'R₂b', Rp.toFixed(3), hotPar, false);
+    s += '<line x1="342" y1="70" x2="382" y2="70" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="342" y1="150" x2="382" y2="150" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="382" y1="70" x2="382" y2="150" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="382" y1="110" x2="422" y2="110" stroke="var(--line)" stroke-width="3"/>';
+    s += box(422, 83, 'R₃', Rs.toFixed(3), hotSeries, failSeries);
+    s += '<line x1="508" y1="110" x2="548" y2="110" stroke="var(--line)" stroke-width="3"/>';
+    s += '<circle cx="556" cy="110" r="7" fill="var(--ok)"/>';
+    /* 计算面板 */
+    var alive = !failSeries;
+    var aliveNote = failSeries ? '系统不可用（R₁ 是串联件，一损俱损）' : (failPar ? 'R₂a 倒了，但 R₂b 顶上——系统仍可用' : '全部正常');
+    s += '<text x="600" y="60" font-size="14" font-weight="700" fill="var(--text)">拆层计算</text>';
+    s += '<text x="600" y="88" font-size="13" fill="var(--text-dim)">①并联等效：R并=1-(1-R₂)²</text>';
+    s += '<text x="600" y="112" font-size="13" fill="' + (phase >= 1 ? 'var(--accent-2)' : 'var(--text-dim)') + '">=' + (1 - Rp).toFixed(2) + '² → ' + RpEq.toFixed(4) + '</text>';
+    s += '<text x="600" y="140" font-size="13" fill="var(--text-dim)">②串联连乘：R=R₁×R并×R₃</text>';
+    s += '<text x="600" y="164" font-size="13" fill="' + (phase >= 2 ? 'var(--accent-2)' : 'var(--text-dim)') + '">=' + Rs.toFixed(3) + '×' + RpEq.toFixed(3) + '×' + Rs.toFixed(3) + '</text>';
+    s += '<text x="600" y="196" font-size="16" font-weight="700" fill="var(--accent-2)">R系统=' + Rsys.toFixed(4) + '</text>';
+    s += '<text x="40" y="232" font-size="13" fill="var(--text-dim)">对照：全串联 R₁×R₂a×R₂b×R₃=' + (Rs * Rp * Rp * Rs).toFixed(4) + '，混联拆层后=' + Rsys.toFixed(4) + '——冗余的价值就在差值里。</text>';
+    s += '<text x="40" y="262" font-size="14" fill="' + (alive ? 'var(--ok)' : 'var(--bad)') + '">状态：' + aliveNote + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (phase === 0) cap = '看清结构：R₁、R₃ 独在主线（串联），R₂a 与 R₂b 并排（并联）——先分层再动手。';
+    else if (phase === 1) cap = '第一步拆并联：R并=1-(1-R₂)²=' + RpEq.toFixed(4) + '，两条支路等效成一个盒子。';
+    else if (phase === 2) cap = '第二步串联连乘：R=R₁×R并×R₃=' + Rsys.toFixed(4) + '。顺序反了结果就错。';
+    else if (phase === 3) cap = '拔掉 R₂a：还有 R₂b 兜底，系统照常——并联「一个活就活」。';
+    else cap = '拔掉 R₁：主线断，全系统停——串联「一损俱损」，关键件不给并联就是单点。';
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#rel-cap').textContent = 'R并=' + RpEq.toFixed(4) + '，R系统=' + Rsys.toFixed(4) + '（对照全串联 ' + (Rs * Rp * Rp * Rs).toFixed(4) + '）';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 10, duration: 12, onTick: draw });
+  CX.utils.$('#rs-slider').addEventListener('input', function () { Rs = parseInt(this.value, 10) / 1000; CX.utils.$('#rs-out').textContent = Rs.toFixed(3); draw(anim.t || 0); });
+  CX.utils.$('#rp-slider').addEventListener('input', function () { Rp = parseInt(this.value, 10) / 1000; CX.utils.$('#rp-out').textContent = Rp.toFixed(3); draw(anim.t || 0); });
+
+  /* ---- 实验一：RAID 选型台 ---- */
+  var nS = CX.utils.$('#n-slider');
+  var raidInfo = {
+    '0': { name: 'RAID 0', cap: function (n) { return n; }, fault: 0, note: '条带无冗余：最快最省，坏 1 块全丢' },
+    '1': { name: 'RAID 1', cap: function (n) { return n / 2; }, fault: 1, note: '两两镜像：每组可坏 1 块，成本翻倍' },
+    '5': { name: 'RAID 5', cap: function (n) { return n - 1; }, fault: 1, note: '分布式奇偶校验：坏 1 块可重建' },
+    '6': { name: 'RAID 6', cap: function (n) { return n - 2; }, fault: 2, note: '双重校验：可同时坏 2 块' },
+    '10': { name: 'RAID 10', cap: function (n) { return n / 2; }, fault: 1, note: '镜像+条带：各镜像组可坏 1 块，快而贵' }
+  };
+  var curRaid = null, reqIdx = -1;
+  var REQS = [
+    { txt: '需求一：容量尽量大，且任意坏 1 块盘数据不丢', ans: '5' },
+    { txt: '需求二：大阵列重建期间再坏一块也不丢', ans: '6' },
+    { txt: '需求三：缓存型临时数据，性能与容量优先，丢了无所谓', ans: '0' }
+  ];
+  function showRaid() {
+    var n = parseInt(nS.value, 10);
+    CX.utils.$('#n-out').textContent = n;
+    if (!curRaid) return;
+    var r = raidInfo[curRaid];
+    CX.utils.$('#raid-info').innerHTML = '已选：<b>' + r.name + '</b>（' + n + ' 块盘）：可用 ' + r.cap(n) + ' 块容量，容错 ' + r.fault + ' 块。' + r.note;
+  }
+  nS.addEventListener('input', showRaid);
+  showRaid();
+  CX.utils.$$('.raid-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      curRaid = b.getAttribute('data-raid');
+      showRaid();
+      var fb = CX.utils.$('#lab1-fb');
+      if (reqIdx < 0) { fb.textContent = '已选 ' + raidInfo[curRaid].name + '。点「出下一张需求」开始挑战。'; fb.className = 'lab-feedback'; return; }
+      var req = REQS[reqIdx];
+      if (curRaid === req.ans) {
+        fb.textContent = '✅ 需求达成：' + raidInfo[curRaid].name + ' 满足「' + req.txt + '」。';
+        fb.className = 'lab-feedback ok';
+      } else {
+        var why;
+        if (curRaid === '0') why = '❌ RAID 0 容错为 0——坏 1 块全卷丢，任何「数据不能丢」的需求都不能选它。';
+        else if (curRaid === '1' || curRaid === '10') why = '❌ ' + raidInfo[curRaid].name + ' 靠镜像保平安，容量只剩一半——需求要的是「容量大+坏 1 块不丢」，性价比更好的是单校验方案。';
+        else why = '❌ 你选的等级容错是 ' + raidInfo[curRaid].fault + ' 块——对照需求要求的容错块数再选。';
+        fb.textContent = why;
+        fb.className = 'lab-feedback bad';
+      }
+    });
+  });
+  CX.utils.$('#req-btn').addEventListener('click', function () {
+    reqIdx = (reqIdx + 1) % REQS.length;
+    CX.utils.$('#req-text').textContent = REQS[reqIdx].txt;
+    CX.utils.$('#lab1-fb').textContent = '请点上方 RAID 按钮作答。';
+    CX.utils.$('#lab1-fb').className = 'lab-feedback';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['串联结构', 'R=R₁×R₂：都活才算活，一损俱损'],
+    ['并联结构', 'R=1-(1-R₁)(1-R₂)：全倒才倒，有人兜底'],
+    ['MTBF', '平均故障间隔=MTTF+MTTR，含维修时间'],
+    ['可用性 A', 'MTTF/MTBF：该用时能用的概率']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点对应内容。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个概念。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL.dataset.k;
+          var hint = (k === 'MTBF' || k === '可用性 A') ? '❌ 时间指标错配：MTBF 是「间隔且含维修」，可用性是「占比」，两者分母都是 MTTF+MTTR——再看一眼你点的描述说的是结构还是时间。'
+            : '❌ 结构错配：连乘是串联（都活才算活），1-∏(1-R) 是并联（全倒才倒）——你选的描述属于哪一种？';
+          CX.utils.$('#lab2-fb').textContent = hint;
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：拖拽排序 ---- */
+  var order = [
+    '画出系统结构图，按串/并分层',
+    '并联部分先算等效可靠度 1-∏(1-Rᵢ)',
+    '把等效结果与串联部分连乘',
+    '代入各部件可靠度数值',
+    '检查：结果应在 0~1 且不高于任一并联支路的上界'
+  ];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab3-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        var hint;
+        if (i === 0) hint = '第 1 步错了：先「画结构图分层」——不拆层就动手，串并公式必然用混。';
+        else if (i === 1) hint = '第 2 步错了：先算「并联等效」再连乘——顺序反了就是把并当成串直接乘，结果会偏低。';
+        else if (i === 4) hint = '收尾一步是「检查区间」：可靠度必须是 0~1 的概率，出现 >1 说明把概率相加了。';
+        else hint = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。主线：拆层 → 并联等效 → 串联连乘 → 代入 → 校验。';
+        fb.textContent = hint; fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：拆层 → 并联等效 → 串联连乘 → 代入 → 校验。「先拆层」三个字就是混联题的钥匙。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

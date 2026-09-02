@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>45 · 架构演化与重构 · 架构师学堂</title>
+<meta name="description" content="城市会扩张改造，架构要经历演化、维持、衰退的生命循环；重构是旧楼加固，重写是另起新城。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🔍 质检评估院</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="44-arch-evaluation.html">前置 44</a></span>
+    <h1>45 · 架构演化与重构</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">城市会扩张改造，架构要经历演化、维持、衰退的生命循环。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某城商行有一套跑了 12 年的信贷单体系统：核心开发只剩 1 人且要离职，文档停留在 8 年前，近一年 40% 的生产缺陷与订单状态机的混乱耦合有关；监管要求明年必须接入新征信接口，行里同时要求改造期间业务一天都不能停。老板问：修修补补接着用，还是推倒重写一套？你敢拍板吗？拍板的依据是什么？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这题考的是<strong>演化决策</strong>：先归类动因（需求动因=接征信接口；缺陷动因=状态机耦合；知识流失=约束条件），再用判据做<strong>重构 vs 重写</strong>的取舍——业务不中断是硬约束、还有人在懂这套系统、腐化集中在状态机模块可局部化改造，三条都指向<strong>渐进重构（分批替换）</strong>而不是重写。无论选哪条路，收尾都必须「更新架构模型与基线+重新评估」（44 页）。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>44 · 架构评估：SAAM/ATAM/CBAM</b>：演化的每一步都要带着四点清单走。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>架构演化（architecture evolution）是系统上线后，为持续适应环境变化而<strong>有计划地修改架构</strong>的过程——城市不会盖完就定格，旧城要改造、管网要升级。它像生命体一样有周期：<strong>萌芽 → 演化 → 维持 → 退化 → 灭亡</strong>。重构（refactoring）是演化中最常用的一种手法：<strong>保持外部行为不变，只改内部结构</strong>。</p>
+      <h3>解决什么问题</h3>
+      <p>需求会变、技术会旧、缺陷会冒（三股风）。没有演化机制的系统只有两条死路：要么硬扛着腐化直到每次改动都伤筋动骨，要么冲动重写把隐性知识连缺陷修复记录一起扔掉。演化给出第三条路：<strong>边营业边改造</strong>。</p>
+      <h3>核心机制</h3>
+      <p><strong>演化三动因</strong>：<b>需求变化</b>（新业务、用户量暴增、监管新规）、<b>技术环境变化</b>（框架/数据库停止维护、上云、协议换代）、<b>缺陷与质量债务</b>（架构级缺陷，补丁治不了本）。</p>
+      <p><strong>演化过程四活动</strong>（教材口径）：①<b>演化计划</b>——确定演化范围、影响分析与成本，评估对现有业务的影响；②<b>架构修改</b>——调整构件/连接件的设计方案；③<b>构件与连接件的增、删、改</b>——按方案实施；④<b>更新架构模型与基线</b>——文档化形成新基线，作为下一轮演化的起点。注明：部分教材口径把「架构演化评估」单列为独立步骤（插在实施与更新基线之间），答题时以题面材料给的口径为准。</p>
+      <h3>关键细节</h3>
+      <p><strong>架构生命周期五阶段</strong>：</p>
+      <table class="tbl">
+        <tr><th>阶段</th><th>特征</th><th>城市对应</th></tr>
+        <tr><td>萌芽期</td><td>原型验证，结构频繁推翻</td><td>新城选址打桩</td></tr>
+        <tr><td>演化期</td><td>需求涌入，改动最频繁、成长最快</td><td>扩张期，到处开工</td></tr>
+        <tr><td>维持期</td><td>需求稳定，小步完善与保养</td><td>成熟城市日常养护</td></tr>
+        <tr><td>退化期</td><td>不适应新需求，变更成本急剧上升</td><td>基础设施老化，改不动了</td></tr>
+        <tr><td>灭亡期</td><td>退役、被替换</td><td>城市废弃或整体搬迁</td></tr>
+      </table>
+      <p><strong>重构 vs 重写的决策判据</strong>（教学简化模型，三问）：①<b>腐化程度</b>——架构差距是局部还是全局？②<b>知识保留</b>——还有没有人懂它、文档在不在？③<b>业务形态差异</b>——新业务是老架构的延伸还是根本不同的物种？腐化可控+知识在+要不停机 → 重构；腐化全局+知识流失+业务形态根本不同 → 重写；中间地带 → 渐进式替换（新模块逐个「绞杀」旧模块）。演化前后的<strong>维护投入</strong>可对照 32 页维护四分类理解：纠正性对应缺陷动因、适应性对应技术动因、完善性对应需求动因、预防性（含重构）为未来演化铺路。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①演化 ≠ 随意改动：必须走「计划 → 修改 → 实施 → 更新基线」闭环，跳过基线更新=图纸与楼不符，下一轮演化无法评估影响，这是案例常见扣分点；②演化完成后必须<strong>重新架构评估</strong>（44 页四点清单已过期），很多人漏掉这一步；③把「演化动因」和「维护四分类」混为一谈——一个是「为什么改」（需求/技术/缺陷），一个是「改的是哪一类」（纠正/适应/完善/预防），两者是映射关系不是同一件事；④重构仍有风险：外部行为不变的前提是<strong>有回归测试兜底</strong>，「重构不用测」是大错。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>architecture evolution（架构演化）· refactoring（重构）· baseline（基线）。英语题常用句式：After each evolution cycle, the architecture baseline and documentation must be updated.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把演化看成<strong>旧城改造</strong>：人口涨了要扩建（需求动因），建材换代要换管网（技术动因），危房要加固拆除（缺陷动因）。改造前要公示规划（演化计划），然后动图纸（架构修改），再一栋栋拆改（构件增删改），最后换发新版总规图（更新基线）。楼快塌了是「加固改造」（重构）还是「整城搬迁」（重写）？看楼况、看还有没有人熟悉每条管线、看新城是不是完全不同的城市。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>人口增长 / 建材换代 / 危房</td><td>需求 / 技术 / 缺陷三类演化动因</td><td>成立</td></tr>
+      <tr><td>改造规划公示</td><td>演化计划</td><td>成立</td></tr>
+      <tr><td>具体楼栋拆改扩建</td><td>构件与连接件增删改</td><td>成立</td></tr>
+      <tr><td>换发新版总规图</td><td>更新模型与基线</td><td>成立</td></tr>
+      <tr><td>旧楼加固、边营业边施工</td><td>重构（行为不变改内部）</td><td>成立</td></tr>
+      <tr><td>城市改造可以停水停电几天</td><td>演化停机</td><td><b>失效</b>：系统演化常要求不停机，且必须有「一键回滚」方案——城市没有回滚键</td></tr>
+    </table>
+    <div class="rhyme">需求、技术、缺陷三阵风，吹得旧城要整容；<br>先立计划再改图，构件增删分批动；<br>模型基线跟得上，评估回头验险情；<br>小步重构不停业，推倒重来是重写。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示架构生命周期：拖动「演化投入」滑块，看持续投入如何把维持期拉长、推迟退化；播放看一条生命曲线走完五个阶段。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>演化投入 <input type="range" id="inv-slider" min="0" max="100" step="5" value="30"> <span id="inv-out">30</span></label>
+      <span class="kf-caption">投入=0 时系统 6 年后进入退化；投入拉满，维持期几乎不落幕——退化不是宿命，是停止投入的结果。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（归类实验）：维护四分类（联动 32 页）</h4>
+      <p class="foreshadow">先点一条变更陈述，再点它的维护类型；归类错误会指出错在哪一步。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-mc="cor">纠正性</button>
+        <button class="btn" data-mc="ada">适应性</button>
+        <button class="btn" data-mc="per">完善性</button>
+        <button class="btn" data-mc="pre">预防性</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：重构还是重写？</h4>
+      <p class="foreshadow">拖动三个滑块设定系统现状，看决策建议如何变化，并说明为什么：</p>
+      <label>架构腐化程度 <input type="range" id="rot-slider" min="0" max="100" step="5" value="30"> <span id="rot-out">30</span></label><br>
+      <label>核心知识保留度 <input type="range" id="know-slider" min="0" max="100" step="5" value="80"> <span id="know-out">80</span></label><br>
+      <label>新业务形态差异 <input type="range" id="delta-slider" min="0" max="100" step="5" value="20"> <span id="delta-out">20</span></label>
+      <button class="btn" id="lab2-calc">给出决策建议</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：演化过程四活动</h4>
+      <p class="foreshadow">把演化过程的活动按正确顺序拖入槽中：</p>
+      <div id="lab3-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="lab3-slot"></div>
+      <button class="btn" id="lab3-check">检查顺序</button>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（演化动因）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>44 · 架构评估给了演化的安全绳：每一轮演化结束后，敏感点/权衡点/风险点清单都要重新盘一遍；32 · 维护、配置管理与CMMI 给了维护四分类与版本管理，是演化活动的日常形态。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>46 · 设计原则与GoF总览：「开闭原则」等设计原则会把 43 页的「局部化修改/防级联」战术升级为面向类与模块的纪律，让下一次演化更便宜；</li><li>59~61 · 前沿架构演进：当旧城接入大数据、AI 与边缘计算时，演化三动因会以「数据量暴涨、算法换代、设备上云」的形式再演一遍——演化的方法论不变，主角换人。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>重构（refactoring）</th><th>重写（rewrite）</th></tr>
+      <tr><td>差异点</td><td>保持<strong>外部行为不变</strong>，改善内部结构（旧楼加固改造，边营业边施工）</td><td>抛弃或大幅替代现有实现、重新开发（另起新城整体搬迁）</td></tr>
+      <tr><td>易错点</td><td>以为重构零风险——改错内部结构照样出事故，必须有回归测试与基线更新</td><td>以为重写一定更干净更快——隐性知识、历史缺陷修复经验会随旧代码一起被扔掉</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">重构是旧楼加固，重写是另起新城；判据看腐化程度、知识保留度、业务形态差异三件事。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——城市不是盖完就不动的，年年都要修路、换水管、拆危楼……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 演化三动因：需求变化、技术环境变化、缺陷与质量债务——对应维护四分类的完善/适应/纠正，重构多属预防性。</li><li>② 演化四活动闭环：演化计划 → 架构修改 → 构件与连接件增删改 → 更新模型与基线（部分口径含演化评估），收尾必须再评估。</li><li>③ 生命周期五阶段：萌芽、演化、维持、退化、灭亡；重构还是重写，看腐化程度、知识保留、业务形态差异三判据。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '45', domain: 'qa', loc: 'inspection', root: '..',
+  title: '架构演化与重构', prev: '44-arch-evaluation.html', prevTitle: '44 · 架构评估：SAAM/ATAM/CBAM',
+  next: '46-principles-gof.html', nextTitle: '46 · 设计原则与GoF总览',
+  keywords: ['架构演化', '演化动因', '演化计划', '重构', '重写', '架构基线']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 44） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·44】ATAM 结果表述阶段输出的「四件套」是？',
+    opts: [
+      { t: '敏感点、权衡点、风险点、非风险点', why: '对。这四件套是 ATAM 的标志性输出，演化后要拿着它重新盘一遍。' },
+      { t: '构件、连接件、配置、场景', why: '构件/连接件/配置是 ADL 三要素加上场景，不是 ATAM 输出。' },
+      { t: '吞吐量、延迟、可用性、安全性', why: '这是质量属性与度量，是评估的素材不是结论。' },
+      { t: '需求、设计、编码、测试', why: '这是开发阶段序列，与评估输出无关。' }
+    ],
+    ans: 0, tag: '回忆:44', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '下列哪项属于架构演化的「技术动因」？',
+      opts: [
+        { t: '客户提出新增对账报表需求', why: '这是需求动因：业务诉求驱动。' },
+        { t: '原数据库版本停止维护，官方不再提供安全补丁', why: '对。技术环境变化（停维/换代/上云）迫使架构调整，属于技术动因。' },
+        { t: '修复扣款偶发重复扣款的缺陷', why: '这是缺陷动因：质量问题驱动。' },
+        { t: '运营要求多几种页面皮肤', why: '这是需求动因：功能与外观诉求。' }
+      ],
+      ans: 1, tag: '演化动因', src: '仿真题' },
+    { q: '按教材口径，架构演化过程活动的正确顺序是？',
+      opts: [
+        { t: '构件增删改 → 演化计划 → 更新基线 → 架构修改', why: '顺序完全颠倒：没做计划就先动手，基线更新必须在最后。' },
+        { t: '演化计划 → 架构修改 → 构件与连接件增删改 → 更新模型与基线', why: '对。先计划、再改设计、后实施、最后固化新基线，形成闭环。' },
+        { t: '架构修改 → 演化计划 → 构件增删改 → 评估', why: '计划必须在修改之前，否则无法确定范围与影响。' },
+        { t: '更新基线 → 架构修改 → 演化计划 → 构件增删改', why: '基线更新是收尾活动，不是起点。' }
+      ],
+      ans: 1, tag: '演化过程', src: '仿真题' },
+    { q: '下列哪种情形最应倾向「重写」而不是「重构」？',
+      opts: [
+        { t: '架构差距可控，团队熟悉代码', why: '这正是重构的适用条件。' },
+        { t: '核心开发全部离职、无文档、缺陷密度极高、业务形态已根本变化', why: '对。知识流失+全局腐化+业务物种不同，三判据全部指向重写；但仍要先补文档与知识再动工。' },
+        { t: '把配置外置即可满足新需求', why: '这是延迟绑定战术的小改造，谈不上重写。' },
+        { t: '业务要求改造期间不停机', why: '不停机约束倾向渐进重构/灰度替换，重写反而难以满足。' }
+      ],
+      ans: 1, tag: '重构vs重写', src: '仿真题' },
+    { q: '【交错复习:44】架构演化实施完成并形成新基线后，下一步最应该做的是？',
+      opts: [
+        { t: '直接删除旧架构文档', why: '旧文档是演化的历史依据，应归档而不是删除。' },
+        { t: '重新进行架构评估（如 ATAM），更新敏感点/权衡点/风险点清单', why: '对。演化引入了新的架构决策，44 页的四点清单已过期，必须再评估形成闭环。' },
+        { t: '立即启动下一轮演化', why: '没评估就开下一轮，等于带着未知风险上路。' },
+        { t: '无需任何后续活动', why: '漏了再评估与基线归档，闭环没有完成。' }
+      ],
+      ans: 1, tag: '交错复习:44', src: '仿真题' },
+    { q: '【交错复习:32】「为老系统补充自动化回归测试，防止未来演化改坏核心流程」属于维护四分类中的？',
+      opts: [
+        { t: '纠正性维护', why: '纠正性是修复已有缺陷，测试建设不是修缺陷。' },
+        { t: '适应性维护', why: '适应性是适应技术环境变化，与此无关。' },
+        { t: '完善性维护', why: '完善性是按需求增强功能，测试建设不产生用户可见功能。' },
+        { t: '预防性维护', why: '对。为未来变更降低风险而做的投入属于预防性维护——重构也多归此类，它是演化的日常形态。' }
+      ],
+      ans: 3, tag: '交错复习:32', src: '仿真题' }
+  ], { kpId: '45', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某城商行 12 年历史的信贷单体系统：核心开发人员仅剩 1 人且即将离职，文档停留在 8 年前；近一年 40% 的生产缺陷与订单状态机的混乱耦合有关；监管要求明年接入新征信接口；行里要求改造期间业务不中断。',
+    q: '(1) 归纳该系统面临的演化动因（三类至少各举一例）；(2) 论证应「重构」还是「重写」，给出倾向与判据；(3) 按教材口径列出此次演化过程的活动顺序，并说明如何满足「业务不中断」。',
+    ref: '(1) 需求动因：监管要求接入新征信接口；技术动因：架构与文档老化、技术栈陈旧导致维护能力退化（如需升级运行环境）；缺陷动因：状态机耦合混乱导致 40% 缺陷，属架构级质量债务；人员与知识流失是决策约束条件而非动因。(2) 倾向渐进重构（分批替换/绞杀式）：判据一，业务不中断是硬约束，重写难以满足；判据二，尚有 1 人熟悉系统，知识未完全流失；判据三，腐化集中在状态机模块，可局部化改造（43 页局部化修改战术）——三判据均不支持重写。(3) 活动顺序：演化计划（明确范围、影响、成本与不中断约束）→ 架构修改（解耦状态机、抽象征信接口层）→ 构件与连接件增删改（按模块分批替换上线）→ 更新模型与基线（新版架构文档、决策记录与回退方案）。满足不中断：分批灰度替换+每批带回退方案+回归测试兜底，并在每批后更新基线；注明：部分教材口径在实施与更新基线之间单列「架构演化评估」。',
+    points: ['三类动因归类准确且结合材料举例，能区分「动因」与「约束条件」', '重构/重写判断给出明确判据（不停机/知识保留/腐化范围）', '活动顺序完整四步，且注明口径分歧', '给出分批灰度+回退+回归测试的不中断方案'],
+    frame: '答题框架：动因归类（三动因对号入座）→ 决策三判据打分 → 给出倾向与过渡策略 → 活动四步闭环 → 评估与基线收尾。',
+    kpId: '45'
+  });
+  CX.renderCase('#case2', {
+    stem: '上述信贷系统完成第一轮演化（状态机解耦、新征信接口接入）并上线三个月，运行平稳。团队打算「就此收工」。',
+    q: '(1) 用敏感点/权衡点/风险点的概念，说明为什么不能收工、必须重新做架构评估；(2) 「更新架构基线」应包含哪些内容；(3) 结合维护四分类，预测后续半年可能出现的三类维护工作。',
+    ref: '(1) 演化引入了新的架构决策，原四点清单已过期：新征信接口的调用时延可能是新的敏感点（单属性关键变量）；「同步调用征信 vs 异步补偿」可能是可用性与一致性的新权衡点；对单一征信服务商的依赖若无备份是新的风险点——这些都需要再评估（如 ATAM）来确认，否则风险带病运行。(2) 基线内容：新版架构文档（构件/连接件/接口契约）、架构决策记录（为什么改、备选方案）、部署视图、版本标记与回退方案——让下一轮演化有可信起点。(3) 纠正性：征信接口联调遗留缺陷修复；适应性：征信服务商 API 版本升级适配；完善性：业务部门追加报表与查询功能；预防性：为明年接入更多征信源抽象统一接入层（举三类即可）。',
+    points: ['复用 44 页四点概念说明「为什么要再评估」，各举一例', '基线内容答出文档+决策记录+回退方案', '维护四分类各举一例且与演化场景衔接', '体现「评估-演化-基线-再评估」闭环思想'],
+    frame: '答题框架：再评估理由（决策集过期）→ 用四点清单逐项对照新决策 → 基线清单 → 维护四分类映射 → 闭环收尾。',
+    kpId: '45'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成 SaaS 场景：「多家客户要求支持私有化部署，团队把配置外置并适配三种数据库」——从演化动因看这属于？',
+    opts: [
+      { t: '需求动因', why: '对。客户诉求（私有化交付）是新需求，驱动配置外置与适配层设计。' },
+      { t: '技术动因', why: '如果是「原数据库停维」被迫更换才属技术动因；本题驱动来自客户需求。' },
+      { t: '缺陷动因', why: '题干没有架构级缺陷，与质量债务无关。' },
+      { t: '这属于重写', why: '配置外置与适配层是渐进改造（重构性质），不是推倒重写。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '45', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['44', '32'], 'prev');
+  CX.depChain('#bridge-next', ['46', '59', '61'], 'next');
+
+  /* ---- 动画：架构生命周期 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var INV = 30;
+  var LO = [10, 42, 72, 88, 94, 92, 80, 62, 42, 24, 10];  /* 投入=0 的活力曲线 */
+  var HI = [10, 45, 78, 92, 96, 99, 99, 98, 96, 93, 90];  /* 投入=100 的活力曲线 */
+  function vitality(year) {
+    var i = Math.min(9, Math.floor(year));
+    var f = year - i;
+    var lo = LO[i] + (LO[i + 1] - LO[i]) * f;
+    var hi = HI[i] + (HI[i + 1] - HI[i]) * f;
+    return lo + (hi - lo) * (INV / 100);
+  }
+  function phaseName(y) {
+    if (y < 1.5) return '萌芽期：原型试错，价值快速起步';
+    if (y < 4) return '演化期：需求涌入，频繁改造，价值爬升';
+    if (y < 6.5) return '维持期：小步完善，最忌停止投入';
+    if (y < 9) return '退化期：不投入演化就进入下行通道';
+    return '灭亡期：不适应即被替换退役';
+  }
+  function draw(t) {
+    var year = t * 10;
+    var x0 = 50, W = 590, yBase = 230, yTop = 60;
+    var px = function (y) { return x0 + (y / 10) * W; };
+    var py = function (v) { return yBase - (v / 105) * (yBase - yTop); };
+    var s = '<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="280" rx="12" fill="var(--bg-soft)"/>';
+    /* 五阶段分区 */
+    var zones = [[0, 1.5, '萌芽'], [1.5, 4, '演化'], [4, 6.5, '维持'], [6.5, 9, '退化'], [9, 10, '灭亡']];
+    zones.forEach(function (z) {
+      s += '<rect x="' + px(z[0]) + '" y="' + yTop + '" width="' + (px(z[1]) - px(z[0])) + '" height="' + (yBase - yTop) + '" fill="var(--card)" opacity=".35"/>';
+      s += '<text x="' + ((px(z[0]) + px(z[1])) / 2) + '" y="' + (yTop + 16) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">' + z[2] + '</text>';
+    });
+    s += '<line x1="' + x0 + '" y1="' + yBase + '" x2="' + (x0 + W) + '" y2="' + yBase + '" stroke="var(--line)" stroke-width="2"/>';
+    s += '<line x1="' + x0 + '" y1="' + yTop + '" x2="' + x0 + '" y2="' + yBase + '" stroke="var(--line)" stroke-width="2"/>';
+    /* 活力曲线 */
+    var path = '';
+    for (var y = 0; y <= 10; y += 0.2) {
+      path += (path ? ' L' : 'M') + px(y).toFixed(1) + ' ' + py(vitality(y)).toFixed(1);
+    }
+    s += '<path d="' + path + '" fill="none" stroke="var(--accent-2)" stroke-width="3"/>';
+    /* 行走的小人 */
+    var vx = px(year), vy = py(vitality(Math.min(year, 10)));
+    s += '<circle cx="' + vx + '" cy="' + vy + '" r="8" fill="var(--accent)"/>';
+    s += '<line x1="' + vx + '" y1="' + vy + '" x2="' + vx + '" y2="' + yBase + '" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".5"/>';
+    for (var g = 0; g <= 10; g += 2) {
+      s += '<text x="' + px(g) + '" y="' + (yBase + 18) + '" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + g + '年</text>';
+    }
+    var v = vitality(Math.min(year, 10));
+    s += '<text x="350" y="266" text-anchor="middle" font-size="13" fill="var(--text)">第 ' + year.toFixed(1) + ' 年 · 城市活力 ' + v.toFixed(0) + ' 分 · 演化投入 ' + INV + '%</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + year.toFixed(1) + ' 年 · ' + phaseName(year) + '。演化投入 ' + INV + '%：投入越低，退化来得越早——衰退不是宿命，是停止投入的结果。');
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 14, onTick: draw });
+  var iv = CX.utils.$('#inv-slider'), io = CX.utils.$('#inv-out');
+  iv.addEventListener('input', function () { INV = +iv.value; io.textContent = INV; draw(anim.t || 0); });
+
+  /* ---- 实验一：维护四分类 ---- */
+  var M1 = [
+    { t: '修复支付回调偶发失败导致重复通知的问题', k: 'cor', why: '纠正性：修复已有缺陷——对应演化里的缺陷动因。' },
+    { t: '操作系统版本停维，被迫升级基础中间件', k: 'ada', why: '适应性：为适应新技术环境而改——对应技术动因。' },
+    { t: '应客户要求新增报表导出功能', k: 'per', why: '完善性：按需求增强功能——对应需求动因。' },
+    { t: '给核心流程补充自动化回归测试，防止未来改坏', k: 'pre', why: '预防性：为未来演化降低风险，重构多属此类。' },
+    { t: '大促前把热点接口响应从 800ms 优化到 300ms', k: 'per', why: '完善性：优化既有功能的质量，非修缺陷、非新功能。' },
+    { t: '数据库原版本停止维护，迁移到新版本数据库', k: 'ada', why: '适应性：由技术环境变化驱动，与客户需求无关。' }
+  ];
+  var m1Sel = null, m1Correct = 0, m1Done = 0;
+  var m1Pool = CX.utils.$('#lab1-pool');
+  M1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选这条变更，点上面的维护类型作答。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('#lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$$('.lab button[data-mc]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m1Sel) { fb1('先点选一条变更陈述。', 'bad'); return; }
+      var item = M1.filter(function (x) { return x.t === m1Sel.textContent; })[0];
+      m1Done++;
+      if (btn.getAttribute('data-mc') === item.k) {
+        m1Correct++;
+        m1Sel.style.borderColor = 'var(--ok)'; m1Sel.style.opacity = .5;
+        m1Sel.classList.remove('sel'); m1Sel.dataset.done = '1'; m1Sel = null;
+        fb1('✅ 正确：' + item.why + '（' + m1Correct + '/' + m1Done + '）', 'ok');
+      } else {
+        fb1('❌ 判错了。判别口诀：修 bug=纠正，追环境=适应，加功能提质量=完善，为将来=预防。正确答案：' + item.why, 'bad');
+        m1Sel.classList.remove('sel'); m1Sel = null;
+      }
+      if (m1Correct === M1.length) fb1('✅ 6 条全对！记住映射：纠正↔缺陷动因，适应↔技术动因，完善↔需求动因，预防（含重构）↔为下一轮演化铺路。', 'ok');
+    });
+  });
+  CX.utils.$('#lab1-reset').addEventListener('click', function () {
+    m1Correct = 0; m1Done = 0; m1Sel = null;
+    CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：重构还是重写 ---- */
+  function fb2(msg, cls) { var f = CX.utils.$('#lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var rotS = CX.utils.$('#rot-slider'), knowS = CX.utils.$('#know-slider'), deltaS = CX.utils.$('#delta-slider');
+  rotS.addEventListener('input', function () { CX.utils.$('#rot-out').textContent = rotS.value; });
+  knowS.addEventListener('input', function () { CX.utils.$('#know-out').textContent = knowS.value; });
+  deltaS.addEventListener('input', function () { CX.utils.$('#delta-out').textContent = deltaS.value; });
+  CX.utils.$('#lab2-calc').addEventListener('click', function () {
+    var rot = +rotS.value, know = +knowS.value, delta = +deltaS.value;
+    CX.utils.$('#rot-out').textContent = rot;
+    CX.utils.$('#know-out').textContent = know;
+    CX.utils.$('#delta-out').textContent = delta;
+    var cRot = rot * 0.45, cKnow = (100 - know) * 0.30, cDelta = delta * 0.25;
+    var score = cRot + cKnow + cDelta;
+    var parts = [{ n: '腐化程度', v: cRot }, { n: '知识流失', v: cKnow }, { n: '业务形态差异', v: cDelta }];
+    parts.sort(function (a, b) { return b.v - a.v; });
+    var msg;
+    if (score < 40) {
+      msg = '建议【重构】（重写倾向分 ' + score.toFixed(0) + '/100）：腐化可控、知识还在、业务仍是老架构的自然延伸。按 43 页可修改性战术做局部化改造，分批进行，回归测试兜底。';
+    } else if (score <= 70) {
+      msg = '建议【渐进式替换】（重写倾向分 ' + score.toFixed(0) + '/100）：中间地带。新模块逐个「绞杀」旧模块，按演化四活动走，每批带回退方案与基线更新。主导因素是「' + parts[0].n + '」。';
+    } else {
+      msg = '建议【重写】（重写倾向分 ' + score.toFixed(0) + '/100）：全局腐化+知识流失+业务形态根本不同。但动工前必须先补关键文档与领域知识，否则新系统会把老坑原样挖一遍。主导因素是「' + parts[0].n + '」。';
+    }
+    msg += '（构成：腐化 ' + cRot.toFixed(0) + ' + 知识流失 ' + cKnow.toFixed(0) + ' + 形态差异 ' + cDelta.toFixed(0) + '。教学简化模型，实际决策还要结合成本、工期与监管要求。）';
+    fb2(msg, 'ok');
+  });
+
+  /* ---- 实验三：演化四活动排序 ---- */
+  var L3_ORDER = [
+    '演化计划（定范围、影响、成本）',
+    '架构修改（调整构件与连接件设计）',
+    '构件与连接件增、删、改（分批实施）',
+    '更新模型与基线（新版文档与回退方案）'
+  ];
+  var l3Pool = CX.utils.$('#lab3-pool'), l3Slot = CX.utils.$('#lab3-slot');
+  CX.shuffle(L3_ORDER.slice()).forEach(function (txt) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = txt; d.dataset.t = txt;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', txt); });
+    l3Pool.appendChild(d);
+  });
+  l3Slot.addEventListener('dragover', function (e) { e.preventDefault(); l3Slot.classList.add('hot'); });
+  l3Slot.addEventListener('dragleave', function () { l3Slot.classList.remove('hot'); });
+  l3Slot.addEventListener('drop', function (e) {
+    e.preventDefault(); l3Slot.classList.remove('hot');
+    var txt = e.dataTransfer.getData('text');
+    var src = l3Pool.querySelector('[data-t="' + txt + '"]');
+    if (src) l3Slot.appendChild(src);
+  });
+  function fb3(msg, cls) { var f = CX.utils.$('#lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('#lab3-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(l3Slot.children, function (c) { return c.dataset.t; });
+    if (got.length < L3_ORDER.length) { fb3('还有 ' + (L3_ORDER.length - got.length) + ' 张卡片没拖进槽。', 'bad'); return; }
+    for (var i = 0; i < L3_ORDER.length; i++) {
+      if (got[i] !== L3_ORDER[i]) {
+        fb3('第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。逻辑是：没计划不动工（计划）→ 先改图纸再拆墙（架构修改）→ 然后才施工（构件增删改）→ 完工换新总规图（更新基线）。基线更新永远是收尾。', 'bad');
+        return;
+      }
+    }
+    fb3('✅ 四活动全对：计划 → 架构修改 → 构件增删改 → 更新基线。部分教材口径在实施后单列「演化评估」——答题时以题面材料为准。', 'ok');
+  });
+  CX.utils.$('#lab3-reset').addEventListener('click', function () {
+    Array.prototype.slice.call(l3Slot.children).forEach(function (c) { l3Pool.appendChild(c); });
+    fb3('已重置。', '');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

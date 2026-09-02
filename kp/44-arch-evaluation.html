@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>44 · 架构评估：SAAM/ATAM/CBAM · 架构师学堂</title>
+<meta name="description" content="评估在动工前找风险：敏感点是一个变量的关键特性，权衡点是多个属性的拉锯点。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🔍 质检评估院</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="43-quality-tactics.html">前置 43</a></span>
+    <span class="badge dep"><a href="41-adl-docs.html">前置 41</a></span>
+    <h1>44 · 架构评估：SAAM/ATAM/CBAM</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">评估在动工前找风险：敏感点一个变量，权衡点两属性拉锯。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某保险核心系统招标，两家供应商各交了一版架构方案，PPT 都写着「高性能、高可用、高安全」。评审专家问：「你们的方案里，哪个设计变量对吞吐量影响最大？哪个决策同时影响可用性和成本？哪里你们自己都没把握？」两家都答不上来。如果你是评审组长，用什么方法、按什么步骤、输出什么结论，才能让这场评估不变成走过场？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>用<strong>ATAM（架构权衡分析法）</strong>：先把「高性能、高可用」展开成<strong>效用树</strong>（质量属性→属性细分→场景，叶子标重要度和难度），再对照架构逐条追责，最后输出四件套——<strong>敏感点、权衡点、风险点、非风险点</strong>。「哪个变量影响最大」的答案是敏感点；「哪个决策两头拉锯」是权衡点；「自己都没把握的地方」就是风险点。若预算有限要排投入优先级，再上 <strong>CBAM</strong> 算成本效益。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>43 · 质量属性战术</b> 与 <b>41 · ADL与架构文档</b>：评估的对象就是图纸上的战术与构件。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>架构评估是在<strong>大规模编码（动工）之前</strong>，用结构化方法检查架构能否满足质量属性需求的活动——质检评估院在图纸阶段开的「抗震评估会」。三大经典方法：<strong>SAAM</strong>（最早出现，以场景为核心，主要面向可修改性）、<strong>ATAM</strong>（架构权衡分析法，多属性权衡，核心工具是效用树）、<strong>CBAM</strong>（成本效益分析法，<strong>建立在 ATAM 之上</strong>，给架构策略按成本收益排序）。</p>
+      <h3>解决什么问题</h3>
+      <p>33 页说过：架构是难以更改的早期决策。等系统建到一半才发现「扛不住双十一直播」，等于楼盖到十层才发现没做抗震设计。评估把风险从「上线事故」提前到「图纸会签」，改一张图纸的成本远低于加固一栋楼。</p>
+      <h3>核心机制</h3>
+      <p><strong>三方法步骤（教材口径）：</strong>SAAM 五步：<b>场景开发 → 场景分类 → 单场景评估 → 场景交互 → 总体评估</b>。ATAM 九步：<b>①ATAM 方法表述 → ②商业动机表述 → ③架构表述 → ④识别架构方法 → ⑤生成质量属性效用树 → ⑥分析架构方法 → ⑦头脑风暴与场景排序 → ⑧再次分析架构方法 → ⑨结果表述</b>，输出<strong>风险点/非风险点/敏感点/权衡点</strong>。CBAM：在 ATAM 结果上，对各架构策略估算「成本-收益（效用）」，按投资回报排序决定先做哪个。</p>
+      <p><strong>效用树（Utility Tree）</strong>——ATAM 的核心工件，三层结构：<b>根「效用」→ 质量属性 → 属性细分 → 场景叶子</b>，叶子右侧标注<b>（重要度, 难度）</b>，如（高,中）。分析优先级口径：（高,高）最优先，其次（高,中）——重要度高意味着失守损失大，难度高意味着方案不确定，风险最爱藏在这里。</p>
+      <pre style="font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--bg-soft);padding:12px;border-radius:8px;overflow:auto">效用
+├─ 性能
+│   ├─ 延迟 ——「高峰期 95% 查询请求 ≤ 800ms 返回」（高,中）
+│   └─ 吞吐量 ——「零点峰值 10 万 TPS 下订单成功率 ≥ 99.9%」（高,高）★先评
+└─ 可用性
+    └─ 硬件失效 ——「主库宕机后 30 秒内自动切换，中断 ≤ 30 秒」（高,中）</pre>
+      <h3>关键细节</h3>
+      <p><strong>四点定义</strong>（SEI 口径，案例分析必考）：判别先<strong>数一数受影响的质量属性个数</strong>，再看<strong>是否存在隐患</strong>——这是两个独立的维度：</p>
+      <table class="tbl">
+        <tr><th>名称</th><th>定义</th><th>判别要点</th><th>例</th></tr>
+        <tr><td>敏感点 sensitivity point</td><td>实现<strong>某个特定质量属性</strong>的关键特性（单一关键变量）</td><td>只点名 1 个属性的关键变量</td><td>数据库连接池大小 → 吞吐量</td></tr>
+        <tr><td>权衡点 tradeoff point</td><td>影响<strong>多个</strong>质量属性的敏感点（两个指标的拉锯点）</td><td>同时显著影响 ≥2 个属性</td><td>加密强度 → 安全性↑ 性能↓</td></tr>
+        <tr><td>风险点 risk point</td><td>存在隐患、可能引发问题的架构决策</td><td>看有无隐患（单点、无备份、未验证）</td><td>支付回调仅一条第三方通道</td></tr>
+        <tr><td>非风险点 nonrisk point</td><td>经分析<strong>确认无隐患</strong>的决策</td><td>必须是「已分析确认」，不是没评过</td><td>成熟分层架构隔离界面与业务</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①敏感点/权衡点与风险点是<strong>两个维度</strong>：前者看「拉锯几个属性」，后者看「有没有隐患」，可以叠加——权衡点若失衡就会演变为风险点；②SAAM 与 ATAM 的辨析口诀：SAAM（可修改性、最早）vs ATAM（多属性权衡）；③「成本效益排序」是 CBAM 的活，不是 ATAM 的输出——选择题常拿这个当干扰项；④效用树叶子必须是<strong>六要素量化的场景</strong>（42 页）加（重要度,难度）标注，写「系统要快」不算叶子；⑤评估方法主体：SAAM/ATAM/CBAM 均由评估方组织<strong>多干系人</strong>参与，不是架构师自评。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>sensitivity point（敏感点）· tradeoff point（权衡点）· utility tree（效用树）。英语题常用句式：ATAM identifies sensitivity points, tradeoff points, risks and nonrisks of the architecture.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>抗震评估会这样开：先挂出验收指标树（效用树），每根枝条写着「重要度, 难度」；专家顺着树逐条追责——「这栋楼的自振周期由什么决定？」（敏感点=单一关键变量）；「加大开窗面积，采光上去了、保温掉下来，你们取哪头？」（权衡点=两个指标的拉锯点）；「这根柱子的图纸我们没看懂，也没人签字负责」（风险点）；「常规桩基做法，二十年验证过，稳妥」（非风险点）。预算不够全加固？CBAM 上场：先加固性价比最高的部位。类比在「图纸阶段暴露风险」上成立；失效边界在于：评估会不能保证楼不倒——评估质量取决于场景覆盖与专家水平，走形式的评估会连一张效用树都画不出来。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>老师傅拿使用场景清单过图</td><td>SAAM（最早、场景法、可修改性）</td><td>成立</td></tr>
+      <tr><td>多指标联合评审会+指标树</td><td>ATAM（效用树+九步）</td><td>成立</td></tr>
+      <tr><td>指标树右标「重要度/难度」</td><td>效用树叶子（高,中）标注</td><td>成立</td></tr>
+      <tr><td>自振周期一变、抗震表现大变</td><td>敏感点（单一关键变量）</td><td>成立</td></tr>
+      <tr><td>开大窗：采光↑保温↓</td><td>权衡点（两属性拉锯）</td><td>成立</td></tr>
+      <tr><td>评估通过=楼不会倒</td><td>评估的保证力</td><td><b>失效</b>：评估只暴露「已知可论证」的风险，不能替代测试与运行监控</td></tr>
+    </table>
+    <div class="rhyme">一个属性是敏感，多个属性要权衡，决策隐患是风险，确认无险放行先；<br>效用树上标高难，高难先评不空谈；<br>SAAM 场景老前辈，ATAM 权衡 CBAM 算钱。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示 ATAM 评估会九步：从方法表述到效用树生成，再到追责分析，最后输出四件套。拖动滑块跳到任意一步，播放看全程。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>跳到第几步 <input type="range" id="step-slider" min="1" max="9" step="1" value="1"> <span id="step-out">1</span></label>
+      <span class="kf-caption">九步口诀：方法、动机、架构先摆桌，识别方法、生成树，分析排序再分析，结果表述交四件套。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（判类实验）：给 6 条评审陈述定性</h4>
+      <p class="foreshadow">先点一条陈述，再点它的定性；判错会指出你把哪两个概念混淆了。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-cat="sens">敏感点</button>
+        <button class="btn" data-cat="trade">权衡点</button>
+        <button class="btn" data-cat="risk">风险点</button>
+        <button class="btn" data-cat="non">非风险点</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（补全效用树）：把候选节点放进正确的层</h4>
+      <p class="foreshadow">先点一个空位，再点一个候选块：</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+        <div id="lab2-tree" style="flex:1.4;min-width:300px"></div>
+        <div id="lab2-chips" style="flex:1;min-width:220px"></div>
+      </div>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：SAAM 五步</h4>
+      <p class="foreshadow">把 SAAM 的五个步骤按顺序拖入槽中：</p>
+      <div id="lab3-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="lab3-slot"></div>
+      <button class="btn" id="lab3-check">检查顺序</button>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（方法选型）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>43 · 质量属性战术给了被评估的对象——「识别架构方法」一步就是把战术从图纸里点名；41 · ADL与架构文档给了被读的图纸——评估的输入必须是构件、连接件、配置清晰的架构描述。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>45 · 架构演化：演化前后都要带着四点清单重新评估——「更新基线」与「再评估」是演化的收尾闭环；</li><li>CBAM 的成本收益排序，会在 45 页「重构 vs 重写」的投入决策中再次出现。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>敏感点（sensitivity point）</th><th>权衡点（tradeoff point）</th></tr>
+      <tr><td>差异点</td><td>实现<strong>一个</strong>质量属性的关键特性（单一关键变量）</td><td>影响<strong>多个</strong>质量属性的敏感点（两属性以上的拉锯点）</td></tr>
+      <tr><td>易错点</td><td>把「有多个变量」误当「影响多个属性」——敏感点也可以有很多个候选变量</td><td>看到决策很重要就写权衡点——必须点出<strong>至少两个属性</strong>在拉锯</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">口诀：一个属性是敏感，多个属性要权衡；权衡点若失衡，就升级为风险点。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——楼还没盖就要开一场『抗震评估会』，专家们拿着指标树逐条提问……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 三方法一条线：SAAM（最早、场景法、可修改性）→ ATAM（效用树+九步、多属性权衡）→ CBAM（在 ATAM 上算成本效益）。</li><li>② 四点判别：一个属性是敏感，多个属性要权衡，决策隐患是风险，确认无隐患是非风险。</li><li>③ 效用树三层：属性→细分→场景叶子，叶子右标（重要度,难度），（高,高）最优先分析。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '44', domain: 'qa', loc: 'inspection', root: '..',
+  title: '架构评估：SAAM/ATAM/CBAM', prev: '43-quality-tactics.html', prevTitle: '43 · 质量属性战术',
+  next: '45-arch-evolution.html', nextTitle: '45 · 架构演化与重构',
+  keywords: ['敏感点', '权衡点', '风险点', '非风险点', '效用树', 'ATAM', 'SAAM', 'CBAM']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 43 与 41） ---- */
+  CX.renderQuiz('#quiz-recall', [
+    {
+      q: '【回忆·43】可用性战术的三个类别是？',
+      opts: [
+        { t: '资源需求、资源管理、资源仲裁', why: '这是性能战术的三类。' },
+        { t: '错误检测、错误恢复、错误预防', why: '对。检测（心跳/投票）→ 恢复（备件/回滚）→ 预防（事务/计划检修）。' },
+        { t: '局部化修改、防止级联、延迟绑定', why: '这是可修改性战术的三类。' },
+        { t: '抵抗攻击、检测攻击、从攻击中恢复', why: '这是安全性战术的三段，对象是攻击不是故障。' }
+      ],
+      ans: 1, tag: '回忆:43', src: '仿真题'
+    },
+    {
+      q: '【回忆·41】ADL（架构描述语言）的三要素是？',
+      opts: [
+        { t: '构件、连接件、架构配置', why: '对。ADL 用这三要素把架构写成可分析的图纸——评估读的就是它。' },
+        { t: '表、索引、视图', why: '这是数据库概念。' },
+        { t: '类、对象、消息', why: '这是面向对象概念。' },
+        { t: '视图、场景、战术', why: '视图属于 4+1，场景属于质量场景，战术属于 43 页——都不是 ADL 三要素。' }
+      ],
+      ans: 0, tag: '回忆:41', src: '仿真题'
+    }
+  ], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '评审发现：「数据库连接池的大小对系统吞吐量影响巨大」。按 ATAM 口径，这是？',
+      opts: [
+        { t: '敏感点', why: '对。连接池大小是实现吞吐量这「一个」质量属性的关键变量——单一关键变量即敏感点。' },
+        { t: '权衡点', why: '权衡点要求同时显著影响 ≥2 个属性；本题只点了吞吐量一个属性。' },
+        { t: '风险点', why: '风险点看「有没有隐患」，题干只说影响大，没说有隐患。' },
+        { t: '非风险点', why: '非风险点须确认无隐患，题干没有这个信息。' }
+      ],
+      ans: 0, tag: '四点判别', src: '仿真题' },
+    { q: 'ATAM 的评估产出「不包括」下列哪项？',
+      opts: [
+        { t: '敏感点', why: '包括：敏感点是 ATAM 四件套之一。' },
+        { t: '权衡点', why: '包括：ATAM 正是以识别权衡点为核心卖点。' },
+        { t: '架构策略的成本效益排序表', why: '对。成本效益排序是 CBAM 的输出——CBAM 建立在 ATAM 之上，但排序表不是 ATAM 的产出。' },
+        { t: '风险点与非风险点', why: '包括：这正是 ATAM 结果表述阶段的核心输出。' }
+      ],
+      ans: 2, tag: '方法输出', src: '仿真题' },
+    { q: '关于 SAAM，下列说法「错误」的是？',
+      opts: [
+        { t: '它是最早出现的架构评估方法之一', why: '正确：SAAM 是公认的最早的架构评估方法。' },
+        { t: '它以场景为核心开展评估', why: '正确：场景开发、分类、评估贯穿 SAAM 五步。' },
+        { t: '它主要面向可修改性', why: '正确：SAAM 最初关注的就是「架构能否适应变更」。' },
+        { t: '它以多属性权衡为核心', why: '错（本题选它）：多属性权衡是 ATAM 的核心，SAAM 不做跨属性权衡分析。' }
+      ],
+      ans: 3, tag: '方法辨析', src: '仿真题' },
+    { q: '【交错复习:43】ATAM 评估中，被盘问的「主备心跳保活机制」按 SEI 战术分类属于可用性的？',
+      opts: [
+        { t: '错误检测', why: '对。心跳用于发现故障，属于错误检测类战术；评估时它常作为敏感点出现（间隔决定发现速度）。' },
+        { t: '错误恢复', why: '恢复是备件切换、回滚、重新同步——在心跳发现故障之后发生。' },
+        { t: '错误预防', why: '预防是从服务移除、事务、可预测模型。' },
+        { t: '延迟绑定', why: '这是可修改性战术，与心跳无关。' }
+      ],
+      ans: 0, tag: '交错复习:43', src: '仿真题' },
+    { q: '效用树某叶子标注为（高,高），按 ATAM 口径这意味着？',
+      opts: [
+        { t: '重要度高、实现难度高，优先分析', why: '对。标注顺序是（重要度, 难度）；两个都高意味着「失守损失大且方案不确定」，是风险最可能藏身处，最优先分析。' },
+        { t: '成本高收益低，放弃', why: '效用树标注里没有成本收益维度，那是 CBAM 的活。' },
+        { t: '重要度低、难度高', why: '顺序反了，第一位是重要度。' },
+        { t: '风险高低标注', why: '效用树标注的是场景的重要度与实现难度，不是风险等级。' }
+      ],
+      ans: 0, tag: '效用树', src: '仿真题' }
+  ], { kpId: '44', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某航空订票系统架构评审记录摘录：A. 库存扣减采用数据库行级锁，评审发现「行锁竞争窗口」直接决定系统吞吐量上限；B. 为提升可用性采用两地三中心异地多活，但跨中心数据同步延迟使数据一致性指标明显下降；C. 支付回调依赖单一第三方通道，未设计备用通道；D. 界面层与业务逻辑通过标准接口分层解耦，评审组确认该做法成熟稳妥、无隐患。',
+    q: '(1) 对 A~D 逐条判定属于敏感点/权衡点/风险点/非风险点，并各用一句话说明判别理由；(2) 写出口诀并据此复述判别规则；(3) 若 C 不整改，说明它在后续演化中最可能引发什么后果，给出处置建议。',
+    ref: '(1) A=敏感点：行锁竞争窗口是实现「吞吐量」这一个属性的关键变量（单一关键变量）；B=权衡点：异地多活同时敏感影响「可用性」与「一致性」两个属性，属于多属性拉锯；C=风险点：单通道无备份是存在隐患的决策；D=非风险点：经评审确认无隐患（注意「经确认」是前提）。(2) 口诀：「一个属性是敏感，多个属性要权衡，决策隐患是风险」，补一句「确认无险是非风险」；判别时先数受影响属性个数（1 个→敏感，≥2 个→权衡），再看是否存在隐患（有→风险，确认无→非风险）。(3) 后果：第三方通道故障时支付中断且无法自动恢复，且演化中每次改动都放大该故障面，权重不断上升；建议：双通道互备+超时熔断+人工兜底降级，并纳入监控告警。',
+    points: ['四个判定全对，且每条都给出「属性个数/是否有隐患」的判别理由', '明确说出敏感点与权衡点的区分标准是受影响属性的数量', '指出敏感点/权衡点与风险点是两个维度、可以叠加', 'C 的后果具体（支付中断、无法自动恢复）并给出可执行处置'],
+    frame: '答题框架：逐条定性 → 引判据（数属性个数、查隐患）→ 口诀复述 → 风险处置建议（备份/熔断/降级/监控）。',
+    kpId: '44'
+  });
+  CX.renderCase('#case2', {
+    stem: '某保险核心系统正在做 ATAM 评估，效用树部分结构如下（括号为待补全）：效用 → ①性能 → （②____）→「理赔影像上传在高峰期 95% 请求 3 秒内完成」（高,中）；效用 → 可用性 → 硬件失效 →「主库宕机后（③____）秒内自动切换，服务中断不超过 30 秒」（高,④____）。',
+    q: '(1) 补全②处的属性细分节点，并再举出性能属性下另一个细分维度；(2) 补全③④（写出合理量化值与标注），并说明各自的理由；(3) 说明 ATAM 应优先分析哪些节点、为什么。',
+    ref: '(1) ②=延迟（响应时间）；性能还可细分为吞吐量、容量/并发数等。(2) ③=30（与「服务中断不超过 30 秒」呼应的自动切换时限，形成可验证的响应度量）；④=中——重要度=高（理赔营业关键链路），难度=中（主从自动切换技术成熟，非攻关难题），标注顺序是（重要度, 难度）。(3) 优先分析（高,高）节点，其次（高,中）：重要度高意味着失守的商业损失大，难度高意味着架构方案不确定——两者交集是风险最可能藏身之处；本题「（高,中）」两条也必须评，但排在（高,高）之后。',
+    points: ['② 细分正确，且能再举一个性能细分维度（吞吐量/容量）', '③ 给出量化时限并说明它如何与响应度量呼应', '④ 标注合理，分清（重要度, 难度）的顺序与各自理由', '优先级口径答出（高,高）优先、其次（高,中），并说明原因'],
+    frame: '答题框架：先写树的三层结构（属性→细分→场景叶子+标注）→ 逐空补全并给理由 → 强调叶子=量化场景（42 页六要素）→ 优先级口径收尾。',
+    kpId: '44'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成决策场景：「团队已拿到 ATAM 结果，想在多个架构策略里挑性价比最高的先投入，量化成本与收益」——应该使用哪个方法？',
+    opts: [
+      { t: 'SAAM', why: 'SAAM 是最早的场景法评估，面向可修改性，不做成本效益排序。' },
+      { t: 'CBAM', why: '对。CBAM（成本效益分析法）正是建立在 ATAM 之上，对各架构策略按成本-收益排序。' },
+      { t: '再跑一遍 ATAM', why: 'ATAM 给四件套结论，不输出投资回报排序。' },
+      { t: '画一张 DFD', why: 'DFD 是结构化分析工具，与投资决策无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '44', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['43', '41'], 'prev');
+  CX.depChain('#bridge-next', ['45'], 'next');
+
+  /* ---- 动画：ATAM 评估会九步 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var STEP_CAPS = [
+    '第1步 ATAM 方法表述：评估团队介绍流程与角色——评估会先宣布议程。',
+    '第2步 商业动机表述：出资方讲清为什么评——这栋「楼」要过抗震验收。',
+    '第3步 架构表述：架构师呈现总规图（架构方案）。',
+    '第4步 识别架构方法：从图纸里点名关键招式（分层、主备冗余、缓存…）。',
+    '第5步 生成质量效用树：验收指标三层展开，叶子标（重要度, 难度）。',
+    '第6步 分析架构方法：对高优先级场景逐条追责，暴露敏感点与风险。',
+    '第7步 头脑风暴与场景排序：新场景入树，按（重要度, 难度）排队。',
+    '第8步 再次分析：对新入树的场景重复第 6 步的追责。',
+    '第9步 结果表述：输出敏感点、权衡点、风险点、非风险点四件套。'
+  ];
+  function node(x, y, w, h, label, fill, stroke, shown, fs) {
+    if (!shown) return '';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" opacity=".95"/>' +
+      '<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 4) + '" text-anchor="middle" font-size="' + (fs || 12) + '" fill="var(--text)">' + label + '</text>';
+  }
+  function edge(x1, y1, x2, y2, shown, color) {
+    if (!shown) return '';
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (color || 'var(--line)') + '" stroke-width="1.5"/>';
+  }
+  function draw(t) {
+    var step = Math.min(9, Math.max(1, Math.floor(t * 9) + 1));
+    var s = '<svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="330" rx="12" fill="var(--bg-soft)"/>';
+    /* 九步议程条 */
+    for (var i = 1; i <= 9; i++) {
+      var bx = 16 + (i - 1) * 74.5;
+      var on = i === step, passed = i < step;
+      s += '<rect x="' + bx + '" y="14" width="64" height="26" rx="6" fill="' + (on ? 'var(--accent-2)' : (passed ? 'var(--ok)' : 'var(--card-2)')) + '" opacity="' + (on ? '1' : (passed ? '.45' : '.7')) + '" stroke="var(--line)"/>';
+      s += '<text x="' + (bx + 32) + '" y="31" text-anchor="middle" font-size="11" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + i + '</text>';
+    }
+    /* 第4步：识别架构方法 chips */
+    var tactics = ['分层', '主备冗余', '缓存', '接口中介'];
+    tactics.forEach(function (tc, j) {
+      s += node(20 + j * 90, 52, 80, 24, tc, 'var(--card)', 'var(--accent)', step >= 4, 11);
+    });
+    /* 效用树 */
+    var t5 = step >= 5;
+    s += edge(70, 175, 200, 135, t5);
+    s += edge(70, 175, 200, 235, t5);
+    s += node(24, 160, 90, 30, '效用', 'var(--accent-2)', 'var(--accent-2)', t5);
+    s += edge(246, 135, 330, 105, t5);
+    s += edge(246, 135, 330, 150, t5);
+    s += edge(246, 235, 330, 220, t5);
+    s += node(200, 120, 92, 30, '性能', 'var(--card)', 'var(--accent)', t5);
+    s += node(200, 220, 92, 30, '可用性', 'var(--card)', 'var(--accent)', t5);
+    s += node(330, 92, 92, 26, '延迟', 'var(--card-2)', 'var(--line)', t5);
+    s += node(330, 138, 92, 26, '吞吐量', 'var(--card-2)', 'var(--line)', t5);
+    s += node(330, 208, 92, 26, '硬件失效', 'var(--card-2)', 'var(--line)', t5);
+    s += edge(422, 105, 470, 105, t5);
+    s += edge(422, 151, 470, 151, t5);
+    s += edge(422, 221, 470, 221, t5);
+    s += node(470, 92, 175, 26, '95%请求≤800ms', 'var(--card-2)', 'var(--line)', t5, 11);
+    s += node(470, 138, 175, 26, '10万TPS成功99.9%', 'var(--card-2)', 'var(--line)', t5, 11);
+    s += node(470, 208, 175, 26, '宕机30秒内切换', 'var(--card-2)', 'var(--line)', t5, 11);
+    if (t5) {
+      s += '<text x="656" y="109" font-size="11" fill="var(--warn)">(高,中)</text>';
+      s += '<text x="656" y="155" font-size="11" fill="var(--bad)">(高,高)</text>';
+      s += '<text x="656" y="225" font-size="11" fill="var(--warn)">(高,中)</text>';
+    }
+    /* 第6/8步：追责标记 */
+    if (step >= 6) {
+      s += '<text x="330" y="86" font-size="10" fill="var(--warn)">敏感点:缓存命中率</text>';
+      s += '<text x="330" y="248" font-size="10" fill="var(--bad)">风险:单点无备份</text>';
+    }
+    /* 第7步：新场景入树 */
+    if (step >= 7) {
+      s += node(20, 262, 200, 24, '新场景:断电+10倍流量 (高,高)', 'var(--bad)', 'var(--bad)', true, 10);
+    }
+    /* 第9步：四件套输出 */
+    if (step >= 9) {
+      var outs = [['敏感点', 'var(--warn)'], ['权衡点', 'var(--accent)'], ['风险点', 'var(--bad)'], ['非风险点', 'var(--ok)']];
+      outs.forEach(function (o, j) {
+        s += node(20 + j * 130, 294, 120, 26, o[0], 'var(--card)', o[1], true, 12);
+      });
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', STEP_CAPS[step - 1]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 9, duration: 18, onTick: draw });
+  var ss = CX.utils.$('#step-slider'), so = CX.utils.$('#step-out');
+  ss.addEventListener('input', function () {
+    var st = +ss.value;
+    so.textContent = st;
+    anim.set((st - 0.5) / 9);
+  });
+
+  /* ---- 实验一：6 条陈述判类 ---- */
+  var L1 = [
+    { t: '数据库连接池大小对系统吞吐量影响显著', k: 'sens', why: '敏感点：只点名「吞吐量」一个属性的关键变量。' },
+    { t: '加密强度从 128 位升到 256 位，安全性增强但交易延迟明显上升', k: 'trade', why: '权衡点：同时显著影响「安全性」与「性能」两个属性。' },
+    { t: '支付回调仅依赖单一第三方通道且无备份方案', k: 'risk', why: '风险点：单点无备份是存在隐患的决策。' },
+    { t: '界面与业务逻辑经标准接口分层解耦，评审确认稳妥无隐患', k: 'non', why: '非风险点：经过分析「确认」无隐患。' },
+    { t: '心跳间隔同时影响故障发现速度（可用性）与网络开销（性能）', k: 'trade', why: '权衡点：一个参数两头拉锯，可用性与性能都在其中。' },
+    { t: '消息队列的分区数是消息吞吐量的关键变量', k: 'sens', why: '敏感点：只影响「吞吐量」一个属性的关键变量。' }
+  ];
+  var CONFUSE = {
+    sens: '判别关键：数一数这条陈述点名了几个质量属性——只影响 1 个就是敏感点。你选的定性不满足这个判据。',
+    trade: '权衡点要求同时显著影响 ≥2 个属性。这条只点了一个属性的变量，属于敏感点——别把「有多个变量」误当成「影响多个属性」。',
+    risk: '风险点看「是否存在隐患」（单点、无备份、未验证），不看是否拉锯属性——它和敏感/权衡是两个维度。',
+    non: '非风险点的前提是「经过分析确认无隐患」，没评过或随口说稳妥都不算。'
+  };
+  var l1Sel = null, l1Correct = 0, l1Done = 0;
+  var l1Pool = CX.utils.$('#lab1-pool');
+  L1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.dataset.k = item.k;
+    d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', l1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); l1Sel = d;
+      fb1('已选这条陈述，点上面的定性按钮作答。');
+    });
+    l1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('#lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$$('.lab button[data-cat]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!l1Sel) { fb1('先点选一条评审陈述。', 'bad'); return; }
+      var item = L1.filter(function (x) { return x.t === l1Sel.textContent; })[0];
+      l1Done++;
+      if (btn.getAttribute('data-cat') === item.k) {
+        l1Correct++;
+        l1Sel.style.borderColor = 'var(--ok)'; l1Sel.style.opacity = .5;
+        l1Sel.classList.remove('sel'); l1Sel.dataset.done = '1'; l1Sel = null;
+        fb1('✅ 正确：' + item.why + (l1Done === L1.length ? '（6/6 完成）' : '（' + l1Correct + '/' + l1Done + '）'), 'ok');
+      } else {
+        fb1('❌ 判错了。' + CONFUSE[btn.getAttribute('data-cat')] + ' 正确答案与理由：' + item.why + ' 记住：敏感/权衡看「属性个数」，风险/非风险看「有无隐患」，两个维度可叠加。', 'bad');
+        l1Sel.classList.remove('sel'); l1Sel = null;
+      }
+      if (l1Correct === L1.length) fb1('✅ 6 条全部判对！口诀收尾：一个属性是敏感，多个属性要权衡，决策隐患是风险，确认无险放行先。', 'ok');
+    });
+  });
+  CX.utils.$('#lab1-reset').addEventListener('click', function () {
+    l1Correct = 0; l1Done = 0; l1Sel = null;
+    CX.utils.$$('.match-opt', l1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：补全效用树 ---- */
+  var L2_SLOTS = [
+    { k: 'sub', label: '安全性下的「细分」层', ans: '抵抗攻击', hint: '细分层是属性的子维度。安全性的细分是抵抗/检测/恢复，心跳间隔和吞吐量都不是安全性的子维度。' },
+    { k: 'scene', label: '可修改性下的「场景叶子」（须量化）', ans: '新增险种只改配置与规则包，2 人日内上线，不改核心代码', hint: '场景叶子必须是六要素量化表述（42 页）。「系统要容易改」「代码写得整齐」都没有可验收的度量。' },
+    { k: 'mark', label: '拒绝伪造交易场景的「（重要度, 难度）」标注', ans: '（高,中）', hint: '伪造交易直接造成资损→重要度高；识别拦截技术成熟→难度中。标注顺序是（重要度, 难度）。' }
+  ];
+  var L2_CHIPS = {
+    sub: ['抵抗攻击', '心跳间隔', '吞吐量'],
+    scene: ['新增险种只改配置与规则包，2 人日内上线，不改核心代码', '系统要容易改', '代码写得整齐'],
+    mark: ['（高,中）', '（低,低）', '（中,高）']
+  };
+  var l2Tree = CX.utils.$('#lab2-tree'), l2Chips = CX.utils.$('#lab2-chips'), l2Active = null;
+  var l2ChipEls = [];
+  function buildL2Tree() {
+    l2Active = null;
+    l2Tree.innerHTML = '';
+    function line(txt) {
+      var d = document.createElement('div');
+      d.innerHTML = txt; d.style.margin = '2px 0';
+      l2Tree.appendChild(d);
+      return d;
+    }
+    line('<b>效用</b>');
+    line('├─ 性能 → 延迟 →「高峰期 95% 请求 3 秒内完成」（高,中）');
+    var r1 = line('└─ 安全性 → <span class="drag-slot" data-slot="sub" style="display:inline-block;min-width:120px;padding:2px 8px">（空位：细分）</span> →「伪造交易请求被识别并拒绝，识别率 99.9%」<span data-slot="mark" class="drag-slot" style="display:inline-block;min-width:80px;padding:2px 8px">（空位：标注）</span>');
+    var r2 = line('   └─ 预期变更 → <span class="drag-slot" data-slot="scene" style="display:inline-block;min-width:200px;padding:2px 8px">（空位：场景叶子）</span>');
+    L2_SLOTS.forEach(function (sd) {
+      var slot = l2Tree.querySelector('[data-slot="' + sd.k + '"]');
+      slot.dataset.ans = sd.ans;
+      slot.addEventListener('click', function () {
+        if (slot.dataset.filled) { fb2('这个空位已填。点「重置」可重来。', 'bad'); return; }
+        CX.utils.$$('.drag-slot', l2Tree).forEach(function (x) { x.classList.remove('hot'); });
+        slot.classList.add('hot'); l2Active = slot;
+        fb2('已选中「' + sd.label + '」空位，请在右侧点一个候选块。');
+      });
+    });
+  }
+  function buildL2Chips() {
+    l2Chips.innerHTML = ''; l2ChipEls.length = 0;
+    var all = [];
+    Object.keys(L2_CHIPS).forEach(function (k) {
+      L2_CHIPS[k].forEach(function (txt) { all.push({ k: k, t: txt }); });
+    });
+    CX.shuffle(all).forEach(function (c) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = c.t; d.dataset.k = c.k;
+      d.style.margin = '4px'; d.style.cursor = 'pointer';
+      d.addEventListener('click', function () {
+        if (!l2Active) { fb2('先在左侧点一个空位。', 'bad'); return; }
+        var slotKey = l2Active.getAttribute('data-slot');
+        var sd = L2_SLOTS.filter(function (x) { return x.k === slotKey; })[0];
+        if (c.k === slotKey && c.t === sd.ans) {
+          l2Active.textContent = c.t;
+          l2Active.dataset.filled = '1';
+          l2Active.classList.remove('hot');
+          l2Active.style.borderColor = 'var(--ok)';
+          d.style.opacity = .3; d.style.borderColor = 'var(--ok)';
+          l2Active = null;
+          fb2('✅ 填对了：' + sd.label + '。', 'ok');
+        } else {
+          fb2('❌ 放错了。「' + sd.label + '」这一层的规则：' + sd.hint, 'bad');
+        }
+      });
+      l2Chips.appendChild(d);
+      l2ChipEls.push(d);
+    });
+  }
+  function fb2(msg, cls) { var f = CX.utils.$('#lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  buildL2Tree(); buildL2Chips();
+  CX.utils.$('#lab2-reset').addEventListener('click', function () { buildL2Tree(); buildL2Chips(); fb2('已重置。', ''); });
+
+  /* ---- 实验三：SAAM 五步排序 ---- */
+  var L3_ORDER = ['场景开发（收集场景）', '场景分类（合并归类）', '单场景评估（逐场景对照架构）', '场景交互（场景间冲突分析）', '总体评估（形成结论）'];
+  var l3Pool = CX.utils.$('#lab3-pool'), l3Slot = CX.utils.$('#lab3-slot');
+  CX.shuffle(L3_ORDER.map(function (t) { return t; })).forEach(function (txt) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = txt; d.dataset.t = txt;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', txt); });
+    l3Pool.appendChild(d);
+  });
+  l3Slot.addEventListener('dragover', function (e) { e.preventDefault(); l3Slot.classList.add('hot'); });
+  l3Slot.addEventListener('dragleave', function () { l3Slot.classList.remove('hot'); });
+  l3Slot.addEventListener('drop', function (e) {
+    e.preventDefault(); l3Slot.classList.remove('hot');
+    var txt = e.dataTransfer.getData('text');
+    var src = l3Pool.querySelector('[data-t="' + txt + '"]');
+    if (src) l3Slot.appendChild(src);
+  });
+  function fb3(msg, cls) { var f = CX.utils.$('#lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('#lab3-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(l3Slot.children, function (c) { return c.dataset.t; });
+    if (got.length < L3_ORDER.length) { fb3('还有 ' + (L3_ORDER.length - got.length) + ' 张卡片没拖进槽。', 'bad'); return; }
+    for (var i = 0; i < L3_ORDER.length; i++) {
+      if (got[i] !== L3_ORDER[i]) {
+        fb3('第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。SAAM 的逻辑是：先把场景收齐（开发）→ 再理顺（分类）→ 逐个对照架构（单场景）→ 看场景之间打架不打架（交互）→ 下总结（总体）。', 'bad');
+        return;
+      }
+    }
+    fb3('✅ SAAM 五步全对：场景开发 → 场景分类 → 单场景评估 → 场景交互 → 总体评估。', 'ok');
+  });
+  CX.utils.$('#lab3-reset').addEventListener('click', function () {
+    Array.prototype.slice.call(l3Slot.children).forEach(function (c) { l3Pool.appendChild(c); });
+    fb3('已重置。', '');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>61 · 物联网与边缘计算 · 架构师学堂</title>
+<meta name="description" content="感知层长眼睛、网络层传消息、应用层做决策，边缘计算让计算搬到现场。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🌆 未来新城</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="39-cloud-native.html">前置 39</a></span>
+    <h1>61 · 物联网与边缘计算</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">感知层长眼睛、网络层传消息、应用层做决策，计算搬到现场。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某工厂 2 万台设备，每台装振动传感器，每秒上报 10 条数据。方案 A：全部直传云端分析。上线三天出了三个问题：带宽账单一个月 60 万；产线「异常停机保护」要求 50ms 内本地切断，公网往返根本来不及；车间工艺数据涉密，法务禁止出厂。问题：这三个问题各自暴露了「全上云」的什么短板？把计算搬到现场能同时解决几件？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>三个短板正对应<b>边缘计算三大价值</b>：① 带宽账单贵——海量原始小数据不必全传，边缘节点<b>本地过滤聚合</b>（如 50 条并 1 条摘要），只把有价值的结果上云，带宽立降约 98%；② 50ms 停机保护——计算搬到现场后<b>本地毫秒级响应</b>，不赌公网时延；③ 数据涉密——<b>敏感数据本地处理不出场</b>（合规）。但边缘不是甩掉云：云端继续负责大数据分析、模型训练与全局调度，训练好的模型下发边缘执行——这就是<b>云边端协同</b>。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>39 · 云计算与云原生</b>（边缘节点上的服务同样要容器化与编排——云原生思想向现场的延伸）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：物联网三层架构</h3>
+      <table class="tbl">
+        <tr><th>层</th><th>职责（城市比喻）</th><th>典型技术</th></tr>
+        <tr><td><b>感知层</b></td><td>识别物体、采集物理世界信息——「长眼睛」</td><td>传感器（温湿度/振动/气体）、RFID 电子标签、二维码、摄像头、GPS</td></tr>
+        <tr><td><b>网络层</b></td><td>把数据传上去、把指令传下来——「传消息」</td><td>短距：蓝牙/ZigBee/Wi-Fi；广域低功耗：NB-IoT/LoRa；蜂窝：4G/5G</td></tr>
+        <tr><td><b>应用层</b></td><td>分析与决策，形成行业应用——「做决策」</td><td>设备管理平台、数据分析、预测性维护、联动控制</td></tr>
+      </table>
+      <p>做题技巧：先分「这个环节是在<b>采数据</b>（感知）、<b>传数据</b>（网络）还是<b>用数据</b>（应用）」。同一个摄像头：拍照采集是感知，视频流上传是网络，人脸识别告警是应用。</p>
+      <h3>应用层协议对比：为什么 MQTT 是物联网常客</h3>
+      <table class="tbl">
+        <tr><th>协议</th><th>底层</th><th>模式</th><th>开销</th><th>适用</th></tr>
+        <tr><td><b>MQTT</b></td><td>TCP</td><td>发布/订阅（经 Broker 中介）</td><td>报文头最小约 2 字节，极轻量</td><td>低带宽、不稳定网络下的海量设备；三级 QoS（服务质量等级：0 至多一次/1 至少一次/2 恰好一次）</td></tr>
+        <tr><td><b>CoAP</b></td><td>UDP</td><td>类 REST 请求/响应</td><td>极小</td><td>资源极度受限、 UDP 可接受的小设备</td></tr>
+        <tr><td><b>HTTP</b></td><td>TCP</td><td>请求/响应</td><td>文本头重、握手开销大</td><td>交互低频的常规 Web 场景，不适合海量小包遥测</td></tr>
+      </table>
+      <p>MQTT 适合物联网的理由要能写出四条：①<b>轻</b>——报文小，省带宽省电；②<b>发布/订阅解耦</b>——设备只面对 Broker，互不认识也能协作（40 页事件驱动思想）；③<b>三级 QoS</b>——按业务重要性选「至多一次/至少一次/恰好一次」，弱网下可靠可控；④<b>基于 TCP</b>——继承可靠传输，断线重连、会话保持，适合不稳定网络。</p>
+      <h3>边缘计算：把计算搬到现场</h3>
+      <p>定义（口径化）：在靠近数据源的网络<b>边缘侧</b>就近提供计算与存储服务。三大价值：<b>低时延</b>（现场毫秒级响应，不赌公网）、<b>省带宽</b>（本地过滤聚合，只传有价值数据）、<b>本地合规</b>（敏感数据不出场）。形态：边缘网关、边缘服务器、边缘云。注意代价：站点分散导致<b>运维复杂</b>、单点资源有限、安全暴露面变大——所以边缘节点上的服务通常容器化，由云端统一编排下发（39 页云原生思想下沉）。</p>
+      <h3>云边端协同（近年论文方向）</h3>
+      <p>分工口诀：<b>端管采集执行，边管实时处理，云管全局智能</b>。两条关键闭环：<b>模型下发</b>——云端用全量数据训练模型，下发边缘推理；<b>数据回流</b>——边缘上传摘要/异常样本，云端再训练迭代。边缘不是云的替代，而是云的「前线」。</p>
+      <h3>工业物联网场景素材</h3>
+      <p>预测性维护：振动传感器（端）持续采集 → 边缘节点做特征提取（如频域分析）并执行本地停机保护 → 异常片段与统计摘要上云 → 云端汇聚全厂数据训练劣化模型 → 新模型下发边缘。全链条正好串起三层+云边协同，案例与论文都可直接套用。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>Edge Computing（边缘计算）· MQTT（Message Queuing Telemetry Transport，消息队列遥测传输）· NB-IoT（Narrowband IoT，窄带物联网）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① MQTT 的 QoS 等级是「语义承诺」不是免费午餐——QoS2「恰好一次」要用四次握手换，高频遥测常选 QoS0/1；② NB-IoT 是<b>广域低功耗低速</b>，拿它传视频属于用错场景（视频走 4G/5G）；③ 边缘计算≠「多放几台服务器」：协同编排、断网自治、远程运维才是难点；④ CoAP 基于 UDP，可靠性要自己在应用层兜（重传/去重），别与 MQTT 的 TCP 底座混为一谈；⑤ 边缘计算不是「不要云」——全局训练、跨站点调度仍然必须靠云；⑥ 感知层答题别只写「传感器」，RFID、二维码、摄像头、GPS 都是感知手段。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>未来新城里，<b>物联网三层=眼睛、邮政、指挥部</b>：全城摄像头与传感器是<b>长出来的眼睛</b>（感知层），道路邮政把照片和命令来回送（网络层），规划部门看数据做决策（应用层）。<b>边缘计算=社区服务站</b>：小病小痛不必进城排大医院——量血压、开常用药，楼下 5 分钟搞定（低时延）；不必为了一次量血压跑一趟总院（省带宽）；你的体检敏感数据留在社区档案柜（本地合规）。<b>云端=总部大医院</b>：疑难杂症转诊（复杂任务）、医学研究用全城数据（大数据训练）、研究成果下发各社区（模型下发）。<b>MQTT=社区广播站</b>：住户（设备）只管往广播站（Broker）喊话和订阅自己的频道，互不认识也能协作。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>眼睛/邮政/指挥部</td><td>感知层/网络层/应用层</td><td>成立</td></tr>
+      <tr><td>小病就近看社区服务站</td><td>边缘计算低时延就近处理</td><td>成立</td></tr>
+      <tr><td>社区服务站开箱即用免运维</td><td>边缘节点免运维</td><td><b>失效</b>：边缘站点分散、环境恶劣，恰恰需要远程运维、容器编排与断网自治设计</td></tr>
+      <tr><td>广播站喊话人人都听得见</td><td>MQTT 发布/订阅</td><td>部分成立：发布订阅解耦是真的，但生产环境必须配认证与Topic权限，不是「谁都能听」</td></tr>
+    </table>
+    <div class="rhyme">感知长眼睛，网络去传信；<br>应用做决策，三层记在心；<br>MQTT 广播轻，断线也能等；<br>边缘在现场，时延低几分；<br>云端管全局，模型往下沉。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画对比两条上传路线：<b>上路线</b>全部数据直传云端，<b>下路线</b>先到边缘节点聚合再上云。拖动「设备数据速率」与「边缘聚合比」滑块，看带宽账单与响应时延的差距。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>设备数据速率 <input type="range" id="iot-slider" min="100" max="2000" step="100" value="800"> <span id="iot-out">800</span> 条/s</label>
+      <label style="margin-left:16px">边缘聚合比 <input type="range" id="agg-slider" min="10" max="200" step="10" value="50"> <span id="agg-out">50</span> 并 1</label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽归层）：物联网技术归层</h4>
+      <p class="foreshadow">把 9 张技术卡拖进所属层（判断标准：采数据=感知，传数据=网络，用数据=应用）：</p>
+      <div id="t-pool" style="min-height:50px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px"><b>感知层</b><div class="drag-slot" id="slot-sense"></div></div>
+        <div style="flex:1;min-width:150px"><b>网络层</b><div class="drag-slot" id="slot-net"></div></div>
+        <div style="flex:1;min-width:150px"><b>应用层</b><div class="drag-slot" id="slot-app"></div></div>
+      </div>
+      <button class="btn" id="t-check">检查归层</button>
+      <button class="btn" id="t-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：协议/通信技术 ↔ 一句话本质</h4>
+      <p class="foreshadow">先点左列一项技术，再点右列对应本质：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="c-left"></div>
+        <div id="c-right"></div>
+      </div>
+      <button class="btn" id="c-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：「全上云 vs 云边协同」带宽账单（示意单价）</h4>
+      <p class="foreshadow">假设：单条数据 50 字节，7×24 上报；上行流量示意单价 0.8 元/GB。边缘聚合后只有摘要上云。拖动滑块对账：</p>
+      <label>设备数 <input type="range" id="d-slider" min="100" max="20000" step="100" value="5000"> <span id="d-out">5000</span> 台</label><br>
+      <label>单设备速率 <input type="range" id="r-slider" min="1" max="20" step="1" value="10"> <span id="r-out">10</span> 条/s</label><br>
+      <label>边缘聚合比 <input type="range" id="e-slider" min="10" max="200" step="10" value="50"> <span id="e-out">50</span> 并 1</label>
+      <div class="kf-caption" id="b-calc"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「计算放在哪里」：</p>
+    <div id="quiz-variant"></div>
+    <h3>📌 论文素材角</h3>
+    <div class="callout"><span class="t">✍️ 论文写作素材，需结合自身项目改写</span>
+      <ul>
+        <li>论点句式：「针对产线停机保护 50ms 时延约束与工艺数据合规要求，采用云边端协同架构：端侧负责采集与执行，边缘节点承担实时分析与本地保护，云端负责模型训练与全局调度；边缘聚合使上行带宽成本下降约 98%（数据请用你自己项目的）。」</li>
+        <li>论点句式：「海量设备接入采用 MQTT 发布/订阅模式：设备只与 Broker 交互，以最小报文与可选择的 QoS 等级在低带宽不稳定网络下可靠上报，实现采集与消费解耦、设备侧极简。」</li>
+        <li>项目情景模板：工业预测性维护 / 智慧园区能耗监测 / 车联网路侧感知。论证主线：背景（海量连接+实时性+带宽成本三重约束）→ 云边端分工 → 协议选型论证 → 量化收益（带宽、时延）→ 遗留问题（边缘站点运维与安全）。</li>
+        <li>论点句式：「边缘不是云的替代：我们建立『云训练、边推理』的模型下发与数据回流闭环，让全局智能与本地实时各得其所，断网时边缘自治降级运行。」</li>
+        <li>备考提示：边云协同是近年论文考过的方向（据公开考情梳理）。写作关键在论证「为什么不全放云端、为什么不全放本地」——把约束逐条对应到架构决策，是采分点。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>39 · 云计算与云原生</b>：边缘节点上跑的正是容器化服务——云原生的镜像、编排、自愈思想下沉到现场，才有「云端统一编排、边缘自动运行」的云边协同。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>60 · AI与大模型架构</b>：端侧小模型+云端大模型的端云协同部署，正是「云边端协同」在 AI 场景的应用；</li>
+      <li><b>62 · 区块链与前沿选型</b>：物联网数据的「上链前真实性」要靠感知层设备自动采集与存证技术配合——两页在溯源场景交汇。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>云计算</th><th>边缘计算</th></tr>
+      <tr><td>位置与规模</td><td>集中式大机房，资源近乎无限</td><td>靠近数据源的分散小站点，资源有限</td></tr>
+      <tr><td>擅长</td><td>大数据训练、全局调度、弹性伸缩</td><td>低时延响应、带宽节省、本地合规</td></tr>
+      <tr><td>易错点</td><td>以为一切计算都该上云——时延与带宽账单会教育你</td><td>以为边缘可替代云——全局训练与跨站调度仍必须靠云；边缘站点运维成本常被低估</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">云是总部大医院，边缘是社区服务站——小病就近看，疑难转诊，研究靠总院数据，成果下发给社区。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——工厂里两万台机器都装了「眼睛」，它们说的话要先送到谁那里……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① IoT 三层各司其职：感知层采集（传感器/RFID/摄像头）、网络层传输（NB-IoT/LoRa/5G）、应用层决策（平台/分析/控制）；分不清层就问「在采、在传还是在用」。</li><li>② MQTT 适合物联网的四条理由：报文轻、发布订阅解耦、三级 QoS、基于 TCP 适配不稳定网络；CoAP 走 UDP 更极简，HTTP 头重不适合海量小包。</li><li>③ 边缘计算三大价值=低时延、省带宽、本地合规；云边端协同是「端采集执行、边实时处理、云全局智能」+模型下发与数据回流两条闭环。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '61', domain: 'trend', loc: 'newtown', root: '..',
+  title: '物联网与边缘计算',
+  prev: '60-ai-arch.html', prevTitle: '60 · AI与大模型架构',
+  next: '62-blockchain.html', nextTitle: '62 · 区块链与前沿选型',
+  keywords: ['物联网', '感知层', '网络层', '应用层', 'MQTT', '边缘计算', '云边协同']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 39） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·39】边缘节点分布在全国 300 个车间，其上的服务希望「打成镜像、云端一键下发、挂了自动重启」。39 页哪套组合正对口？',
+    opts: [
+      { t: '容器化 + 编排（K8s 思想向边缘延伸）', why: '对。镜像统一交付物、声明式自愈，正是云原生思想下沉到边缘——云边协同的运维基础。' },
+      { t: '每台手工装软件、出事电话通知运维', why: '300 个站点的手工运维不可行，这正是边缘的难点而非方案。' },
+      { t: '全部放到云端跑', why: '边缘存在的意义就是就地处理时延与合规敏感任务，全回云等于没做边缘。' }
+    ],
+    ans: 0, tag: '回忆:39', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    {
+      q: '智能工厂里：① 摄像头拍下产线画面；② 视频流经 5G 上传；③ 平台做行为分析并触发告警。③ 属于哪一层？',
+      opts: [
+        { t: '感知层：识别物体采集信息', why: '拍摄才是感知；「分析并告警」已经在用数据做决策。' },
+        { t: '网络层：负责数据传输', why: '传输是②的职责，与③的分析决策无关。' },
+        { t: '应用层：分析数据形成决策与应用', why: '对。分不清层就问环节在采、在传还是在用——③在用数据。' }
+      ],
+      ans: 2, tag: 'IoT三层', src: '仿真题'
+    },
+    {
+      q: '海量水电表工作在地下室弱网环境，每几分钟发一条几十字节的小数据。选 MQTT 的理由最完整的一组是？',
+      opts: [
+        { t: '界面友好、文档丰富、社区流行', why: '流行度不是协议选型的架构理由。' },
+        { t: '报文极轻 + 发布/订阅解耦 + 三级 QoS 可选 + 基于 TCP 适应不稳定网络', why: '对。四条理由分别对应省带宽省电、设备侧极简、弱网可靠性可控、断线重连。' },
+        { t: 'MQTT 传输速度一定比 UDP 快', why: 'MQTT 跑在 TCP 上，论裸速度未必赢 UDP 的 CoAP，胜在轻与可靠可控。' }
+      ],
+      ans: 1, tag: 'MQTT', src: '仿真题'
+    },
+    {
+      q: '车间「异常停机保护」要求 50ms 内切断设备，且工艺数据涉密禁止出厂。这个计算负载应该放在？',
+      opts: [
+        { t: '云端：算力最强', why: '公网往返动辄上百毫秒，时延与合规两条都过不了。' },
+        { t: '边缘节点：低时延本地响应 + 敏感数据不出场', why: '对。这正是边缘计算三大价值中的两条：低时延、本地合规。' },
+        { t: '加大传感器采样率', why: '采样率是感知层参数，解决不了「在哪算」的问题。' }
+      ],
+      ans: 1, tag: '边缘计算', src: '仿真题'
+    },
+    {
+      q: '【交错复习·39】边缘节点上的分析服务要随算法迭代频繁升级，300 个站点逐台手工升级不可行。39 页的哪项能力搬过来正对口？',
+      opts: [
+        { t: '容器镜像 + 编排下发与滚动升级', why: '对。镜像统一交付物、控制器滚动替换——云原生的发布体系延伸到边缘，升级不再靠腿。' },
+        { t: '把服务写死在设备固件里', why: '固件升级周期长、失败风险高，与频繁迭代相反。' },
+        { t: '等设备返厂再升级', why: '停机成本不可接受。' }
+      ],
+      ans: 0, tag: '交错复习:39', src: '仿真题'
+    },
+    {
+      q: '【交错复习·23】MQTT 选择跑在 TCP 之上（而 CoAP 选 UDP），从 23 页看它得到了什么、付出了什么？',
+      opts: [
+        { t: '得到可靠传输（重传、有序、连接管理），付出更多连接开销——用可靠性换一点开销', why: '对。弱网下「不丢不乱」对遥测更关键；CoAP 则要自己在应用层补重传与去重。' },
+        { t: '得到更小的报文头', why: 'TCP 头比 UDP 大，MQTT 换来的是可靠而非更小。' },
+        { t: '得到加密能力', why: '加密是 TLS 的能力，与选 TCP 还是 UDP 无必然关系。' }
+      ],
+      ans: 0, tag: '交错复习:23', src: '仿真题'
+    }
+  ], { kpId: '61', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某工厂 2 万台设备装振动传感器，每台每秒 10 条数据。全量直传云端方案暴露三问题：月带宽账单约 60 万元；停机保护要求异常后 50ms 内本地切断，公网往返达不到；工艺数据涉密禁止出厂。管理层要求重新设计。',
+    q: '(1) 设计云边端协同架构并说明各层职责；(2) 论证为什么停机保护必须放边缘、而模型训练必须放云端；(3) 给出带宽成本优化思路并做量级估算；(4) 设计边缘节点断网时的降级方案。',
+    ref: '(1) 架构：端（传感器采集、执行器切断动作）→ 边（车间级边缘节点：数据清洗、特征提取如频域分析、本地停机保护、过滤聚合上传）→ 云（全厂大数据平台、劣化模型训练、全局看板与调度）；边缘节点容器化，由云端统一编排下发与升级。(2) 论证：停机保护是硬实时任务且数据涉密——公网时延不可控、数据不能出厂，两条约束都指向边缘；模型训练需要全厂乃至多厂数据与大规模算力，边缘单点资源不足，且模型要全局统一版本——指向云端。即「本地实时、全局智能」各取所长。(3) 带宽优化：原始数据 2 万台×10 条/s×50B ≈ 10MB/s ≈ 全月约 24TB 上行（按 30 天估算量级）；边缘按 50 并 1 聚合、只传摘要与异常片段，上行降约 98%，月流量约 0.5TB 量级——按示意单价带宽成本从数十万降到万元级；若配视频类数据还应边缘抽帧、事件触发上传。(4) 断网降级：边缘本地自治——保护逻辑全部在边缘本地闭环执行不依赖云；断网期间数据本地缓存（时序库/消息持久化），网络恢复后续传补传；云端链路不可达时边缘按最后下发的模型与策略独立运行，并本地告警提醒运维。',
+    points: ['云边端三层职责清晰且与案例约束一一对应（时延/合规/带宽）', '能论证「本地实时 vs 全局智能」的分工依据而非罗列名词', '带宽估算量级正确且给出聚合/抽帧等具体优化手段', '断网降级覆盖本地自治、缓存续传、独立告警'],
+    frame: '答题框架：约束清单 → 架构分层 → 逐条约束对应到层（时延→边、全局→云、合规→边）→ 量化收益 → 故障场景兜底。此结构可直接迁移到边云协同论文。',
+    kpId: '61'
+  });
+  CX.renderCase('#case2', {
+    stem: '某市要换装 100 万只智能水表：电池供电须撑 5 年以上、每天仅上报几次读数（每条几十字节）、大量表安装在地下室信号极差、要求读数不丢。',
+    q: '(1) 在 NB-IoT / LoRa / 4G 中做通信选型并论证；(2) 在 MQTT / CoAP / HTTP 中做应用层协议选型并论证；(3) 给出弱网与省电两条工程策略。',
+    ref: '(1) 选 NB-IoT：广域覆盖（穿墙深覆盖好，适合地下室）、超低功耗（PSM/eDRX 等深度休眠/扩展寻呼省电机制，电池可撑多年）、成本低、运营商公网免自建——正对「广、省、深」三需求；LoRa 需自建网关适合园区私有部署，跨全市百万级部署不经济；4G 功耗与资费都过高，属杀鸡用牛刀。(2) 应用层选 MQTT：报文头最小约 2 字节极省电省流量；发布/订阅解耦，百万表只面对 Broker；QoS1（至少一次）+ 消息去重可满足「不丢」要求；基于 TCP 断线重连、会话保持适配弱网。HTTP 头重握手多不适合；CoAP 也可行（UDP 更省），若终端与平台均已支持可作为等价答案，需自管重传去重。(3) 工程策略——省电：定时唤醒批量上报（如每日 4 次合并读数）、使用 PSM 深睡眠、减少重试风暴；弱网：本地缓存最近读数、网络恢复后补报（带时间戳）、QoS1+幂等去重防丢防重、服务端会话保持。',
+    points: ['NB-IoT 选型论证覆盖覆盖/功耗/成本三要素并与场景对应', 'MQTT 选型说出轻量、解耦、QoS、TCP 四条中至少三条', '省电与弱网策略具体可落地（唤醒周期/合并上报/缓存补传/去重）'],
+    frame: '答题框架：需求特征提炼（广、省、深、不丢）→ 逐项约束映射到技术选型 → 工程策略兜底。选型题的采分点在「约束→技术特性」的对应关系。',
+    kpId: '61'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '自动驾驶：环境感知到决策要求 10ms 内完成，且行进中公网时延不可依赖。按本页思想，感知计算应该放在哪、云端负责什么？',
+    opts: [
+      { t: '全部上云端计算，车只做显示屏', why: '公网往返几十到几百毫秒，10ms 约束必挂，且隧道地库会失联——安全问题不能赌网络。' },
+      { t: '感知与决策放车端/路侧边缘就近计算，云端负责模型训练、地图更新与调度', why: '对。同一概念换到车联网：硬实时必须就近（边缘价值一：低时延），云端管全局智能与训练下发。' },
+      { t: '加大传感器数量就能解决', why: '传感器多只是数据更多，「在哪算」没解决。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '61', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['39'], 'prev');
+  CX.depChain('#bridge-next', ['60'], 'next');
+
+  /* ---- 动画：全上云 vs 云边协同 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var RATE = 800; /* 条/s */
+  var AGG = 50;   /* 聚合比 */
+  function draw(t) {
+    var T = t * 60; /* 0~60s 模拟时间 */
+    var bytesAll = RATE * 50 * T;          /* 全上云累计字节 */
+    var bytesEdge = bytesAll / AGG;        /* 边缘聚合后 */
+    var kbAll = bytesAll / 1024, kbEdge = bytesEdge / 1024;
+    var s = '<svg viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="350" rx="12" fill="var(--bg-soft)"/>';
+    /* 设备群 */
+    for (var i = 0; i < 24; i++) {
+      var ex = 48 + (i % 6) * 14, ey = 96 + Math.floor(i / 6) * 40;
+      s += '<rect x="' + ex + '" y="' + ey + '" width="10" height="14" rx="2" fill="var(--card-2)" stroke="var(--line)"/>';
+    }
+    s += '<text x="92" y="170" font-size="12" fill="var(--text)">2 万台设备</text>';
+    s += '<text x="92" y="186" font-size="10" fill="var(--text-dim)">' + RATE + ' 条/s · 50B/条</text>';
+    /* 上路线：直上云 */
+    s += '<text x="250" y="52" font-size="12" fill="var(--bad)" font-weight="bold">路线A：全部直传云端</text>';
+    s += '<line x1="130" y1="90" x2="640" y2="90" stroke="var(--bad)" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>';
+    /* 移动的小包（密度示意） */
+    var pkA = Math.min(14, 3 + Math.round(RATE / 160));
+    for (var a = 0; a < pkA; a++) {
+      var ax = 140 + ((a * 90 + T * (60 + a * 9)) % 480);
+      s += '<rect x="' + ax.toFixed(0) + '" y="84" width="14" height="8" rx="2" fill="var(--bad)" opacity=".8"/>';
+    }
+    s += '<rect x="640" y="52" width="100" height="70" rx="9" fill="var(--card)" stroke="var(--bad)"/>';
+    s += '<text x="690" y="82" text-anchor="middle" font-size="11" fill="var(--text)">云端·总部</text>';
+    s += '<text x="690" y="100" text-anchor="middle" font-size="10" fill="var(--text-dim)">公网 180ms</text>';
+    s += '<text x="380" y="126" text-anchor="middle" font-size="12" fill="var(--bad)">累计上行 ' + kbAll.toFixed(0) + ' KB（全量）</text>';
+    /* 下路线：边缘聚合 */
+    s += '<text x="250" y="186" font-size="12" fill="var(--ok)" font-weight="bold">路线B：边缘聚合后再上云</text>';
+    s += '<line x1="130" y1="224" x2="380" y2="224" stroke="var(--ok)" stroke-width="2" stroke-dasharray="6 6" opacity=".7"/>';
+    var pkB = Math.min(12, 3 + Math.round(RATE / 160));
+    for (var b = 0; b < pkB; b++) {
+      var bx = 140 + ((b * 40 + T * (50 + b * 7)) % 220);
+      s += '<rect x="' + bx.toFixed(0) + '" y="218" width="14" height="8" rx="2" fill="var(--ok)" opacity=".8"/>';
+    }
+    s += '<rect x="380" y="196" width="130" height="58" rx="9" fill="var(--card)" stroke="var(--ok)"/>';
+    s += '<text x="445" y="220" text-anchor="middle" font-size="11" fill="var(--ok)">边缘节点·服务站</text>';
+    s += '<text x="445" y="238" text-anchor="middle" font-size="10" fill="var(--text-dim)">本地响应 8ms · ' + AGG + ' 并 1</text>';
+    /* 本地告警 */
+    s += '<circle cx="445" cy="270" r="9" fill="var(--warn)" opacity="' + (0.4 + 0.6 * Math.abs(Math.sin(T))) + '"/>';
+    s += '<text x="445" y="292" text-anchor="middle" font-size="10" fill="var(--warn)">本地停机保护 50ms 级</text>';
+    /* 摘要上云 */
+    s += '<line x1="510" y1="224" x2="640" y2="224" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 6"/>';
+    var sx = 510 + ((T * 40) % 130);
+    s += '<rect x="' + sx.toFixed(0) + '" y="218" width="14" height="8" rx="2" fill="var(--accent)"/>';
+    s += '<text x="575" y="212" text-anchor="middle" font-size="10" fill="var(--text-dim)">只传摘要/异常</text>';
+    /* 底部读数 */
+    s += '<text x="380" y="318" text-anchor="middle" font-size="13" fill="var(--text)">上行对比：全上云 ' + kbAll.toFixed(0) + ' KB ｜ 云边协同 ' + kbEdge.toFixed(1) + ' KB（省 ' + (100 - 100 / AGG).toFixed(0) + '%）｜ 本地 8ms vs 公网 180ms</text>';
+    s += '</svg>';
+    var cap;
+    if (t < 0.2) cap = '两万台设备每秒产生海量小数据——先记住量级：数据本身不贵，贵的是「全量搬运」。';
+    else if (t < 0.5) cap = '路线A 全部直传云端：公网 180ms 响应慢、带宽账单随速率线性上涨，涉密数据还出不了场。';
+    else if (t < 0.8) cap = '路线B 边缘节点就地过滤聚合（' + AGG + ' 并 1），本地毫秒级执行停机保护——时延与合规就地解决。';
+    else cap = '只有摘要与异常片段上云，云端用回流数据训练模型再下发边缘——这就是云边端协同的两条闭环。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var iS = CX.utils.$('#iot-slider'), aS = CX.utils.$('#agg-slider');
+  function syncSliders() {
+    RATE = +iS.value; AGG = +aS.value;
+    CX.utils.$('#iot-out').textContent = RATE;
+    CX.utils.$('#agg-out').textContent = AGG;
+    draw(anim.t || 0);
+  }
+  iS.addEventListener('input', syncSliders);
+  aS.addEventListener('input', syncSliders);
+
+  /* ---- 实验一：三层归层 ---- */
+  var tCards = [
+    { t: '温湿度传感器', layer: 'sense', why: '采集物理世界数据=感知层。' },
+    { t: 'RFID 电子标签', layer: 'sense', why: '识别物体采集信息=感知层。' },
+    { t: '摄像头模组（拍摄）', layer: 'sense', why: '拍摄采集画面=感知层（识别分析才是应用层）。' },
+    { t: 'NB-IoT 模组', layer: 'net', why: '广域低功耗通信=网络层。' },
+    { t: 'LoRa 网关', layer: 'net', why: '数据传输通道=网络层。' },
+    { t: '5G 基站', layer: 'net', why: '蜂窝网络传输=网络层。' },
+    { t: '设备管理平台', layer: 'app', why: '管理分析数据=应用层。' },
+    { t: '预测性维护系统', layer: 'app', why: '分析决策=应用层。' },
+    { t: '联动控制策略', layer: 'app', why: '用数据做决策并执行=应用层。' }
+  ];
+  var tPool = CX.utils.$('#t-pool');
+  function buildT() {
+    tPool.innerHTML = '';
+    ['slot-sense', 'slot-net', 'slot-app'].forEach(function (id) { CX.utils.$('#' + id).innerHTML = ''; });
+    CX.utils.$('#lab1-fb').textContent = '';
+    CX.shuffle(tCards.slice()).forEach(function (c) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = c.t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+      tPool.appendChild(d);
+    });
+  }
+  buildT();
+  ['slot-sense', 'slot-net', 'slot-app'].forEach(function (id) {
+    var slot = CX.utils.$('#' + id);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = null;
+      var all = document.querySelectorAll('.drag-item');
+      for (var k = 0; k < all.length; k++) { if (all[k].textContent === t) { src = all[k]; break; } }
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('#t-reset').addEventListener('click', buildT);
+  CX.utils.$('#t-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab1-fb');
+    var bad = null;
+    tCards.forEach(function (c) {
+      if (bad) return;
+      var located = null;
+      document.querySelectorAll('.drag-slot').forEach(function (sl) {
+        Array.prototype.forEach.call(sl.children, function (ch) {
+          if (ch.textContent === c.t) located = sl;
+        });
+      });
+      if (!located) bad = '还有技术卡没归层（「' + c.t + '」）。';
+      else if (located.id !== 'slot-' + c.layer) bad = '❌「' + c.t + '」归层错了——' + c.why;
+    });
+    if (bad) { fb.textContent = bad; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '✅ 全部归层正确！口诀：采数据=感知，传数据=网络，用数据=应用。'; fb.className = 'lab-feedback ok'; }
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs3 = [
+    ['MQTT', '发布订阅轻量，基于 TCP 经 Broker'],
+    ['CoAP', 'UDP 上的极简 REST，适配受限设备'],
+    ['HTTP', '文本头重握手多，不适合海量小包'],
+    ['NB-IoT', '广域深覆盖低功耗低速'],
+    ['5G', '高带宽低时延，视频与车联之选']
+  ];
+  var lBox = CX.utils.$('#c-left'), rBox = CX.utils.$('#c-right');
+  var selL = null, doneN = 0;
+  function buildC() {
+    selL = null; doneN = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('#lab2-fb').textContent = '';
+    pairs3.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的本质。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs3).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        var fb = CX.utils.$('#lab2-fb');
+        if (!selL) { fb.textContent = '先点左列一项技术。'; fb.className = 'lab-feedback'; return; }
+        if (selL.textContent === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; doneN++;
+          fb.textContent = '✅ 配对成功 ' + doneN + '/5'; fb.className = 'lab-feedback ok';
+        } else {
+          fb.textContent = '❌「' + selL.textContent + '」不对应「' + d.textContent + '」——注意区分「应用层协议」与「通信技术」，重读对比表。';
+          fb.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildC();
+  CX.utils.$('#c-reset').addEventListener('click', buildC);
+
+  /* ---- 实验三：带宽账单 ---- */
+  var dS = CX.utils.$('#d-slider'), rS = CX.utils.$('#r-slider'), eS = CX.utils.$('#e-slider');
+  function bill() {
+    var dev = +dS.value, rate = +rS.value, agg = +eS.value;
+    CX.utils.$('#d-out').textContent = dev;
+    CX.utils.$('#r-out').textContent = rate;
+    CX.utils.$('#e-out').textContent = agg;
+    var bytesMonth = dev * rate * 50 * 86400 * 30;   /* 全上云月字节 */
+    var gbAll = bytesMonth / 1e9;
+    var gbEdge = gbAll / agg;
+    var costAll = gbAll * 0.8, costEdge = gbEdge * 0.8; /* 示意 0.8 元/GB */
+    CX.utils.$('#b-calc').textContent = '全上云：' + gbAll.toFixed(1) + ' GB/月 ≈ ' + costAll.toFixed(0) + ' 元/月 ｜ 云边协同（' + agg + ' 并 1）：' + gbEdge.toFixed(2) + ' GB/月 ≈ ' + costEdge.toFixed(0) + ' 元/月';
+    var fb = CX.utils.$('#lab3-fb');
+    if (costAll > 100000) {
+      fb.textContent = '⚠️ 全上云月账单已超 10 万元（示意单价）。这笔钱够买若干台边缘服务器——但记住：带宽只是账面账，50ms 时延与数据合规这两条，加多少钱也换不来「全上云」的合格答案。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      fb.textContent = '✅ 当前规模全上云尚可承受（示意单价），但请留意：速率×设备数是线性放大器，业务翻倍账单翻倍——边缘聚合比是最直接的调节阀。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  bill();
+  [dS, rS, eS].forEach(function (sl) { sl.addEventListener('input', bill); });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

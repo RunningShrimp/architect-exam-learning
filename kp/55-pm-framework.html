@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>55 · 项目管理框架 · 架构师学堂</title>
+<meta name="description" content="十大知识领域是指挥部的十本台账，五大过程组循环推进；组织结构决定项目经理的权力大小。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">项目管理与管理数学</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <h1>55 · 项目管理框架</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">十大知识领域十本台账，五大过程组循环推进，组织结构定权力。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某公司中标一个智慧园区项目，总经理拍板：「技术为王，把最强的架构师提为项目经理，直接管开发部、测试部（各部门经理照旧管考勤和绩效）。」项目跑了三个月：架构师项目经理要调人，各部门经理说「先完成我部门的季度指标」；要采购服务器，得走部门预算层层审批。<b>这套组织结构里项目经理权力有多大？换哪种结构能解？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这是典型的<strong>弱矩阵结构</strong>：项目是「借调出来的临时班子」，权力重心仍在职能经理手里——项目经理更像协调员，遇到资源冲突只能「求人」。要解，就往权力光谱右端移：改成<strong>平衡矩阵</strong>（项目经理与职能经理权力相当，预算共管）或<strong>强矩阵</strong>（项目经理专职、全权管预算与考核，职能经理只管技术支撑）。极端情况（常年项目制公司）可以直接上<strong>项目型组织</strong>，成员全职跟项目走。考点就一句话：<strong>职能型→弱矩阵→平衡矩阵→强矩阵→项目型，项目经理权力从小到大</strong>。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本页是「📋 建设指挥部」的第一站，没有同域前置点。上一站 <b>54 · 标准化与合同法律</b> 刚讲过立项要签合同——先回忆一下：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>项目管理</strong>是把知识、技能、工具与技术应用到项目活动上，以满足项目要求。<strong>项目</strong>是「为创造独特的产品、服务或成果而进行的<strong>临时性</strong>工作」；<strong>运营</strong>是持续、重复的日常工作（如运维值班）。项目有明确的起点和终点，运营没有。指挥一座新城的建设，要同时管十件事，这十件事就是<strong>十大知识领域</strong>；而每件事都要经历「开工→谋定→大干→盯梢→验收」的循环，这就是<strong>五大过程组</strong>。</p>
+      <h3>解决什么问题</h3>
+      <p>项目最常见死法不是「技术做不出来」，而是「范围无限加、进度无限拖、成本无限超、相关方永远不满意」。管理框架提供一套<strong>分账本的清单</strong>：出问题时能定位是哪本台账没管好（范围蔓延？风险没识别？沟通不到位？），而不是笼统地说「管理不行」。</p>
+      <h3>核心机制</h3>
+      <p><strong>五大过程组</strong>（按时间推进的「阶段视角」）与<strong>十大知识领域</strong>（按管理内容的「台账视角」）组成一个 10×5 的过程矩阵——教材里 49 个过程都能放进这张表。考试最爱考「某活动属于哪个过程组 / 哪个知识领域」。</p>
+      <table class="tbl">
+        <tr><th>五大过程组</th><th>指挥部动作</th><th>代表性过程</th></tr>
+        <tr><td>启动</td><td>立项挂牌</td><td>制定项目章程、识别相关方</td></tr>
+        <tr><td>规划</td><td>画图纸定预算</td><td>范围/进度/成本/风险管理计划等（过程最多）</td></tr>
+        <tr><td>执行</td><td>开工干活</td><td>指导与管理项目工作、建设团队</td></tr>
+        <tr><td>监控</td><td>盯进度盯账本</td><td>监控项目工作、整体变更控制（贯穿全程）</td></tr>
+        <tr><td>收尾</td><td>竣工验收移交</td><td>结束项目或阶段（合同收尾+管理收尾）</td></tr>
+      </table>
+      <h3>关键细节</h3>
+      <p><strong>十大知识领域</strong>——记忆锚点：十大领域里<strong>整合管理统领其余九大领域</strong>（它是唯一横跨全部五大过程组的「总指挥台账」），其余九个按「管什么」分四组：</p>
+      <table class="tbl">
+        <tr><th>分组</th><th>知识领域</th><th>指挥部台账</th><th>核心问题</th></tr>
+        <tr><td>总指挥</td><td>整合管理</td><td>总台账</td><td>把所有局部揉成整体，唯一跨五大过程组的领域（含整体变更控制）</td></tr>
+        <tr><td>管「四要素」</td><td>范围 / 进度 / 成本 / 质量</td><td>工程量簿 / 工期主线 / 资金簿 / 验收单</td><td>做什么、多快、多少钱、多好（客观四约束）</td></tr>
+        <tr><td>管「人」</td><td>资源 / 沟通 / 相关方</td><td>人力簿 / 公告栏 / 花名册</td><td>谁来干、怎么说、让谁满意</td></tr>
+        <tr><td>管「不确定」</td><td>风险 / 采购</td><td>天气预警簿 / 采购簿</td><td>出事怎么办、缺什么去买</td></tr>
+      </table>
+      <p><strong>组织结构对项目经理权力的影响</strong>（高频单选，按教材口径）：</p>
+      <table class="tbl">
+        <tr><th>结构</th><th>项目经理权力</th><th>全职项目人员比例</th><th>预算控制人</th><th>相似比喻</th></tr>
+        <tr><td>职能型</td><td>很小或没有</td><td>几乎没有</td><td>职能经理</td><td>借调挂名联络员</td></tr>
+        <tr><td>弱矩阵</td><td>小</td><td>少（0~25%）</td><td>职能经理为主</td><td>协调员</td></tr>
+        <tr><td>平衡矩阵</td><td>小到中</td><td>少（15%~60%）</td><td>两者共管</td><td>与部门经理分权</td></tr>
+        <tr><td>强矩阵</td><td>中到大</td><td>多（50%~95%）</td><td>项目经理为主</td><td>专职指挥</td></tr>
+        <tr><td>项目型</td><td>大到几乎全权</td><td>几乎全部</td><td>项目经理</td><td>独立兵团</td></tr>
+      </table>
+      <p><strong>风险管理流程概览</strong>（56~58 页只展开其中数学工具，流程本身在本页记牢）：规划风险管理 → <strong>识别</strong>风险（头脑风暴、检查表）→ <strong>定性</strong>风险分析（概率×影响矩阵排优先级）→ <strong>定量</strong>风险分析（EMV、决策树、蒙特卡洛——见 58 页）→ <strong>规划应对</strong>（规避/转移/减轻/接受，对威胁；开拓/分享/提高/接受，对机会）→ <strong>监控</strong>风险。顺序不能乱：先识别才谈分析，先分析才谈应对。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①「识别相关方」在<strong>启动</strong>过程组，不是规划组——章程和相关方登记册是启动的两大产出；②整合管理才是统领，别选范围管理；③矩阵型还分强弱，「弱矩阵=项目经理权力小」，别与平衡矩阵混；④项目与运营的区分抓「<strong>临时性+独特性</strong>」——运维日常不改架构就是运营；⑤定性在前、定量在后，顺序颠倒即错。</div>
+      <h3>专业英语小贴士</h3>
+      <p>project charter（项目章程）；stakeholder（相关方）；process group（过程组）；integration management（整合管理）；matrix organization（矩阵型组织）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>沿用全站隐喻：软件项目 = 一座新城的建设工程，<strong>项目管理 = 📋 建设指挥部</strong>。指挥部里挂十本台账（十大知识领域）：总台账（整合）统着工程量簿（范围）、工期主线（进度）、资金簿（成本）、验收单（质量），人力簿、公告栏（沟通）、花名册（相关方）管人，天气预警簿（风险）、采购簿管不确定。台账是「管什么」（知识领域），「开工→谋定→大干→盯梢→验收」是「什么时候管」（过程组）——<strong>台账×阶段，才是完整的管理动作</strong>。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>指挥部十本台账</td><td>十大知识领域</td><td>成立</td></tr>
+      <tr><td>开工→谋定→大干→盯梢→验收</td><td>启动→规划→执行→监控→收尾</td><td>成立</td></tr>
+      <tr><td>总台账统管其余九本</td><td>整合管理统领</td><td>成立（教材口径：整合跨全部过程组）</td></tr>
+      <tr><td>指挥部大权独揽、部门经理靠边站</td><td>所有组织结构都如此</td><td><b>失效</b>：职能型/弱矩阵里权力其实在部门经理手里，结构决定权力</td></tr>
+      <tr><td>天气预警=只防坏天气</td><td>风险管理只管威胁</td><td><b>失效</b>：风险也含机会（应对策略有「开拓/分享」）</td></tr>
+    </table>
+    <div class="rhyme">启动挂帅章程立，规划图纸细如米；<br>执行大干人马齐，监控盯账不松气；<br>收尾验收交钥匙，整合统领军令起；<br>矩阵越强权越大，风险先识后分析。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示两件事：<strong>指挥车沿五大过程组循环推进</strong>（监控贯穿全程），以及<strong>组织结构权力光谱</strong>——拖动滑块从职能型滑到项目型，看项目经理与职能经理的权力条此消彼长。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>组织结构 <input type="range" id="org-slider" min="0" max="4" step="1" value="1"> <span id="org-out">弱矩阵</span></label>
+      <span class="kf-caption" id="org-cap">弱矩阵：项目是「借调班子」，权力在部门经理手里。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：风险管理流程排排队</h4>
+      <p class="foreshadow">拖动卡片，把风险管理的正确流程排出来：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：知识领域 ↔ 指挥部台账</h4>
+      <p class="foreshadow">先点左列一个知识领域，再点右列对应台账：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（归位挑战）：这段活动属于哪个过程组？</h4>
+      <p class="foreshadow">依次给下面 4 个管理动作选择所属过程组：</p>
+      <p class="foreshadow"><b>题目 <span id="pg-no">1</span>/4</b>：<span id="pg-q" style="font-weight:700"></span></p>
+      <div id="pg-btns">
+        <button class="btn pg-btn" data-g="启动">启动</button>
+        <button class="btn pg-btn" data-g="规划">规划</button>
+        <button class="btn pg-btn" data-g="执行">执行</button>
+        <button class="btn pg-btn" data-g="监控">监控</button>
+        <button class="btn pg-btn" data-g="收尾">收尾</button>
+      </div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、4 题为先前知识点交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>54 · 标准化与合同法律给出了项目的法律外壳（合同、招投标）；本页在其上搭起管理框架本身——合同确定「做什么」，管理框架管「怎么做完」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>进度台账（工期主线）在 <b>56 · 进度管理与关键路径</b> 展开成网络图计算；</li><li>成本台账在 <b>57 · 挣值分析</b> 变成三个数的算术；</li><li>风险管理里的定量工具（EMV、决策树、排队）在 <b>58 · 管理科学与决策分析</b> 逐一算给你看。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>项目</th><th>运营</th></tr>
+      <tr><td>差异点</td><td>临时性 + 独特性，有起点终点</td><td>持续重复，无终点</td></tr>
+      <tr><td>易错点</td><td>以为「大工程才算项目」——写一份投标书也是项目</td><td>把定制开发误当运营；日常运维中的架构改造却又是一次「项目」</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">干完就散（交付独特成果）是项目；天天如此（持续重复）是运营。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——盖一座新城要先立牌子（启动），画图纸（规划）……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 项目=临时性+独特性；管理动作=五大过程组（启动/规划/执行/监控/收尾），管理内容=十大知识领域（整合统领其余九个）。</li>
+    <li>② 组织结构从职能型→弱矩阵→平衡矩阵→强矩阵→项目型，项目经理权力从小到大，预算控制权跟着权力走。</li>
+    <li>③ 风险管理流程顺序不可乱：识别→定性→定量→应对→监控；风险不只防坏事，也抓机会。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '55', domain: 'pm', loc: 'command', root: '..',
+  title: '项目管理框架',
+  prev: '54-standards-contract.html', prevTitle: '54 · 标准化与合同法律',
+  next: '56-schedule-cpm.html', nextTitle: '56 · 进度管理与关键路径',
+  keywords: ['五大过程组', '十大知识领域', '整合管理', '矩阵型组织', '项目章程', '相关方', '风险管理', '临时性']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（55 为本域首站、无同域前置，回忆全站上一站 54） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·54】项目立项阶段，招标人发布招标公告的行为在法律上属于什么？',
+    opts: [
+      { t: '承诺', why: '承诺是投标人投标后招标人发出的接受表示，顺序反了。' },
+      { t: '要约', why: '要约是投标人递交投标文件；招标公告是要约邀请。' },
+      { t: '要约邀请', why: '对：招标公告是希望他人向自己发出要约（投标）的意思表示；投标=要约，定标=承诺。' }
+    ],
+    ans: 2, tag: '回忆:54', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '「某项目与外部供应商签订采购合同后，供应商履约出问题，项目经理牵头评估是否更换供应商并更新采购计划」。这套动作整体属于哪一知识领域、主要落在哪个过程组？',
+      opts: [
+        { t: '采购管理 · 执行与监控', why: '只看到了采购二字：合同签订只是采购的一环，题目同时含「评估更换+更新计划」的管理闭环，不是最佳答案。' },
+        { t: '整合管理 · 监控', why: '整合管的是全局协调与整体变更，供应商层面的问题首选采购领域，不选整合。' },
+        { t: '采购管理 · 规划', why: '采购计划更新确实有规划成分，但题干主体是履约中的管理与调整，不是新做规划。' },
+        { t: '采购管理 · 执行（管理采购）与控制（控制采购）', why: '对：采购知识领域既管「买东西的流程」，也管「合同关系与履约」，分别落在执行与监控两个过程组。' }
+      ],
+      ans: 3, tag: '概念', src: '仿真题' },
+    { q: '某公司常年以项目方式运作，项目团队成员全职归属项目、项目结束后团队解散，项目经理掌握预算与考核权。这种组织结构是？',
+      opts: [
+        { t: '强矩阵型', why: '强矩阵里成员仍归职能部门，只是「多数时间做项目」，项目经理权力大但职能经理依旧存在。' },
+        { t: '项目型', why: '对：全职项目人员几乎全部、项目结束团队解散、项目经理几乎全权——这是项目型的三个标志。' },
+        { t: '平衡矩阵型', why: '平衡矩阵是项目经理与职能经理权力相当，达不到「几乎全权」。' },
+        { t: '复合型', why: '复合型指同一公司内多种结构并存，题干没有这个信息。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·25】瀑布模型把开发分为「需求→设计→编码→测试→运行」等阶段。它与项目管理五大过程组的关系，正确的理解是？',
+      opts: [
+        { t: '两者是同一件事的不同叫法', why: '错：过程组是「管理动作」的划分，瀑布阶段是「技术工作」的划分，两套坐标不同。' },
+        { t: '瀑布的每个技术阶段内部都可能要走一遍五大过程组', why: '对：过程组管的是管理动作（立项/计划/执行/监控/收尾），瀑布阶段是技术交付的阶段——每个阶段都可以有自己的管理与被管理关系，两者是不同维度的分类。' },
+        { t: '瀑布模型已被过程组取代', why: '它们不是竞争关系，一个是技术路线、一个是管理坐标。' },
+        { t: '过程组只适用于瀑布模型', why: '过程组与生命周期类型无关，敏捷迭代同样按过程组管理。' }
+      ],
+      ans: 1, tag: '交错复习:25', src: '仿真题' },
+    { q: '【交错复习·54】项目建设指挥部成立后第一件事是与施工方签订合同。若合同履行中发现双方对「系统验收标准」约定不明确且协商不成，按合同法律一般规则，应按照什么标准履行？',
+      opts: [
+        { t: '以施工方自定的企业标准为准', why: '企业标准不能单方决定验收依据。' },
+        { t: '按照国家标准、行业标准履行；没有的，按照通常标准或符合合同目的的特定标准履行', why: '对：质量/标准约定不明时的法定补位规则——级别依次是国家标准、行业标准，再退到通常标准。' },
+        { t: '以招标文件中的所有条款为准', why: '招标文件不是合同当然组成部分的兜底依据，法定规则才是考点。' },
+        { t: '视为合同无效', why: '约定不明不导致合同无效，只触发法定补充规则。' }
+      ],
+      ans: 1, tag: '交错复习:54', src: '仿真题' },
+    { q: '项目经理接手一个陷入混乱的项目，第一件事编制了「风险概率影响矩阵」给风险排序。这个动作属于风险管理的哪个环节？',
+      opts: [
+        { t: '识别风险', why: '识别是「找出有哪些风险」（登记册），排序是下一步。' },
+        { t: '定性风险分析', why: '对：概率×影响矩阵评估并排序，是定性分析的典型手段；定量分析要用 EMV、决策树等数值工具（见 58 页）。' },
+        { t: '定量风险分析', why: '矩阵打分是相对排序，不是数值定量，两环节顺序也常在此混淆。' },
+        { t: '规划风险应对', why: '应对是排序之后给对策（规避/转移/减轻/接受）。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' }
+  ], { kpId: '55', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某省启动「一网通办」政务平台项目，涉及政务云、门户、12 个委办局系统对接。公司指派技术总监兼任项目经理，团队成员从 5 个职能部门临时抽调、保留原部门考核，预算报销仍走各职能部门审批。项目进行 4 个月后：接口联调时抽调人员被部门召回参加季度冲刺，进度滞后 20%；委办局负责人频繁更换，需求反复变化。',
+    q: '(1) 指出该项目组织结构类型及存在的问题；(2) 提出组织结构调整建议并说明理由；(3) 针对「委办局负责人频繁更换、需求反复变化」，应启用哪本「台账」（知识领域）来管，给出两条具体措施。',
+    ref: '(1) 弱矩阵型（成员原部门考核、预算走部门审批、项目经理兼职权力小）；问题：项目经理缺乏资源控制权，人员被随时召回，进度失控。(2) 调整为强矩阵或项目型：项目经理专职、掌握预算与成员绩效考核权（至少共管），关键接口人员全职投入，减少多任务切换；必要时申请高管授权（获得发起人/高层的背书是矩阵型项目成功的公认前提）。(3) 用「相关方管理」与「沟通管理」台账：措施一——更新相关方登记册，按权力/利益方格对委办局分类管理，为高频更换的负责人安排定期简报与期望对齐会；措施二——建立需求基线与整体变更控制流程（CCB），需求变更必须评估影响后走审批，防止范围蔓延。',
+    points: ['准确判断弱矩阵并能引用「考核权/预算权在职能部门」作依据', '调整建议与权力结构对应（专职、预算、考核、高管支持），不空谈「加强管理」', '识别出相关方+变更控制两个知识领域，措施落到登记册/方格/CCB 等具体过程'],
+    frame: '答题框架：定类型（引权力与预算归属证据）→ 列问题（对应对类型）→ 给结构调整（权力三要素：人、钱、考核）→ 换视角管需求（相关方+变更两条线）。',
+    kpId: '55'
+  });
+  CX.renderCase('#case2', {
+    stem: '某团队在项目执行期把「新架构可能不满足性能指标」写在周报的一句话里。半年后性能测试失败被迫重构，损失 3 个月。复盘时项目经理说：「我们其实早就识别到这个风险了，怪只怪运气差。」',
+    q: '(1) 用风险管理流程（识别→定性→定量→应对→监控）指出该团队缺了哪些环节；(2) 针对「性能不达标」风险各给出一种应对策略示例（规避/转移/减轻/接受）；(3) 说明「识别了风险」与「管理了风险」的区别。',
+    ref: '(1) 缺了定性之后的全部环节：未做定性排序（未上概率×影响矩阵）、未做定量分析（未估算性能不达标的概率与损失，如 EMV）、更未规划应对（无预案）与监控（无风险触发条件跟踪）——识别只是流程第一步。(2) 规避：改用已验证的成熟架构，放弃高风险设计；转移：把性能指标写进外包/设备采购合同并约定违约赔偿（转向供应商）；减轻：提前做性能原型验证、增加压测轮次，降低发生概率或影响；接受：留应急储备（预算/进度缓冲），不做额外动作。(3) 「识别」只是把风险登记进册；「管理」要求走完定性与定量的排序评估、给出应对策略并持续监控触发条件——只识别不应对等于把天气预警贴在墙上却不带伞。',
+    points: ['按五环节指出缺失（至少点名定性/定量/应对/监控中的三个）', '四种应对策略各配一个贴合「性能风险」的具体做法', '说清「识别≠管理」：识别是输入，应对与监控才是闭环'],
+    frame: '答题框架：套流程逐环节对照（做了什么/缺什么）→ 补环节给动作（矩阵、EMV、预案、触发器）→ 策略四选配对场景 → 一句话总结闭环思想。',
+    kpId: '55'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '班级要办一场运动会，班长说：「报名（启动）、定流程表（规划）、比赛当天（执行）、裁判记分（监控）、颁奖总结（收尾）。」这套安排与项目管理框架的关系是？',
+    opts: [
+      { t: '运动会是一次「项目」：临时性、独特成果，五大过程组同样适用', why: '对：临时（一周结束）、独特（本届独一无二），过程组是通用管理坐标，规模大小不影响适用性。' },
+      { t: '运动会是运营，因为年年都办', why: '年年办的是「每届各自的项目」，单届仍然临时且独特；类比失效边界恰在此处。' },
+      { t: '小活动不需要管理框架', why: '过程组是思维清单不是官僚流程，小活动只是做得轻量。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['54'], 'prev');
+  CX.depChain('#bridge-next', ['56', '57', '58'], 'next');
+
+  /* ---- 动画：过程组循环 + 组织结构权力光谱 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var groups = [
+    { n: '启动', d: '立项挂牌：章程+相关方' },
+    { n: '规划', d: '十本台账定计划' },
+    { n: '执行', d: '按计划开工干活' },
+    { n: '收尾', d: '验收移交归档' },
+    { n: '监控', d: '贯穿全程盯偏差' }
+  ];
+  var pos = [{ x: 95, y: 55 }, { x: 350, y: 55 }, { x: 605, y: 55 }, { x: 605, y: 185 }, { x: 350, y: 185 }];
+  var orgNames = ['职能型', '弱矩阵', '平衡矩阵', '强矩阵', '项目型'];
+  var orgDesc = [
+    '职能型：项目是「部门里的兼差」，项目经理几乎无权。',
+    '弱矩阵：借调班子，协调员角色，权力重心在部门经理。',
+    '平衡矩阵：项目经理与部门经理分权共管，最容易扯皮。',
+    '强矩阵：项目经理专职掌预算，部门经理转技术支撑。',
+    '项目型：独立兵团，成员全职、解散制，项目经理全权。'
+  ];
+  /* 4 段行程：启动→规划→执行→收尾，监控条常亮 */
+  function draw(t) {
+    var seg = t * 4, idx = Math.min(3, Math.floor(seg)), frac = seg - idx;
+    var x = pos[idx].x + (pos[idx + 1].x - pos[idx].x) * frac;
+    var y = pos[idx].y + (pos[idx + 1].y - pos[idx].y) * frac;
+    var org = +CX.utils.$('org-slider').value;
+    var pmBar = [8, 25, 50, 80, 95][org];
+    var fmBar = [95, 80, 50, 30, 10][org];
+    var s = '<svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="270" rx="12" fill="var(--bg-soft)"/>';
+    /* 工序箭头路径 */
+    s += '<g stroke="var(--line)" stroke-width="3" fill="none">';
+    s += '<line x1="155" y1="80" x2="290" y2="80"/><line x1="410" y1="80" x2="545" y2="80"/>';
+    s += '<line x1="630" y1="115" x2="630" y2="160"/><line x1="545" y1="210" x2="410" y2="210"/>';
+    s += '</g>';
+    s += '<polygon points="290,74 302,80 290,86" fill="var(--line)"/><polygon points="545,74 557,80 545,86" fill="var(--line)"/>';
+    s += '<polygon points="624,160 630,172 636,160" fill="var(--line)"/><polygon points="410,204 398,210 410,216" fill="var(--line)"/>';
+    /* 监控贯穿弧线 */
+    s += '<path d="M 120 50 C 250 -15, 450 -15, 580 50" stroke="var(--accent)" stroke-width="2.5" stroke-dasharray="7 6" fill="none" opacity=".85"/>';
+    s += '<text x="350" y="22" text-anchor="middle" font-size="13" fill="var(--accent)">监控（贯穿全过程）</text>';
+    /* 五个过程组牌 */
+    for (var i = 0; i < 5; i++) {
+      var p = pos[i], done = i <= (idx + (i === 4 ? 1 : 0));
+      s += '<rect x="' + (p.x - 62) + '" y="' + (p.y - 26) + '" width="124" height="52" rx="9" fill="' +
+        (i === 4 ? 'var(--card)' : (i <= idx ? 'var(--ok)' : 'var(--card)')) + '" stroke="' +
+        (i === 4 ? 'var(--accent)' : (i <= idx ? 'var(--ok)' : 'var(--line)')) + '" stroke-width="2"' + (i === 4 ? ' stroke-dasharray="6 4"' : '') + '/>';
+      s += '<text x="' + p.x + '" y="' + (p.y - 2) + '" text-anchor="middle" font-size="15" font-weight="700" fill="' + (i <= idx && i !== 4 ? 'var(--bg)' : 'var(--text)') + '">' + groups[i].n + '</text>';
+      s += '<text x="' + p.x + '" y="' + (p.y + 16) + '" text-anchor="middle" font-size="10.5" fill="' + (i <= idx && i !== 4 ? 'var(--bg)' : 'var(--text-dim)') + '">' + groups[i].d + '</text>';
+    }
+    /* 指挥车 */
+    s += '<circle cx="' + x + '" cy="' + (y - 40) + '" r="13" fill="var(--accent-2)"/><text x="' + x + '" y="' + (y - 35) + '" text-anchor="middle" font-size="13" font-weight="bold" fill="var(--bg)">指</text>';
+    /* 权力光谱 */
+    s += '<text x="45" y="255" font-size="12" fill="var(--text-dim)">项目经理权力</text>';
+    s += '<rect x="150" y="245" width="200" height="14" rx="7" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<rect x="150" y="245" width="' + (pmBar * 2) + '" height="14" rx="7" fill="var(--accent-2)"/>';
+    s += '<rect x="380" y="245" width="200" height="14" rx="7" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<rect x="380" y="245" width="' + (fmBar * 2) + '" height="14" rx="7" fill="var(--ok)"/>';
+    s += '<text x="600" y="256" font-size="12" fill="var(--text-dim)">职能经理权力</text>';
+    s += '<text x="350" y="238" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--text)">' + orgNames[org] + ' · PM ' + pmBar + '% vs FM ' + fmBar + '%</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap = '第 ' + (idx + 1) + ' 程：' + groups[idx].n + ' → ' + groups[idx + 1].n + '（' + groups[idx].d + '）｜' + orgDesc[org];
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 16, onTick: draw });
+  var osl = CX.utils.$('org-slider');
+  osl.addEventListener('input', function () {
+    CX.utils.$('org-out').textContent = orgNames[+osl.value];
+    CX.utils.$('org-cap').textContent = orgDesc[+osl.value];
+    draw(anim ? anim.t : 0);
+  });
+  draw(0);
+
+  /* ---- 实验一：拖拽排序（风险管理流程） ---- */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var order = ['识别风险（找出有哪些）', '定性分析（概率×影响排序）', '定量分析（EMV/决策树算数值）', '规划应对（规避/转移/减轻/接受）', '监控风险（盯触发条件）'];
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        var hints = {
+          0: '第一步必然是「识别」：册子里还没有风险，何谈分析？',
+          1: '定性在定量之前：先用矩阵排优先级，才值得花钱做数值定量。',
+          2: '定量分析排第三：有了排序才对高风险算 EMV/决策树（58 页会算给你看）。',
+          3: '应对排第四：先知道哪个风险最大，再决定规避/转移/减轻/接受。',
+          4: '监控收尾：应对措施定好后，要持续盯「触发条件」是否出现。'
+        };
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。' + hints[i];
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 流程正确：识别 → 定性 → 定量 → 应对 → 监控，顺序不可颠倒。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [['整合管理', '总台账（统领其余九本）'], ['进度管理', '工期主线'], ['成本管理', '资金簿'], ['质量管理', '验收单'], ['风险管理', '天气预警簿'], ['相关方管理', '花名册']];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的台账。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个知识领域。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/6';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var why = { '整合管理': '统领九本的总台账才是整合，别跟任何单一要素台账配。', '进度管理': '工期主线管的是「多快」。', '成本管理': '资金簿管的是「多少钱」。', '质量管理': '验收单管的是「多好」。', '风险管理': '天气预警簿管「不确定」。', '相关方管理': '花名册管「让谁满意」。' };
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + selL.dataset.k + '」不是「' + d.textContent + '」——' + (why[selL.dataset.k] || '重读台账对应关系。');
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：过程组归位挑战 ---- */
+  var pgQs = [
+    { q: '召开项目启动会，正式授权项目经理并发布项目章程', a: '启动', why: '项目章程正式授权项目存在，是启动过程组的标志性动作。' },
+    { q: '评估「客户临时要求增加报表模块」对进度成本的影响并决定是否批准', a: '监控', why: '这是整体变更控制，归监控过程组（也属整合管理领域）。' },
+    { q: '组建项目团队并开展团队建设活动', a: '执行', why: '获取资源、建设团队是「照计划干活」的执行过程组。' },
+    { q: '整理经验教训、移交成果并释放资源，宣布项目关闭', a: '收尾', why: '结束项目或阶段：移交成果、归档经验教训、释放资源。' }
+  ];
+  var pgIdx = 0, pgRight = 0;
+  function showPg() {
+    CX.utils.$('pg-no').textContent = pgIdx + 1;
+    CX.utils.$('pg-q').textContent = pgQs[pgIdx].q;
+  }
+  CX.utils.$$('.pg-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var g = pgQs[pgIdx].a;
+      if (b.dataset.g === g) {
+        pgRight++;
+        CX.utils.$('lab3-fb').textContent = '✅ 对：「' + pgQs[pgIdx].q.slice(0, 6) + '…」属于' + g + '——' + pgQs[pgIdx].why;
+        CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+      } else {
+        CX.utils.$('lab3-fb').textContent = '❌ 你选了' + b.dataset.g + '，正确是「' + g + '」。判断技巧：' + pgQs[pgIdx].why;
+        CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+      }
+      pgIdx++;
+      if (pgIdx < pgQs.length) setTimeout(showPg, 900);
+      else CX.utils.$('lab3-fb').textContent += '｜完成 ' + pgRight + '/4。';
+    });
+  });
+  showPg();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

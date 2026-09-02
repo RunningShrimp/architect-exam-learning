@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>34 · 架构风格：数据流与调用返回 · 架构师学堂</title>
+<meta name="description" content="管道过滤器像流水线接棒，分层像逐级审批，黑板系统众专家围板解题——风格是可复用的顶层套路。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="33-arch-concepts.html">前置 33</a></span>
+    <h1>34 · 架构风格：数据流与调用返回</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">风格是可复用的顶层套路：管道数据自己流，分层调用逐级批。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某舆情分析平台每天处理 2 亿条微博：流程固定为「采集→清洗→分词→情感打分→汇总报表」。早期团队把它写成一个大程序：清洗函数直接调用分词函数，分词函数直接调用打分函数。现在要求把「情感打分」换成深度学习模型，评估发现：改一个环节要读懂全部代码，任何一环出错整个程序停摆。问题出在哪？该换成什么样的架构？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这是典型的「调用返回式思维」用在了「数据流问题」上：清洗、分词、打分本是<b>各自独立、只关心输入输出格式</b>的加工站，却被显式调用绑死成一张网。换成<b>管道-过滤器风格</b>：每个环节是一个过滤器，环节之间用管道传数据，各站不认识上下游——换模型只换一个过滤器，任何一环坏了只影响它之后的流向。这正是架构风格的价值：<b>同样的功能，换个顶层套路，可维护性天差地别</b>。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>33 · 软件架构概念与4+1视图</b>（风格是架构早期决策的核心内容）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：架构风格与六大类总表</h3>
+      <p><b>架构风格（Architecture Style）</b>是描述特定应用领域中系统组织方式的<b>惯用套路</b>：它规定了一类系统由哪几种构件、哪几种连接件组成，以及怎么组合。相当于城市规划馆里的<b>「功能分区套路」</b>——工业区怎么摆、商业区怎么摆，前辈城市早已验证过。注意层级：<b>架构风格（全局套路）&gt; 设计模式（类级套路，46页起）&gt; 惯用法（具体写法）</b>，三者是不同粒度，考试爱混着考。</p>
+      <p>教材口径把经典风格分为六大类，本页总览（后三页逐类展开）：</p>
+      <table class="tbl">
+        <tr><th>大类</th><th>代表风格</th><th>一句话特征</th><th>城市比喻</th></tr>
+        <tr><td><b>数据流</b>（本页）</td><td>批处理序列、管道-过滤器</td><td>数据像水流被一站站加工，组件被动接活</td><td>水厂流水线</td></tr>
+        <tr><td><b>调用/返回</b>（本页）</td><td>主程序-子程序、面向对象、分层</td><td>控制权在调用者手里，一层层往下要结果</td><td>老板点将 / 逐级审批</td></tr>
+        <tr><td>独立构件（35页）</td><td>进程通信、事件驱动（隐式调用）</td><td>组件各自独立运行，靠消息往来</td><td>公众号广播</td></tr>
+        <tr><td>虚拟机（35页）</td><td>解释器、基于规则的系统</td><td>在机器之上再造一台「机器」解释执行</td><td>现场翻译官</td></tr>
+        <tr><td><b>以数据为中心</b>（本页）</td><td>数据库系统、黑板系统、超文本</td><td>大家围着同一个数据中心干活</td><td>中央档案馆 / 公告黑板</td></tr>
+        <tr><td>特定领域（36页）</td><td>MVC、微内核、DSSA 等</td><td>针对特定问题域的成熟套路</td><td>专业分区</td></tr>
+      </table>
+      <h3>数据流风格（一）：批处理序列</h3>
+      <p><b>批处理（Batch Sequential）</b>：一系列独立的处理步骤<b>顺序执行</b>，上一步<b>整体完成</b>后把<b>完整结果</b>（通常是文件）交给下一步，中途无人交互。连接件是「文件/磁带式」的整体传递。典型：传统银行夜间结算、工资批量代发、编译器的多趟扫描。</p>
+      <h3>数据流风格（二）：管道-过滤器（年年考）</h3>
+      <p><b>管道-过滤器（Pipe-Filter）</b>：每个<b>过滤器</b>从输入流读数据、加工、往输出流写数据；过滤器之间用<b>管道</b>连接。<b>数据驱动</b>——数据到了就加工，过滤器<b>不认识上下游</b>（位置透明），还可<b>增量处理</b>（不必等上游全部完成）。典型：Unix 命令行 <code>cat a.log | grep err | sort</code>、编译器、流媒体处理。</p>
+      <ul>
+        <li><b>优点</b>：过滤器可复用可替换（增删一站不影响别站）；天然支持并发；组合灵活；便于维护。</li>
+        <li><b>缺点</b>：不适合交互式应用；数据传输与格式转换有开销；过滤器间只能靠数据交流，错误处理与同步复杂。</li>
+        <li><b>与批处理的区别</b>：批处理<b>整船装运</b>（必须等上一步全部完成）、以文件为界；管道-过滤器<b>增量流动</b>、边进边出。</li>
+      </ul>
+      <h3>调用/返回风格（三兄弟）</h3>
+      <table class="tbl">
+        <tr><th>风格</th><th>机制</th><th>比喻</th><th>要点与缺点</th></tr>
+        <tr><td>主程序-子程序</td><td>主程序按层次调用子程序，共享全局数据</td><td>老板点将：控制权集中在主程序</td><td>结构直观、符合过程思维；但主程序是单点，一处改动波及全局，改不得</td></tr>
+        <tr><td>面向对象</td><td>封装数据与操作，对象间靠方法调用（消息）协作</td><td>各商铺既管货又管账</td><td>模块化、隐藏实现（继承29页）；缺点：对象必须知道对方的「门牌」，引用关系易纠缠</td></tr>
+        <tr><td>分层</td><td>每层为上层服务、调用下层服务，层层委托</td><td>逐级审批：员工→主管→总监</td><td>关注点分离、可替换整层、支持复用（OSI、TCP/IP、操作系统内核）；缺点：层层传递有性能开销、层数难定、不允许跨层时灵活性差</td></tr>
+      </table>
+      <h3>以数据为中心风格（仓库风格）——黑板系统年年考</h3>
+      <table class="tbl">
+        <tr><th>风格</th><th>机制</th><th>典型场景</th></tr>
+        <tr><td>数据库系统</td><td>中央数据库+多个独立处理单元，输入流触发处理，偏事务型</td><td>常规信息系统（联动 14~19 页）</td></tr>
+        <tr><td><b>黑板系统</b></td><td><b>知识源</b>（多个「专家」）+<b>黑板</b>（全局共享数据结构）+<b>控制组件</b>：谁看出线索谁上板写，解的路径事先不确定</td><td><b>语音识别</b>（经典 Hearsay-II）、知识推理、<b>专家系统</b>、多传感器融合</td></tr>
+        <tr><td>超文本系统</td><td>节点+网状链接，非线性跳转</td><td>Wiki、早期 Web</td></tr>
+      </table>
+      <p><b>黑板系统的判题信号</b>：题目出现「多个知识源/专家协作」「求解路径不确定」「语音识别/专家系统」，选黑板——大家不互相调用，只看黑板说话。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>architecture style（架构风格）· pipe and filter（管道-过滤器）· layered system（分层系统）· blackboard system（黑板系统）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① <b>管道-过滤器 vs 分层</b>：前者<b>数据驱动</b>（数据自己流、组件被动），后者<b>控制驱动</b>（上层主动调用下层）——每年综合知识最爱混；② 黑板系统知识源之间<b>不直接通信</b>，全靠黑板交换；③ 批处理与管道-过滤器的分水岭是「整批 vs 增量」；④ 分层的「层」是调用层级，别与三层架构的「部署层」（37页）完全画等号；⑤ 风格≠设计模式：风格管全局结构，模式管局部协作。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>管道-过滤器=水厂流水线</b>：原水→沉淀→过滤→消毒→出厂，每站只管自己的工序，水到了就干，站与站之间只有水管（数据），没人认识上下游。<b>分层=逐级审批</b>：报销单从员工到主管到财务，一级委托一级，谁也不能跳级乱签；但也因此，每多一级就多一天等待（性能开销）。<b>黑板=教研室公告板</b>：语音识别这道「疑难题」贴在黑板上，语法专家、词典专家、声学专家谁有灵感谁上去写，控制老师负责决定下一步谁上——因为没人能预知解题路径。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>水厂各站只管水到即干</td><td>过滤器数据驱动、互不认识</td><td>成立</td></tr>
+      <tr><td>水管里水可以边流边处理</td><td>管道增量传输</td><td>成立</td></tr>
+      <tr><td>报销逐级签、不可越级</td><td>分层只与相邻层交互</td><td>成立（也存在允许跨层的变体，教材以相邻交互为主口径）</td></tr>
+      <tr><td>公告板前专家互相聊天商量</td><td>知识源协作</td><td><b>失效</b>：黑板系统中知识源互不对话，只通过黑板交换信息</td></tr>
+    </table>
+    <div class="rhyme">数据流水站接站，上下工序不相认；<br>整船装运批处理，增量流动管道行；<br>老板点将主程序，对象消息各自清；<br>分层逐级去审批，层层委托莫越境；<br>仓库风格数据中心，黑板专家齐上阵；<br>语音识别专家系统，黑板一套记在心。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画对比：同一份数据在<b>管道-过滤器</b>（左，数据自己流、过滤器被动加工）与<b>分层</b>（右，上层主动调用、请求下行响应上行）中的流动路径。拖动「工位/层数」滑块改变规模，播放看完整旅程。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>工位数/层数 <input type="range" id="n-slider" min="2" max="4" step="1" value="3"> <span id="n-out">3</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：场景 → 架构风格</h4>
+      <p class="foreshadow">先点左列场景，再点右列风格。做错会告诉你错在哪一步：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：分层审批的「层级税」</h4>
+      <p class="foreshadow">假设每经过一层，单程固定开销 5ms（层层委托的代价）。拖动层数，看一次「请求下行+响应上行」要交多少层级税：</p>
+      <label>层数 <input type="range" id="tier-slider" min="2" max="6" step="1" value="3"> <span id="tier-out">3 层</span></label>
+      <label style="margin-left:16px">单层开销 <input type="range" id="cost-slider" min="1" max="20" step="1" value="5"> <span id="cost-out">5 ms</span></label>
+      <div class="kf-caption" id="tier-calc"></div>
+      <button class="btn" id="tier-bypass">对比：允许表现层直连数据层</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（判断快问快答）：这句话对吗？</h4>
+      <div id="tf-item" style="font-weight:600;margin:6px 0"></div>
+      <button class="btn" data-tf="对">对</button>
+      <button class="btn" data-tf="错">错</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+      <button class="btn primary" id="tf-next" style="display:none;margin-top:6px">下一题 →</button>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考风格识别：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>33 · 软件架构概念</b>说架构=构件+连接件+约束——本页起，每一种风格就是把这三要素具体化成一套固定搭配：风格选型是最重要的早期决策。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>35 · 独立构件与虚拟机</b>：六大类中的另外两大类在此展开；</li>
+      <li><b>40 · 中间件与事件驱动</b>：管道里的「管」在分布式系统里变成消息队列；</li>
+      <li><b>59 · 大数据架构</b>：Lambda 架构的批处理与流处理两条腿，正是批处理序列与管道-过滤器的大数据版。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>管道-过滤器</th><th>分层</th></tr>
+      <tr><td>驱动方式</td><td>数据驱动：数据到了过滤器被动加工</td><td>控制驱动：上层主动调用下层</td></tr>
+      <tr><td>组件关系</td><td>互不认识上下游，位置透明</td><td>上层明确知道下层、层层委托</td></tr>
+      <tr><td>易错点</td><td>常被误判为「过滤器需等上游全部输出」——其实可增量</td><td>常与「数据流」混为一谈——分层的箭头是调用不是数据流</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">水厂是水推着设备走（数据流），审批楼是老板推着流程走（调用返回）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——水厂里水自己一站站流过去……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 六大类风格先记总表：数据流、调用/返回、独立构件、虚拟机、以数据为中心、特定领域，本页讲前两类加仓库风格。</li><li>② 管道-过滤器=数据驱动、互不认识、可增量；批处理=整批传送；分层=逐级审批、有层级税。</li><li>③ 黑板系统=知识源+黑板+控制，场景信号是「语音识别/专家系统/解路径不确定」，知识源互不通信只看黑板。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '34', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '架构风格：数据流与调用返回',
+  prev: '33-arch-concepts.html', prevTitle: '33 · 软件架构概念与4+1视图',
+  next: '35-styles-indep-vm.html', nextTitle: '35 · 架构风格：独立构件与虚拟机',
+  keywords: ['架构风格','管道-过滤器','批处理序列','分层','主程序-子程序','面向对象','黑板系统','以数据为中心']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 33） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·33】按 33 页口径，「管道」这类把构件连起来的交互机制，属于架构三要素中的哪个？',
+    opts: [
+      { t: '构件', why: '构件是承担计算/存储的「东西」，管道是机制不是东西。' },
+      { t: '连接件', why: '对。构件之间的交互机制（管道、RPC、事件）都是连接件。' },
+      { t: '约束', why: '约束是组合规则，不是交互机制。' }
+    ],
+    ans: 1, tag: '回忆:33', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某日志系统：日志流依次经过「解析→过滤→聚合」三个组件，组件之间用缓冲队列相连，任一组件不必等上游全部完成即可开始处理。这最符合哪种架构风格？',
+      opts: [
+        { t: '批处理序列', why: '批处理必须等上一步整体完成、整批传送，本例是增量处理。' },
+        { t: '管道-过滤器', why: '对。增量流动、组件只关心输入输出、互不认识上下游，是管道-过滤器的教科书特征。' },
+        { t: '分层风格', why: '分层是上层主动调用下层（控制驱动），本例组件是被动接数据的。' },
+        { t: '黑板系统', why: '黑板是多知识源围绕共享数据解题，场景不符。' }
+      ],
+      ans: 1, tag: '风格识别', src: '仿真题' },
+    { q: '关于分层（Layered）风格，下列说法错误的是？',
+      opts: [
+        { t: '上层可以调用下层提供的服务', why: '这是分层的定义，说法正确。' },
+        { t: '每层只与相邻层交互有助于关注点分离', why: '正确，这是教材主口径。' },
+        { t: '分层可以完全消除层间调用带来的性能开销', why: '对——本题选错误的：恰恰相反，层层委托带来「层级税」，性能开销是分层的主要缺点之一。' },
+        { t: 'OSI 网络模型是分层风格的典型代表', why: '正确，OSI/TCP-IP、操作系统内核都是经典分层。' }
+      ],
+      ans: 2, tag: '分层', src: '仿真题' },
+    { q: '某语音识别系统由声学模型、语法分析、词典检索等多个「专家」模块协作：它们不互相调用，而是共同读写一个全局数据区，由专门的控制组件决定下一步激活哪个专家。这属于哪种风格？',
+      opts: [
+        { t: '主程序-子程序', why: '主程序-子程序由主程序直接点将调用，专家间是间接通过共享区协作的。' },
+        { t: '黑板系统', why: '对。知识源+黑板（全局共享数据）+控制组件，且「解路径不确定」正是黑板式求解的信号。' },
+        { t: '管道-过滤器', why: '管道是线性数据流，黑板是非线性、按需激活知识源。' },
+        { t: '解释器', why: '解释器属于虚拟机风格，与本场景无关。' }
+      ],
+      ans: 1, tag: '黑板系统', src: '仿真题' },
+    { q: '【交错复习·33】「每个子系统的服务都暴露标准接口、模块间通过接口而非实现交互」——按 33 页的三要素口径，这类「接口必须标准化」的规定属于？',
+      opts: [
+        { t: '构件', why: '构件是计算/存储单元，不是规定。' },
+        { t: '连接件', why: '连接件是交互机制本身；「必须标准化」是对组合方式的强制要求。' },
+        { t: '约束', why: '对。约束=构件与连接件的组合规则，接口标准化是典型约束。' },
+        { t: '视图', why: '视图是架构的描述角度（4+1），不是三要素。' }
+      ],
+      ans: 2, tag: '交错复习:33', src: '仿真题' },
+    { q: '批处理序列与管道-过滤器最本质的区别是？',
+      opts: [
+        { t: '批处理用于商业系统，管道用于科学计算', why: '领域不是区别，两者都跨领域使用。' },
+        { t: '批处理必须等上一步整体完成后整批传递，管道-过滤器可增量流动处理', why: '对。「整船装运 vs 边流边处理」是本质差异。' },
+        { t: '批处理有连接件，管道没有', why: '两者都有连接件（文件/管道）。' },
+        { t: '批处理不能处理文本', why: '与数据类型无关。' }
+      ],
+      ans: 1, tag: '数据流对比', src: '仿真题' }
+  ], { kpId: '34', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某大数据平台每日流水线：原始日志采集→清洗→去重→聚合→报表，日增 2TB，各步骤吞吐不均（清洗慢、聚合快）；其中「聚合」环节还需按业务规则判定异常，规则每月调整一次。当前代码是一整坨过程式程序，函数直接互相调用。',
+    q: '(1) 主体流水线应选什么架构风格，说明理由；(2) 指出该风格的两个缺点并各给一条对策；(3) 「按规则判定异常」的环节可引入什么风格，与主体如何衔接？',
+    ref: '(1) 管道-过滤器：流程线性、各步骤输入输出明确；各站吞吐不同正需要增量流动+站间缓冲（可对各过滤器独立扩容）；换算法只换一个过滤器，互不牵连。(2) 缺点一：不适合交互式、端到端事务难做→对策：控制类操作走旁路通道/管理接口；缺点二：站间传输与格式转换开销、错误处理复杂→对策：统一中间数据格式（如统一 schema 的消息），站间加有界缓冲队列，失败重试与死信隔离。(3) 异常判定环节引入基于规则的系统（虚拟机风格，35页详述）：规则外置为规则集+推理引擎解释执行，规则月度调整不动代码；衔接上把它做成流水线中的一个过滤器（输入聚合中间结果、输出异常标记），实现「数据流骨架+局部虚拟机」的组合风格。',
+    points: ['风格选型正确且理由与「吞吐不均、独立换装」挂钩', '缺点与对策成对出现（传输/格式开销、交互性差、错误处理至少两条）', '第二问能说出「统一中间格式/缓冲队列/重试」等工程化对策', '第三问识别出规则可变→基于规则的系统，并说明组合方式'],
+    frame: '答题框架：选型（特征匹配）→ 优缺点辩证（每条缺点配对策）→ 局部组合（风格可叠加，骨架+插件）。',
+    kpId: '34'
+  });
+  CX.renderCase('#case2', {
+    stem: '某企业信息系统按「表现层-业务层-数据层」三层搭建。高峰期响应慢，一位开发提议：让表现层直接连数据库查数，跳过业务层，「少走两层肯定快」，并在试点页面实施了。',
+    q: '(1) 评价该提议的得失；(2) 给出更合理的性能优化手段（至少三条）；(3) 结合本例说明分层风格的优点与代价。',
+    ref: '(1) 得：单个页面往返减少，短期可能见效。失：破坏分层约束——数据访问规则失控（安全：绕过权限校验直连库；一致性：业务校验被跳过；演化：数据库结构变化直接打穿到表现层），属于「用架构债换小性能」，不可取。(2) ①数据层热点数据加缓存（便利店思想，先挡读）；②把「层层多次小调用」合并为批量接口，减少往返次数而非减少层级；③业务层到数据层引入连接池与读写分离；④静态内容/查询结果前置缓存或页面静态化；⑤扩容数据层（主从、分片）。(3) 优点：关注点分离（界面/业务/数据各自演化）、便于团队分工与整层替换、安全上数据层不直接暴露；代价：每次请求交「层级税」（层间调用开销），层数越多越明显——优化方向应是减少调用次数与距离，而不是拆掉楼层。',
+    points: ['指出直连数据库破坏分层约束，并列出安全/一致性/演化中至少两类后果', '优化手段针对「减少往返、挡读、连接池」等正确方向且不少于三条', '能同时说出分层的优点与「层级税」代价，结论辩证'],
+    frame: '答题框架：先辩证（短期收益/长期代价）→ 手段分层列举（接入/业务/数据层各找优化点）→ 回扣风格理论收尾。',
+    kpId: '34'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某 AI 训练数据平台：原始语料→清洗→标注对接→特征提取→入库，步骤间以文件/消息衔接，各步骤由不同小组维护、常单独更换算法。这个系统的风格与本页哪个类比最贴切？',
+    opts: [
+      { t: '逐级审批的分层风格', why: '小组之间没有调用委托关系，是数据在站间流动。' },
+      { t: '水厂流水线：管道-过滤器，各站只认输入输出格式', why: '对。数据流线性加工、站点独立可替换，正是管道-过滤器在 AI 数据工程的再现。' },
+      { t: '专家围着公告板解题的黑板系统', why: '黑板适合求解路径不确定的问题，本例流程是固定的。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '34', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['33'], 'prev');
+  CX.depChain('#bridge-next', ['35', '40', '59'], 'next');
+
+  /* ---- 动画：管道 vs 分层 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var N = 3;
+  var pipeNames = ['清洗', '分词', '打分', '汇总'];
+  var tierNames = ['表示层', '业务层', '数据访问层', '数据层'];
+  function draw(t) {
+    var phase = t * 2; /* 0~1 管道, 1~2 分层 */
+    var s = '<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="340" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="180" y="28" text-anchor="middle" font-size="14" fill="var(--accent)" font-weight="bold">管道-过滤器（数据驱动）</text>';
+    s += '<text x="540" y="28" text-anchor="middle" font-size="14" fill="var(--accent-2)" font-weight="bold">分层（控制驱动：调用↓ 响应↑）</text>';
+    var i, x, y, p1, p2, cap = '';
+    /* 左：流水线 */
+    var bw = 74, gap = (360 - 40 - (N + 1) * bw) / N;
+    var srcDone = Math.min(1, phase / (0.2 + N * 0.26));
+    p1 = Math.max(0, Math.min(1, (phase - 0.05) / 0.9)); /* 0~1 数据位置 */
+    var px = 30 + p1 * 300;
+    var stations = N + 1;
+    for (i = 0; i < stations; i++) {
+      x = 30 + i * (bw + gap);
+      var label = i === 0 ? '源' : pipeNames[i - 1];
+      var passed = p1 > (i + 0.6) / stations;
+      s += '<rect x="' + x + '" y="70" width="' + bw + '" height="46" rx="8" fill="' + (passed ? 'var(--accent)' : 'var(--card)') + '" opacity="' + (passed ? '.3' : '1') + '" stroke="' + (passed ? 'var(--accent)' : 'var(--line)') + '"/>';
+      s += '<text x="' + (x + bw / 2) + '" y="128" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + label + (i === 0 ? '(日志)' : '(过滤器)') + '</text>';
+      if (i > 0) {
+        s += '<line x1="' + (x - gap) + '" y1="93" x2="' + x + '" y2="93" stroke="var(--accent)" stroke-width="6" opacity=".45"/>';
+        s += '<polygon points="' + (x - 6) + ',87 ' + x + ',93 ' + (x - 6) + ',99" fill="var(--accent)" opacity=".8"/>';
+      }
+    }
+    s += '<circle cx="' + px + '" cy="93" r="9" fill="var(--accent-2)"/><text x="' + px + '" y="97" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--bg)">数据</text>';
+    /* 右：分层楼 */
+    var layers = N + 1 > 4 ? 4 : (N === 2 ? 3 : 4);
+    if (N === 2) layers = 3;
+    var lh = 46, ly0 = 60;
+    p2 = Math.max(0, Math.min(2, (phase - 1.05) / 0.85)); /* 0~2: 下行/上行 */
+    for (i = 0; i < layers; i++) {
+      y = ly0 + i * (lh + 8);
+      var active = (p2 >= i && p2 <= layers) || (p2 > layers && p2 >= (2 * layers - 2 - i));
+      var hit = (p2 > i - 0.2 && p2 < i + 1.2) || (p2 > 2 * layers - 2 - i - 0.2 && p2 < 2 * layers - 2 - i + 1.2);
+      s += '<rect x="440" y="' + y + '" width="200" height="' + lh + '" rx="8" fill="' + (hit ? 'var(--accent-2)' : 'var(--card)') + '" opacity="' + (hit ? '.25' : '1') + '" stroke="' + (hit ? 'var(--accent-2)' : 'var(--line)') + '"/>';
+      s += '<text x="540" y="' + (y + lh / 2 + 5) + '" text-anchor="middle" font-size="13" fill="var(--text)">' + tierNames[i] + '</text>';
+      if (i < layers - 1) {
+        var ay = y + lh, by = ay + 8;
+        s += '<line x1="610" y1="' + ay + '" x2="610" y2="' + by + '" stroke="var(--bad)" stroke-width="2"/><polygon points="605,' + (by - 6) + ' 610,' + by + ' 615,' + (by - 6) + '" fill="var(--bad)"/>';
+        s += '<line x1="470" y1="' + by + '" x2="470" y2="' + ay + '" stroke="var(--ok)" stroke-width="2"/><polygon points="465,' + (ay + 6) + ' 470,' + ay + ' 475,' + (ay + 6) + '" fill="var(--ok)"/>';
+      }
+    }
+    var lyTop = ly0 + layers * (lh + 8) - 8;
+    /* 移动小球：下行 0~1, 上行 1~2 */
+    var total = 2 * layers - 2;
+    var prog = Math.min(p2, total);
+    var floorPos, dirTxt;
+    if (p2 <= layers - 1) { floorPos = p2; dirTxt = '请求下行（调用）'; }
+    else { floorPos = 2 * (layers - 1) - p2; dirTxt = '响应上行（返回）'; }
+    var py = ly0 + Math.max(0, Math.min(layers - 1, floorPos)) * (lh + 8) + lh / 2;
+    if (phase > 1.0) {
+      s += '<circle cx="420" cy="' + py + '" r="9" fill="' + (dirTxt.indexOf('请求') === 0 ? 'var(--bad)' : 'var(--ok)') + '"/>';
+      s += '<text x="420" y="' + (py + 4) + '" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--bg)">单</text>';
+    }
+    s += '<text x="180" y="170" text-anchor="middle" font-size="12" fill="var(--text-dim)">过滤器不认识上下游，数据到了就加工</text>';
+    s += '<text x="540" y="' + (lyTop + 26) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">上层点名叫下层办事，办完逐级回复</text>';
+    if (phase <= 1) cap = '管道-过滤器：数据主动流动，过滤器被动接活——「水推着设备走」。';
+    else cap = '分层：上层主动调用下层，请求下行、响应上行——「老板推着流程走」，每层都要交一点层级税。';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var ns = CX.utils.$('n-slider');
+  ns.addEventListener('input', function () {
+    N = Math.max(2, Math.min(4, +ns.value || 2));
+    CX.utils.$('n-out').textContent = N;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：场景→风格匹配 ---- */
+  var pairs = [
+    ['每天凌晨全量跑批结算，无人工交互', '批处理序列'],
+    ['cat 日志 | grep 错误 | sort，各命令互不相识', '管道-过滤器'],
+    ['报销单：员工→主管→财务总监逐级签字', '分层'],
+    ['语音识别：多专家模块围着共享数据区协作', '黑板系统'],
+    ['老板一个人指挥所有参谋，改一条命令全局乱', '主程序-子程序']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab1-fb').textContent = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab1-fb').textContent = '已选场景，请在右列点它的风格。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab1-fb').textContent = '先点左列一个场景。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab1-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab1-fb').textContent = '❌ 「' + d.textContent + '」不合适——想想关键信号：整批无交互=批处理；增量流动不认识上下游=管道；逐级委托=分层；专家围板=黑板；控制权全在主程序=主程序-子程序。';
+          CX.utils.$('lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', buildMatch);
+
+  /* ---- 实验二：层级税 ---- */
+  var ts = CX.utils.$('tier-slider'), cs = CX.utils.$('cost-slider');
+  function calcTax() {
+    var n = +ts.value, c = +cs.value;
+    CX.utils.$('tier-out').textContent = n + ' 层';
+    CX.utils.$('cost-out').textContent = c + ' ms';
+    var tax = (2 * n - 2) * c;
+    CX.utils.$('tier-calc').textContent = '一次请求走 ' + n + ' 层：下行 ' + (n - 1) + ' 跳 + 上行 ' + (n - 1) + ' 跳 = ' + (2 * n - 2) + ' 跳 × ' + c + 'ms = ' + tax + 'ms';
+    return tax;
+  }
+  var curTax = calcTax();
+  ts.addEventListener('input', function () { curTax = calcTax(); CX.utils.$('lab2-fb').textContent = ''; });
+  cs.addEventListener('input', function () { curTax = calcTax(); CX.utils.$('lab2-fb').textContent = ''; });
+  CX.utils.$('tier-bypass').addEventListener('click', function () {
+    var n = +ts.value, c = +cs.value;
+    var direct = 2 * c;
+    CX.utils.$('lab2-fb').textContent = '直连只需 ' + direct + 'ms（省 ' + (curTax - direct) + 'ms）——但代价是：权限校验、业务规则、数据隔离全部被绕过。正确的提速方向是减少调用次数/加缓存，而不是拆楼层。';
+    CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+  });
+
+  /* ---- 实验三：判断快问快答 ---- */
+  var tfItems = [
+    { s: '管道-过滤器中，过滤器必须等上游全部输出完成后才能开始处理。', a: '错', why: '恰恰相反：可增量处理（边进边出）正是它与批处理的分水岭。' },
+    { s: '分层风格中，下层一般不能调用上层（教材主口径）。', a: '对', why: '分层是自上而下的委托，下层对上层不可见，这才保住关注点分离。' },
+    { s: '黑板系统中，知识源之间直接互相调用协作。', a: '错', why: '知识源互不对话，只通过黑板（共享数据区）交换信息，控制组件调度。' },
+    { s: '面向对象风格中，一个对象通常需要知道其他对象的标识才能调用它。', a: '对', why: '这是面向对象风格的缺点之一：对象间要维护引用/标识关系，一处改动易传播。' }
+  ];
+  var tfIdx = 0, tfOk = 0;
+  var tfItem = CX.utils.$('tf-item'), tfFb = CX.utils.$('lab3-fb'), tfNext = CX.utils.$('tf-next');
+  function showTf() {
+    tfItem.textContent = '第 ' + (tfIdx + 1) + '/' + tfItems.length + ' 句：「' + tfItems[tfIdx].s + '」';
+    tfFb.textContent = ''; tfFb.className = 'lab-feedback'; tfNext.style.display = 'none';
+    CX.utils.$$('#lab3 .btn[data-tf]').forEach(function (x) { x.disabled = false; });
+  }
+  showTf();
+  CX.utils.$$('#lab3 .btn[data-tf]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var it = tfItems[tfIdx];
+      if (b.dataset.tf === it.a) { tfOk++; tfFb.textContent = '✅ ' + it.a + '——' + it.why; tfFb.className = 'lab-feedback ok'; }
+      else { tfFb.textContent = '❌ 应为「' + it.a + '」——' + it.why; tfFb.className = 'lab-feedback bad'; }
+      CX.utils.$$('#lab3 .btn[data-tf]').forEach(function (x) { x.disabled = true; });
+      tfNext.style.display = '';
+    });
+  });
+  tfNext.addEventListener('click', function () {
+    tfIdx++;
+    if (tfIdx >= tfItems.length) {
+      tfItem.textContent = '完成！答对 ' + tfOk + '/' + tfItems.length + '。';
+      tfNext.style.display = 'none';
+      tfFb.textContent = tfOk === tfItems.length ? '🎉 判别信号已经刻进脑子。' : '把错题对应的判别信号再背一遍：增量vs整批、黑板不对话、下层不调上层。';
+      tfFb.className = 'lab-feedback ' + (tfOk === tfItems.length ? 'ok' : 'bad');
+      tfIdx = 0; tfOk = 0;
+      setTimeout(showTf, 1800);
+      return;
+    }
+    showTf();
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>38 · SOA与微服务 · 架构师学堂</title>
+<meta name="description" content="单体是小卖部啥都卖，微服务是专业商铺区：按业务拆店、独立经营、网络订货——SOA 与微服务的异同年年考。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="37-csbs-tiers.html">前置 37</a></span>
+    <h1>38 · SOA与微服务</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">SOA 标准契约走总线，微服务按限界上下文拆店独营。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某保险公司的核心系统是一个单体：投保、核保、理赔、缴费在同一进程里，共用一个 Oracle 库。痛点：改一行理赔代码要回归测试整个系统，双周才能集中发布一次；一个报表查询把数据库 CPU 打满，缴费交易跟着超时。领导决定改造，两个问题摆在桌面：① 按什么边界拆？② 「缴费成功→保单生效→发放积分」跨了三个服务，数据不一致怎么办？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>① 拆分边界不按技术层、不按代码目录，而按 <b>DDD 限界上下文/业务能力</b>：投保、核保、理赔、缴费各成一家「专业商铺」，各自独享数据库、独立部署扩容。② 跨服务不再有本地事务，需要选型分布式事务：<b>可靠消息 + 幂等补偿的最终一致性</b>（或 Saga/TCC），用「短暂不一致+对账兜底」换「系统整体可用」——这正是本页案例题的标准答案骨架。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>37 · C/S、B/S与多层架构</b>（三层把业务集中到一个应用服务器，微服务把这一层再拆开）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：SOA——统一便民服务中心</h3>
+      <p><b>SOA（面向服务的架构）</b>把系统能力封装成<b>服务</b>：服务是粗粒度的、可复用的业务功能单元。三大特征：<b>松耦合</b>（服务不依赖彼此的实现与位置）、<b>标准化契约</b>（接口用标准语言描述）、<b>可复用</b>（一个服务多处调用）。三大角色：<b>服务提供者</b>（发布服务）、<b>服务注册中心</b>（登记与发现）、<b>服务消费者</b>（查找并绑定调用）。Web 服务协议栈：<b>SOAP</b>（消息格式）、<b>WSDL</b>（服务描述）、<b>UDDI</b>（注册发现）。<b>ESB（企业服务总线）</b>是 SOA 的主动脉：统一接入、协议转换、消息路由、服务编排与监控——所有服务都插在总线上，像全市业务汇进<b>统一便民服务中心</b>。</p>
+      <h3>是什么：微服务——专业商铺区</h3>
+      <p><b>微服务</b>把系统按业务拆成一排小而自治的服务，像<b>专业商铺区</b>：按业务拆店、独立经营、店与店之间「网络订货」（轻量通信）。</p>
+      <ul>
+        <li><b>拆分原则</b>：按<b>业务能力 / DDD 限界上下文</b>拆（一个服务管一个业务域），一个服务能由一个小团队独立负责（康威定律）；</li>
+        <li><b>去中心化数据</b>：每个服务<b>独享数据库</b>，禁止跨服务共库直连；</li>
+        <li><b>独立部署</b>：改理赔只发理赔，互不牵连，可按需独立扩容；</li>
+        <li><b>去中心化治理</b>：技术栈多样、团队自治，用轻量通信（REST/gRPC/消息）。</li>
+      </ul>
+      <p><b>治理设施</b>（案例题必点名）：注册中心（服务发现）、配置中心（配置集中下发）、API 网关（统一入口：路由/鉴权/限流）、<b>熔断器</b>（下游故障时快速失败防雪崩）、链路追踪（一次请求跨 N 个服务的调用链可视化）、集中日志与监控。</p>
+      <h3>SOA vs 微服务对比表（年年考）</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>SOA</th><th>微服务</th></tr>
+        <tr><td>粒度</td><td>粗：按可复用的业务服务拆</td><td>细：按业务能力/限界上下文拆</td></tr>
+        <tr><td>通信</td><td>ESB 集中总线 + SOAP/WSDL 重协议</td><td>轻量 REST/gRPC/消息 + 去中心化网关</td></tr>
+        <tr><td>治理</td><td>集中式治理（总线/平台统一管）</td><td>去中心化治理（团队自治）</td></tr>
+        <tr><td>数据</td><td>常共享数据库</td><td>每服务独享数据库</td></tr>
+        <tr><td>部署</td><td>多为整体/大粒度部署</td><td>独立部署、容器化、按服务扩容</td></tr>
+        <tr><td>组织</td><td>按技术分层配合</td><td>按业务的小团队全权负责</td></tr>
+      </table>
+      <h3>关键细节：通信与一致性</h3>
+      <p><b>REST vs gRPC</b>：REST 基于 HTTP+JSON——语义直白、生态广、适合对外开放；gRPC 基于 HTTP/2+Protobuf 二进制——性能高、强类型契约、支持流式，适合内部高频调用。<b>分布式事务</b>：跨服务没有本地事务，可选 <b>2PC/XA</b>（强一致但同步阻塞，微服务少用）、<b>TCC</b>（Try 预留-Confirm 确认-Cancel 取消，适合资金类）、<b>Saga</b>（长事务拆成一串本地事务+每步配补偿操作）、<b>消息最终一致</b>（可靠消息+消费方幂等+重试对账）。选型口诀：强一致少用 2PC，资金关键用 TCC，长流程用 Saga 补偿，一般业务用可靠消息最终一致。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>service-oriented architecture（面向服务的架构）· enterprise service bus（企业服务总线）· bounded context（限界上下文）· circuit breaker（熔断器）· Saga / compensation（补偿）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 「微服务就是更细的 SOA」只对一半：粒度、通信、治理、数据四个维度都变了，不只是拆得碎；② 「拆得越细越好」错——粒度失衡会造出<b>分布式单体</b>（服务拆了、数据还强耦合，发布仍要一起发）；③ 独享数据库后<b>跨服务查询</b>要走 API 或数据副本，不是直接连别家的库；④ 熔断防的是「雪崩」（下游故障拖垮上游），不是限流（防自己被打垮）——两者常一起上；⑤ UDDI 管注册发现、WSDL 管描述、SOAP 管消息，三者在协议栈里的分工别对调。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>SOA=统一便民服务中心</b>：全市所有办事窗口标准化（WSDL 契约），门口一个总服务台（ESB）负责指路、翻译方言（协议转换）、排号分流（路由编排）。<b>微服务=专业商铺区</b>：餐饮街、数码街各自成店，一家店装修（部署）不扰邻店；顾客（请求）从商场大门（API 网关）进来，拿商场地图（注册中心）找店；某家店爆满（下游故障），门口闸机（熔断器）直接亮「今日已满」，免得顾客堵死整条街（雪崩）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>总服务台翻译方言、指路</td><td>ESB 协议转换与路由</td><td>成立</td></tr>
+      <tr><td>按行业分街开专业店</td><td>按限界上下文拆分微服务</td><td>成立</td></tr>
+      <tr><td>每家店自己管自己的库房账本</td><td>每服务独享数据库</td><td>成立</td></tr>
+      <tr><td>两家店直接翻对方账本对账</td><td>跨服务访问数据</td><td><b>失效</b>：微服务禁止直连他服务数据库，要走对方 API 或事件同步副本</td></tr>
+      <tr><td>爆满店铺门口的「暂停取号」牌</td><td>熔断器快速失败防雪崩</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">SOA 便民大中心，标准契约走总线；<br>WSDL 写契约，UDDI 挂号间；<br>微服务拆专业店，限界上下文画界线；<br>一店一库独经营，网关熔断护周全；<br>强一致 TCC 上，长流程 Saga 还；<br>消息幂等最终齐，对账兜底心不慌。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示一次下单请求在微服务商铺区的完整旅程：网关→注册中心→订单→库存→支付，支付过载触发<b>熔断降级</b>，最后链路追踪串起全程。拖动「并发请求数」看服务独立扩容。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>并发请求数 <input type="range" id="qps-slider" min="10" max="500" step="10" value="120"> <span id="qps-out">120</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽分类）：这条特征属于 SOA 还是微服务？</h4>
+      <p class="foreshadow">把 8 张特征卡拖进正确的店门：</p>
+      <div id="f-pool" style="min-height:50px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px"><b>SOA</b><div class="drag-slot" id="slot-soa" data-side="soa"></div></div>
+        <div style="flex:1;min-width:180px"><b>微服务</b><div class="drag-slot" id="slot-ms" data-side="ms"></div></div>
+      </div>
+      <button class="btn" id="f-check">检查分类</button>
+      <button class="btn" id="f-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：业务场景 → 分布式事务方案</h4>
+      <p class="foreshadow">先点左列场景，再点右列方案；错了会讲清这个方案为什么用在这里：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="tx-left"></div>
+        <div id="tx-right"></div>
+      </div>
+      <button class="btn" id="tx-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：熔断器状态机</h4>
+      <p class="foreshadow">设定熔断阈值，观察不同错误率下熔断器的状态（关闭→打开→半开试探）：</p>
+      <label>错误率阈值 <input type="range" id="br-th" min="10" max="80" step="5" value="50"> <span id="br-th-out">50%</span></label>
+      <label style="margin-left:16px">下游当前错误率 <input type="range" id="br-err" min="0" max="100" step="5" value="20"> <span id="br-err-out">20%</span></label>
+      <div><button class="btn primary" id="br-probe">进入半开试探</button></div>
+      <div class="kf-caption" id="br-status">状态：关闭（正常放行）</div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考服务化架构：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>37 · C/S、B/S与多层</b>把业务集中到应用服务器——微服务把这「一层」拆成一排独立商铺；<b>36 · 特定领域风格</b>给 SOA 埋了伏笔（异构集成、标准契约的信号词）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>39 · 云计算与云原生</b>：微服务 + 容器 + DevOps + 持续交付 = 云原生四件套，微服务是其中的架构前提；</li>
+      <li><b>40 · 中间件与事件驱动</b>：服务间最终一致性靠「可靠消息」落地，消息队列机制在那页拆解；</li>
+      <li><b>42 · 质量属性</b>：拆分粒度是性能/可修改性/可测试性的权衡点，评估方法会拿它开刀。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>微服务</th><th>分布式单体</th></tr>
+      <tr><td>拆分依据</td><td>限界上下文：业务边界清晰、数据自治</td><td>按技术层硬拆：服务间共享库、接口互相纠缠</td></tr>
+      <tr><td>部署</td><td>改一家店只发一家店</td><td>改任何一处都要全体服务一起发版</td></tr>
+      <tr><td>易错点</td><td>以为「拆了就是微服务」——拆完仍共库强耦合只是「分布式单体」</td><td>常被误当成微服务化成功，实际运维成本翻倍、收益为零</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">真微服务是各店独立经营，分布式单体是把一个大卖场锯成几块还要一起装修。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——一个大卖场不如拆成一条专业小吃街……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① SOA 三特征：松耦合、标准化契约（SOAP/WSDL/UDDI）、可复用；ESB 负责接入、转换、路由、编排。</li><li>② 微服务按 DDD 限界上下文拆店：独库、独立部署、去中心化治理，配齐注册/配置/网关/熔断/链路追踪。</li><li>③ 分布式事务选型：资金 TCC、长流程 Saga 补偿、一般业务可靠消息最终一致（幂等+对账）。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '38', domain: 'arch', loc: 'cityplan', root: '..',
+  title: 'SOA与微服务',
+  prev: '37-csbs-tiers.html', prevTitle: '37 · C/S、B/S与多层架构',
+  next: '39-cloud-native.html', nextTitle: '39 · 云计算与云原生',
+  keywords: ['SOA','ESB','微服务','限界上下文','API网关','熔断','Saga','最终一致性']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 37） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·37】三层架构把业务逻辑集中在应用服务器；按 37 页的结论，它的数据库连接压力靠什么缓解？',
+    opts: [
+      { t: '连接池：数据库只接待少量池化连接，请求在应用服务器排队复用', why: '对。这个「集中分流」思想在微服务里升级为「每个服务自带连接池+独立扩容」。' },
+      { t: '给每个客户端都发一个数据库账号', why: '那是二层直连，正是被淘汰的做法。' },
+      { t: '把数据库关掉再重建', why: '与压力无关。' }
+    ],
+    ans: 0, tag: '回忆:37', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '下列哪项不是 ESB（企业服务总线）的典型职责？',
+      opts: [
+        { t: '协议转换：让 SOAP 服务与 JMS 服务互相通话', why: '是 ESB 的本职：屏蔽协议差异。' },
+        { t: '消息路由与服务编排', why: '是：按规则把消息送到目的地并编排调用流程。' },
+        { t: '统一接入与监控审计', why: '是：所有服务插在总线上，接入与监控集中。' },
+        { t: '存储各服务的业务数据（充当共享数据库）', why: '对——本题选它。ESB 管消息与接入，不是数据库；「共享库」也不是 SOA 的必要特征。' }
+      ],
+      ans: 3, tag: 'ESB', src: '仿真题' },
+    { q: '微服务拆分最应依据的原则是？',
+      opts: [
+        { t: '按代码技术层拆：界面服务、算法服务、SQL 服务', why: '按技术层拆是「分布式单体」的典型成因，业务改动仍会横穿多个服务。' },
+        { t: '按业务能力 / DDD 限界上下文拆，一个服务一个业务域', why: '对。边界与业务语言一致，服务才能独立演进、独立部署。' },
+        { t: '拆得越细越好，最好一个类一个服务', why: '粒度失衡导致运维成本爆炸与分布式事务泛滥。' },
+        { t: '按团队人数拆：每人负责一个服务', why: '康威定律说的是「组织决定架构」，但拆分依据仍是业务边界。' }
+      ],
+      ans: 1, tag: '拆分原则', src: '仿真题' },
+    { q: '【交错复习·36】按 36 页「场景选风格」信号表：「企业内十几个异构老系统需要统一接入、能力复用」，最匹配的风格是？',
+      opts: [
+        { t: 'SOA：标准化契约+总线集成，正是异构集成与服务复用的信号', why: '对。这正是 36 页信号表里 SOA 的标准场景，38 页把它展开成了服务化架构。' },
+        { t: '黑板系统：让各系统围着黑板推理', why: '黑板用于求解路径不确定的推理问题。' },
+        { t: '微内核：做一个最小核心装插件', why: '微内核适合核心稳定+插件扩展的单个产品，不是跨系统集成。' }
+      ],
+      ans: 0, tag: '交错复习:36', src: '仿真题' },
+    { q: '【交错复习·37】从三层架构演化到微服务，最本质的变化是？',
+      opts: [
+        { t: '把「一个应用服务器」进一步按业务拆成多个可独立部署的服务，数据也随之按服务分库', why: '对。三层是「集中的一层」，微服务是「拆开的商铺区」；粒度、数据、部署、治理全变。' },
+        { t: '把数据库从服务器搬到客户端', why: '方向反了，数据更集中治理而非搬向终端。' },
+        { t: '把表现层从浏览器换回专用客户端', why: '那是 C/S/B/S 的选择，与服务化无关。' }
+      ],
+      ans: 0, tag: '交错复习:37', src: '仿真题' },
+    { q: '订单服务调用「缴费→生效→积分」跨服务链路，允许秒级延迟但不能漏发积分。最合适的方案是？',
+      opts: [
+        { t: '2PC/XA 强一致事务', why: '强一致但同步阻塞、可用性差，秒级延迟业务不必付这个代价。' },
+        { t: '可靠消息+消费方幂等+失败重试对账的最终一致性', why: '对。消息保证不丢（不漏发），幂等防重复，对账兜底——典型最终一致场景。' },
+        { t: '让订单服务直接更新积分服务的数据库表', why: '违反「每服务独享数据库」，制造分布式单体。' }
+      ],
+      ans: 1, tag: '分布式事务', src: '仿真题' }
+  ], { kpId: '38', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某保险核心系统为单体架构：投保、核保、理赔、缴费在同一进程，共用一个 Oracle 库。问题：任何模块改动需全量回归、双周集中发布；报表查询高峰常把缴费交易拖到超时。改造目标：按业务拆分微服务；并解决「缴费成功→保单生效→发放积分」跨服务的一致性。',
+    q: '(1) 给出微服务拆分思路与理由；(2) 为「缴费→生效→积分」链路选择分布式事务方案并论证；(3) 列出本次改造需配套的治理设施及各自作用。',
+    ref: '(1) 按业务能力/DDD 限界上下文拆为投保、核保、理赔、缴费四个服务，各自独享数据库、独立部署：理由——四者业务语言与变化节奏不同（理赔规则常变、缴费要求稳定），拆后可独立发布、独立扩容（缴费/理赔高峰各自横向扩），报表走只读副本或数据仓库，不再与交易库争抢。(2) 选「可靠消息+最终一致性」：缴费服务在本地事务内落账并写「待发布事件/本地消息表」，消息中间件投递「缴费成功」事件；保单服务消费事件将保单置为生效并发布「保单生效」事件；积分服务消费后发放积分。论证：该链路允许秒级最终一致（用户对延迟不敏感），但要求不丢不重——消息持久化+消费重试保证不丢，消费幂等（唯一业务号去重）防重复发放，定时对账兜底；相比 2PC 避免同步阻塞、保住可用性；资金扣减环节若需更强保证可局部用 TCC。(3) 治理设施：注册中心（服务发现与上下线感知）、配置中心（配置集中管理与动态刷新）、API 网关（统一入口：路由、鉴权、限流）、熔断器（下游故障快速失败防雪崩）、链路追踪（跨服务调用链可视化定位慢点）、集中日志监控与告警。',
+    points: ['拆分依据是业务能力/限界上下文而非技术层，且说出独库、独立部署、独立扩容', '分布式事务选最终一致并给出完整论证（消息不丢、幂等防重、对账兜底、与 2PC 的取舍）', '治理设施至少五项且各自作用正确', '能针对「缴费」资金属性补充 TCC 局部强一致的加分思考'],
+    frame: '答题框架：拆分（依据+图式描述）→ 一致性链路（事件流+机制逐一对应需求）→ 治理设施清单，最后按可用性与一致性权衡收束。',
+    kpId: '38'
+  });
+  CX.renderCase('#case2', {
+    stem: '某集团五日前建成「ESB+SOAP」的 SOA 集成平台，接入 60 余个存量系统。新业务团队抱怨：任何接口变更都要到总线上登记适配，ESB 流量翻倍后成为性能瓶颈与单点风险，发布节奏被总线团队卡住。',
+    q: '(1) 从通信、治理、数据三个维度说明 SOA 与微服务的差异；(2) 论证能否「一次性拆掉 ESB 全面转微服务」，给出渐进路线；(3) 新服务群的对外与对内接口各选 REST 还是 gRPC，说明理由。',
+    ref: '(1) 通信：SOA 走 ESB 集中总线+SOAP/WSDL 重协议，消息都要过总线；微服务走轻量 REST/gRPC/消息+去中心化网关。治理：SOA 集中式治理（总线团队统一登记适配、集中发布）；微服务去中心化治理（团队自治、契约即约定）。数据：SOA 常共享数据库；微服务每服务独库、跨服务走 API/事件。(2) 不能一次性替换：60 余个存量系统与大量在用接口是现实约束，硬切换会中断业务且无回退。渐进路线（绞杀者模式）：新业务一律按微服务构建，API 网关承接外部流量；在 ESB 上为存量接口加「路由开关」，按服务逐个把流量从总线切到网关直连的新服务，观察稳定后下线对应总线适配；沉淀期保留 ESB 只做存量协议适配，最终把 ESB 降级为普通适配器并退役。(3) 对外（开放给合作方/移动端）：REST——HTTP+JSON 语义直白、生态与工具链成熟、便于开放与调试；对内（服务间高频调用）：gRPC——HTTP/2+Protobuf 二进制序列化性能高、强类型契约防接口漂移、支持流式，适合内部大吞吐调用。',
+    points: ['三维度差异齐全（通信/治理/数据），每维给出 SOA 与微服务的对照', '明确「不能一步到位」并给出绞杀者渐进路线（路由开关、逐个切换、ESB 降级退役）', 'REST 对外、gRPC 对内的选择与理由正确', '能点出 ESB 单点与发布瓶颈的根因是集中式治理'],
+    frame: '答题框架：对比表式作答 → 论证「为什么不」再给路线图 → 接口选型分内外作答，最后回扣治理根因。',
+    kpId: '38'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '外卖平台午高峰：订单服务正常，但「骑手调度」服务超时率飙升，若不处理会把订单服务线程池拖垮引发全站雪崩。结合本页知识，最直接的止血手段是？',
+    opts: [
+      { t: '给订单服务对骑手调度加熔断：超时率超阈值即快速失败并降级提示，同时限流保护自己', why: '对。熔断防「下游故障拖垮上游」的雪崩，配合限流与降级提示是标准止血组合。' },
+      { t: '让顾客直接打电话通知骑手', why: '业务不可行的玩笑选项。' },
+      { t: '把骑手调度服务的数据库连接调到最大', why: '瓶颈在下游处理能力，调连接数治标不治本甚至压垮数据库。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '38', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['37'], 'prev');
+  CX.depChain('#bridge-next', ['39', '40'], 'next');
+
+  /* ---- 动画：微服务下单链路 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var QPS = 120;
+  function draw(t) {
+    var step = Math.min(5, Math.floor(t * 6));
+    var s = '<svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="330" rx="12" fill="var(--bg-soft)"/>';
+    var i;
+    /* 网关 */
+    s += '<rect x="30" y="130" width="110" height="54" rx="10" fill="var(--card)" stroke="var(--accent)"/>';
+    s += '<text x="85" y="152" text-anchor="middle" font-size="12" fill="var(--text)">API 网关</text>';
+    s += '<text x="85" y="170" text-anchor="middle" font-size="10" fill="var(--text-dim)">路由/鉴权/限流</text>';
+    /* 注册中心 */
+    s += '<rect x="250" y="30" width="150" height="44" rx="10" fill="var(--card-2)" stroke="var(--accent-2)"/>';
+    s += '<text x="325" y="57" text-anchor="middle" font-size="12" fill="var(--text)">注册中心</text>';
+    /* 服务 */
+    var svcs = [['订单服务', 120, false], ['库存服务', 190, false], ['支付服务', 260, true]];
+    svcs.forEach(function (sv, k) {
+      var copies = sv[0] === '订单服务' ? Math.max(1, Math.ceil(QPS / 100)) : 1;
+      s += '<rect x="470" y="' + (sv[1] - 8) + '" width="150" height="48" rx="10" fill="var(--card)" stroke="' + (sv[2] ? 'var(--bad)' : 'var(--ok)') + '"/>';
+      s += '<text x="545" y="' + (sv[1] + 12) + '" text-anchor="middle" font-size="12" fill="var(--text)">' + sv[0] + '</text>';
+      s += '<text x="545" y="' + (sv[1] + 30) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + (sv[2] ? '过载中…' : ('副本 ×' + copies)) + '</text>';
+      if (sv[0] === '订单服务' && copies > 1) {
+        for (i = 0; i < Math.min(3, copies - 1); i++) s += '<rect x="628" y="' + (sv[1] - 4 + i * 4) + '" width="14" height="10" rx="2" fill="var(--ok)" opacity=".6"/>';
+      }
+    });
+    /* 熔断器 */
+    var breakerOpen = step >= 4;
+    s += '<rect x="430" y="240" width="30" height="30" rx="6" fill="' + (breakerOpen ? 'var(--bad)' : 'var(--ok)') + '" opacity=".85"/>';
+    s += '<text x="445" y="261" text-anchor="middle" font-size="13" font-weight="bold" fill="var(--bg)">' + (breakerOpen ? '⏻' : '✓') + '</text>';
+    s += '<text x="445" y="288" text-anchor="middle" font-size="10" fill="' + (breakerOpen ? 'var(--bad)' : 'var(--text-dim)') + '">熔断器' + (breakerOpen ? '已跳闸' : '闭合') + '</text>';
+    /* 流线 */
+    function flow(x1, y1, x2, y2, on, dash) {
+      s += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (on ? 'var(--accent-2)' : 'var(--line)') + '" stroke-width="' + (on ? 3 : 1.5) + '"' + (dash ? ' stroke-dasharray="5 5"' : '') + '/>';
+    }
+    flow(140, 157, 470, 150, step === 0 || step === 1, false);           /* 网关→订单 */
+    flow(305, 74, 325, 100, step === 1, true);                            /* 注册中心↔网关 */
+    flow(470, 150, 470, 190, step === 2, false);                          /* 订单→库存 */
+    flow(470, 150, 430, 250, step === 3 || step === 4, false);            /* 订单→熔断→支付 */
+    if (step >= 2) s += '<text x="380" y="120" text-anchor="middle" font-size="10" fill="var(--ok)">扣库存 OK</text>';
+    if (step >= 4) s += '<text x="360" y="225" text-anchor="middle" font-size="10" fill="var(--bad)">支付超时→快速失败</text>';
+    if (step >= 4) s += '<text x="255" y="315" text-anchor="middle" font-size="11" fill="var(--warn)">降级提示：「支付处理中，结果稍后通知」（事件最终一致，见40页）</text>';
+    if (step >= 5) s += '<text x="85" y="230" text-anchor="middle" font-size="10" fill="var(--accent-2)">trace: gw→订单→库存→支付✗</text>';
+    var capsA = [
+      '第1步：请求先到 API 网关——统一入口做路由、鉴权、限流。',
+      '第2步：网关与订单服务通过注册中心发现彼此地址（服务发现）。',
+      '第3步：订单服务调用库存服务扣减库存——店与店之间「网络订货」。',
+      '第4步：订单服务调用支付服务，支付已过载、响应缓慢……',
+      '第5步：熔断器跳闸，快速失败并降级提示——不让慢支付拖垮整条街（防雪崩）。',
+      '第6步：链路追踪把网关→订单→库存→支付的调用链串成一条 trace，秒级定位慢点。'
+    ];
+    s += '<text x="620" y="322" text-anchor="middle" font-size="10" fill="var(--text-dim)">并发 ' + QPS + ' → 订单自动扩 ' + Math.max(1, Math.ceil(QPS / 100)) + ' 副本；单体只能整楼加盖</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', capsA[step]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 18, duration: 12, onTick: draw });
+  var qs = CX.utils.$('qps-slider');
+  qs.addEventListener('input', function () {
+    QPS = +qs.value;
+    CX.utils.$('qps-out').textContent = QPS;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：SOA vs 微服务分类 ---- */
+  var fCards = [
+    { t: 'ESB 集中总线接入', side: 'soa', why: 'SOA 的主动脉是 ESB。' },
+    { t: '轻量网关+服务直连', side: 'ms', why: '微服务用去中心化网关，不走重总线。' },
+    { t: 'SOAP/WSDL 重协议', side: 'soa', why: 'Web 服务协议栈是 SOA 标配。' },
+    { t: 'REST/gRPC 轻量通信', side: 'ms', why: '微服务偏好轻量协议。' },
+    { t: '集中式治理（总线团队统一管）', side: 'soa', why: 'SOA 治理集中，发布节奏常被统一卡口。' },
+    { t: '去中心化治理、团队自治', side: 'ms', why: '微服务按业务小团队全权负责。' },
+    { t: '常共享数据库', side: 'soa', why: 'SOA 时代服务常共库。' },
+    { t: '每服务独享数据库', side: 'ms', why: '微服务去中心化数据，禁止跨服务直连他库。' }
+  ];
+  var fPool = CX.utils.$('f-pool');
+  function buildF() {
+    fPool.innerHTML = '';
+    ['slot-soa', 'slot-ms'].forEach(function (id) { CX.utils.$(id).innerHTML = ''; });
+    CX.utils.$('lab1-fb').textContent = '';
+    CX.shuffle(fCards.slice()).forEach(function (c) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = c.t; d.dataset.t = c.t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+      fPool.appendChild(d);
+    });
+  }
+  buildF();
+  ['slot-soa', 'slot-ms'].forEach(function (id) {
+    var slot = CX.utils.$(id);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = document.querySelector('#f-pool [data-t="' + t + '"], .drag-slot [data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('f-reset').addEventListener('click', buildF);
+  CX.utils.$('f-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    var bad = null;
+    fCards.forEach(function (c) {
+      if (bad) return;
+      var holder = document.querySelector('.drag-slot [data-t="' + c.t + '"]');
+      var want = c.side === 'soa' ? 'slot-soa' : 'slot-ms';
+      if (!holder) bad = '还有特征卡没放进店门（「' + c.t + '」）。';
+      else if (holder.parentElement.id !== want) bad = '❌「' + c.t + '」放错了店——' + c.why;
+    });
+    if (bad) { fb.textContent = bad; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '✅ 八张卡全部归店。对比口诀：总线vs网关、重协议vs轻协议、集中治vs自治、共库vs独库。'; fb.className = 'lab-feedback ok'; }
+  });
+
+  /* ---- 实验二：分布式事务选型 ---- */
+  var txPairs = [
+    ['跨行资金转账，两笔账必须同时成功或同时失败', '2PC/XA（或 TCC 强一致）'],
+    ['电商下单扣库存：高峰量大，可预留-确认-取消', 'TCC'],
+    ['跨多个物流环节的长流程，某环节失败要回滚前面动作', 'Saga（本地事务+补偿）'],
+    ['下单后发放积分/优惠券，允许秒级延迟但不能漏发', '可靠消息最终一致']
+  ];
+  var txL = CX.utils.$('tx-left'), txR = CX.utils.$('tx-right');
+  var txSel = null, txDone = 0;
+  function buildTx() {
+    txSel = null; txDone = 0;
+    txL.innerHTML = ''; txR.innerHTML = '';
+    CX.utils.$('lab2-fb').textContent = '';
+    txPairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', txL).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); txSel = d;
+        CX.utils.$('lab2-fb').textContent = '已选场景，请在右列点它的方案。';
+      });
+      txL.appendChild(d);
+    });
+    CX.shuffle(txPairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!txSel) { CX.utils.$('lab2-fb').textContent = '先点左列一个场景。'; return; }
+        if (txSel.dataset.k === d.dataset.v) {
+          txSel.style.opacity = .35; d.style.opacity = .35;
+          txSel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          txSel.classList.remove('sel'); txSel = null; txDone++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + txDone + '/4';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + d.textContent + '」不合适——选型逻辑：资金强一致→2PC/TCC；预留确认制→TCC；长流程补偿→Saga；可延迟不可漏→可靠消息最终一致。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      txR.appendChild(d);
+    });
+  }
+  buildTx();
+  CX.utils.$('tx-reset').addEventListener('click', buildTx);
+
+  /* ---- 实验三：熔断器 ---- */
+  var brState = 'closed';
+  var brTh = CX.utils.$('br-th'), brErr = CX.utils.$('br-err');
+  function brUpdate() {
+    var th = +brTh.value, er = +brErr.value;
+    CX.utils.$('br-th-out').textContent = th + '%';
+    CX.utils.$('br-err-out').textContent = er + '%';
+    var status = CX.utils.$('br-status'), fb = CX.utils.$('lab3-fb');
+    if (brState === 'half') {
+      status.textContent = '状态：半开（放行少量试探请求）';
+      if (er < th) { brState = 'closed'; status.textContent = '状态：关闭（试探成功，恢复正常放行）'; fb.textContent = '✅ 试探请求成功，熔断器从半开回到关闭——下游已恢复，流量重新放行。'; fb.className = 'lab-feedback ok'; }
+      else { brState = 'open'; status.textContent = '状态：打开（试探仍失败，继续熔断）'; fb.textContent = '❌ 试探请求仍失败（错误率 ' + er + '% ≥ 阈值 ' + th + '%），熔断器回到打开，继续快速失败保护上游。'; fb.className = 'lab-feedback bad'; }
+      return;
+    }
+    if (er >= th) {
+      brState = 'open';
+      status.textContent = '状态：打开（快速失败，拒绝发往下游的请求）';
+      fb.textContent = '⚡ 下游错误率 ' + er + '% 已达阈值 ' + th + '%——熔断打开，上游立即快速失败并降级提示，等待半开试探；否则线程池会被慢/错请求占满，引发全链路雪崩。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      brState = 'closed';
+      status.textContent = '状态：关闭（正常放行）';
+      fb.textContent = '当前错误率 ' + er + '% 低于阈值 ' + th + '%，熔断器闭合、正常放行。注意：熔断防「下游故障拖垮上游」，限流防「自己被流量打垮」，两者常配合使用。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  brUpdate();
+  brTh.addEventListener('input', brUpdate);
+  brErr.addEventListener('input', brUpdate);
+  CX.utils.$('br-probe').addEventListener('click', function () {
+    brState = 'half';
+    CX.utils.$('br-status').textContent = '状态：半开（放行少量试探请求）';
+    CX.utils.$('lab3-fb').textContent = '半开状态放行一小批试探请求——结果由下游真实错误率决定，再点滑块或观察上方结论。';
+    CX.utils.$('lab3-fb').className = 'lab-feedback';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

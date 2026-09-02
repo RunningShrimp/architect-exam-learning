@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16 · SQL与关系代数 · 架构师学堂</title>
+<meta name="description" content="选择挑行、投影挑列、连接拼表、除法问『全部都』——SQL 是关系代数的人类可读版。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">数据库</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="15-er-model.html">前置 15</a></span>
+    <h1>16 · SQL与关系代数</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">选择挑行、投影挑列、连接拼表、除法问「全部都」。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>档案馆来了条新规：馆长要一份「<strong>借阅过馆里全部珍藏本的读者</strong>」名单。新人小张写成 SQL 后逻辑绕晕了；老馆员说：「这种『全部都…』的问题，关系代数里一个符号就写完了。」什么符号？它和 SQL 里的双重否定（两层 NOT EXISTS）是什么关系？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>那个符号是<strong>除法 ÷</strong>。「查询选修了全部课程的学生」「查询供应了全部零件的供应商」「查询借阅了全部珍藏本的读者」，全是同一个模板：设 R(读者,物品)、C(全部物品清单)，答案 = π读者(R) ÷ π物品(C)。SQL 没有除法运算符，要翻译成「不存在一件珍藏本是他没借过的」——两层 NOT EXISTS 的双重否定。本页把 σ、π、⋈、÷ 与 SQL 子句一一对上。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>15 · ER模型与关系模式转换</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>关系代数是以<strong>关系（表）为运算对象</strong>的代数系统：输入表、输出表。五个基本运算：并（∪）、差（−）、笛卡尔积（×）、<strong>选择 σ</strong>（按条件挑<strong>行</strong>）、<strong>投影 π</strong>（挑<strong>列</strong>并去重）；再派生交（∩）、<strong>连接 ⋈</strong>（按条件把两表横向拼接）、<strong>除法 ÷</strong>、重命名（ρ）。SQL 是它的人类可读版：一条 SELECT 语句翻译成一棵关系代数表达式树。</p>
+      <h3>解决什么问题</h3>
+      <p>「怎么查」可以写得很啰嗦也可能很巧，关系代数给出一套<strong>最小而完备</strong>的查询词汇，让「任意复杂查询都能由这几个运算组合出来」有数学保证；同时它是查询优化的语言——两条写法不同的 SQL 若代数等价，DBMS 就能改写成代价更低的那个。</p>
+      <h3>核心机制：符号对照表</h3>
+      <table class="tbl">
+        <tr><th>关系代数</th><th>含义</th><th>SQL 对应</th><th>记忆钩子</th></tr>
+        <tr><td>σ条件(R)</td><td>选择：挑满足条件的<b>行</b></td><td>WHERE</td><td>σ 横着切</td></tr>
+        <tr><td>π列(R)</td><td>投影：挑<b>列</b>（结果自动去重）</td><td>SELECT 列（+DISTINCT 才去重）</td><td>π 竖着切</td></tr>
+        <tr><td>R ⋈ S</td><td>连接：按条件横向拼表；自然连接按同名属性等值且去重列</td><td>JOIN ... ON</td><td>⋈ 横向焊接</td></tr>
+        <tr><td>R ÷ S</td><td>除法：「与 S 中<b>每一个</b>都有关」的 R 元组</td><td>无直接语法，用两层 NOT EXISTS / COUNT</td><td>÷ 问「全部都」</td></tr>
+        <tr><td>∪ − ∩</td><td>并、差、交（要求同目：列数与类型一致）</td><td>UNION / EXCEPT / INTERSECT</td><td>集合老三样</td></tr>
+      </table>
+      <h3>关键细节：除法经典例</h3>
+      <p>表 SC(学号,课程号)、表 Course(课程号)。查询<strong>选修了全部课程</strong>的学生学号：</p>
+      <pre><code>关系代数：π学号,课程号(SC) ÷ π课程号(Course)
+SQL（双重否定）：SELECT DISTINCT 学号 FROM SC X
+WHERE NOT EXISTS
+  ( SELECT * FROM Course C WHERE NOT EXISTS
+    ( SELECT * FROM SC Y WHERE Y.学号 = X.学号
+      AND Y.课程号 = C.课程号 ) );</code></pre>
+      <p>读法：「选出这样的学生——<strong>不存在</strong>一门课是他<strong>没有</strong>选的。」除法是差、投影、笛卡尔积的组合糖：π学号(R) − π学号((π学号(R) × π课程号(C)) − R)。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① σ 与 π 别混：σ 挑行（横切）、π 挑列（竖切）。② 纯代数的 π 天然去重，SQL 的 SELECT <b>不去重</b>，要 DISTINCT——考题爱在这里设坑。③ 连接≠笛卡尔积：× 是全配对（行数相乘），⋈ 只保留满足条件的配对，自然连接还会去掉重复列。④ 除法被除数要投影成「（查询对象, 关联列）」，多带无关列结果恒为空。</div>
+      <div class="callout"><span class="t">🇬🇧 专业英语小贴士</span>selection（选择）、projection（投影）、join（连接）、division（除法）；SQL = Structured Query Language（结构化查询语言）。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>回到 <b>📚 中央档案馆</b>：查档案就是一个代数流水线——<strong>选择 σ</strong> 是管理员按条件把不合要求的档案抽走（挑行）；<strong>投影 π</strong> 是只抄你要的栏目（挑列）；<strong>连接 ⋈</strong> 是把两本登记簿按编号对齐拼在一起；<strong>除法 ÷</strong> 最特别：「找出借过<strong>所有</strong>珍藏本的读者」，要一个读者对着一整份清单逐一核对，一个不落才算数。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>按条件抽走不合格档案</td><td>σ 选择（挑行）</td><td>成立</td></tr>
+      <tr><td>只抄需要的栏目</td><td>π 投影（挑列）</td><td>成立；但现实抄写不去重，代数投影自动去重</td></tr>
+      <tr><td>两本登记簿按编号对齐拼合</td><td>⋈ 连接</td><td>成立</td></tr>
+      <tr><td>「全读过书单才算读书之星」</td><td>÷ 除法</td><td>成立；<b>失效边界</b>：清单一变（新书入库），「读书之星」名单可能立刻变空——除法结果依赖「被除清单」的当前内容</td></tr>
+    </table>
+    <div class="rhyme">西格玛横切来挑行，派竖切选列忙；<br>连接对号拼好表，并差交集同目装；<br>若问全部都做过，除法登场才能扛；<br>双重否定两层滤，NOT EXISTS 才周详。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>动画演示一条查询的代数流水线：σ 过滤行 → π 挑列 → ⋈ 补充学分。拖动「及格线」滑块，实时看 σ 阶段存活几行。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>σ 及格线 <input type="range" id="sk-th" min="40" max="95" step="5" value="60"> <span id="sk-th-out">60分</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：查询构建器——SQL ↔ 代数实时互译</h4>
+      <p class="foreshadow">调整 σ 条件与 π 投影列，看代数表达式与结果表同步变化：</p>
+      <label>σ：分数 ≥ <input type="range" id="qb-th" min="40" max="95" step="5" value="60"> <span id="qb-th-out">60</span></label><br>
+      <label>π 投影列：
+        <label><input type="checkbox" id="qb-name" checked> 姓名</label>
+        <label><input type="checkbox" id="qb-course" checked> 课程</label>
+        <label><input type="checkbox" id="qb-score"> 分数</label>
+        <label><input type="checkbox" id="qb-join"> 连接课程表取学分 ⋈</label>
+      </label>
+      <div class="kf-caption" id="qb-expr"></div>
+      <div id="qb-result"></div>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：SQL 子句 ↔ 关系代数</h4>
+      <p class="foreshadow">先点左列 SQL 元素，再点右列代数含义：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：SQL 的逻辑执行顺序</h4>
+      <p class="foreshadow">把子句按数据库「逻辑上」的处理顺序排好（注意不是书写顺序）：</p>
+      <div id="ord-pool" style="min-height:40px"></div>
+      <div class="drag-slot" id="ord-slot"></div>
+      <button class="btn" id="ord-check">检查顺序</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、4 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>15 页把 ER 图翻译成了表，本页教你怎么查这些表：被查询的关系模式，正是 ER 转换的产物（如借阅(读者号,书号,…)）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>查询结果里发现大量重复列值？<b>17 · 规范化理论</b>告诉你那是表设计有依赖问题；</li><li>「σ 下推先过滤再连接更快」的等价变换思想，将在 <b>19 · 分布式数据库</b> 变成「把计算搬到数据所在节点」的分片查询优化。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>笛卡尔积 ×</th><th>连接 ⋈</th></tr>
+      <tr><td>结果行数</td><td>n × m 全配对</td><td>只保留满足连接条件的配对</td></tr>
+      <tr><td>重复列</td><td>全部保留</td><td>自然连接会去掉同名重复列</td></tr>
+      <tr><td>易错点</td><td>以为 JOIN 就是 ×</td><td>忘写 ON 条件会退化成笛卡尔积，行数爆炸</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">× 是「所有可能性全排列」，⋈ 是「按条件对上号的才配对」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——查图书登记簿时，先按条件筛掉一些行，再只抄需要的栏目……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 五运算记号：σ 挑行、π 挑列、⋈ 拼表、∪−∩ 集合、÷ 问「全部都」。</li><li>② SQL ↔ 代数：WHERE↔σ、SELECT 列↔π、JOIN ON↔⋈、「全部都」↔÷（SQL 用两层 NOT EXISTS 双重否定）。</li><li>③ SQL 的 SELECT 不自动去重，代数投影去重；逻辑执行顺序 FROM→WHERE→GROUP BY→HAVING→SELECT→ORDER BY。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '16', domain: 'db', loc: 'archive', root: '..',
+  title: 'SQL与关系代数',
+  prev: '15-er-model.html', prevTitle: '15 · ER模型与关系模式转换',
+  next: '17-normalization.html', nextTitle: '17 · 规范化理论',
+  keywords: ['选择', '投影', '连接', '除法', 'WHERE', 'NOT EXISTS', '笛卡尔积', 'DISTINCT']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置点：15 ER模型与关系模式转换） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·15】m:n 联系「学生—选修—课程」转出的关系模式是 选修(学号,课程号,成绩)，它的主键是？',
+    opts: [
+      { t: '学号', why: '一个学生选多门课，单学号会重复。' },
+      { t: '（学号,课程号）组合', why: '对：m:n 联系独立成表，主键=双方主键组合。' },
+      { t: '成绩', why: '成绩可重复且非标识属性。' }
+    ],
+    ans: 1, tag: '回忆:15', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '从成绩表 SC(学号,课程,分数) 中「取出分数大于 60 的那些行」，对应的关系代数运算是？',
+      opts: [
+        { t: 'π分数大于60(SC)', why: 'π 是投影挑列，不能携带行条件。' },
+        { t: 'σ分数大于60(SC)', why: '对：σ（选择）按条件挑行，横切。' },
+        { t: 'SC ÷ SC', why: '除法解决「全部都」型查询，与此无关。' },
+        { t: 'SC × SC', why: '笛卡尔积是全配对，只会膨胀行数。' }
+      ],
+      ans: 1, tag: '符号辨析', src: '仿真题' },
+    { q: '「查询选修了全部课程的学生学号」，最贴切的关系代数表达式是？',
+      opts: [
+        { t: 'π学号(σ课程号(SC))', why: '这仍是普通选择投影，表达不出「每一门都选」。' },
+        { t: 'π学号(SC) ÷ π课程号(Course)', why: '对：除法的语义正是「与清单中每一个都有关」，「全部都…」题型的标志。' },
+        { t: 'SC × Course', why: '笛卡尔积只做全配对，不筛选。' },
+        { t: 'π学号(SC) ∪ π课程号(Course)', why: '并操作要求同目（列匹配），语义也不对。' }
+      ],
+      ans: 1, tag: '除法', src: '仿真题' },
+    { q: '【交错复习:15】在 ER 转换出的 选修(学号,课程号,成绩) 表中，「学号」这一列扮演的角色是？',
+      opts: [
+        { t: '只是普通属性', why: '它是主键成分，地位不普通。' },
+        { t: '既是主键（组合键）的成分，又是参照学生表的外键', why: '对：m:n 表中双方主键组合成主键，同时各自外键指向实体表，双重身份。' },
+        { t: '候选码且是唯一的键', why: '单学号在该表不唯一，不能单独作候选码。' }
+      ],
+      ans: 1, tag: '交错复习:15', src: '仿真题' },
+    { q: '【交错复习:14】应用执行 CREATE VIEW 建立的视图，在三级模式结构中属于哪一级的实现？',
+      opts: [
+        { t: '内模式', why: '内模式是存储层描述，视图不涉及存储。' },
+        { t: '外模式', why: '对：视图是外模式的典型实现；通过外模式/模式映像与基本表关联，正体现逻辑独立性。' },
+        { t: '概念模式', why: '概念模式是全体基本表的全局逻辑。' }
+      ],
+      ans: 1, tag: '交错复习:14', src: '仿真题' },
+    { q: '关于自然连接（natural join）与笛卡尔积的区别，正确的是？',
+      opts: [
+        { t: '两者结果行数一定相同', why: '自然连接要过滤，行数一般远小于笛卡尔积。' },
+        { t: '自然连接按同名属性等值配对，并去掉重复的同名列', why: '对：这是自然连接的两要素；笛卡尔积无条全配对、全保留列。' },
+        { t: '自然连接就是把两表列数相加', why: '那是拼接列的外在表现，不是定义。' }
+      ],
+      ans: 1, tag: '连接', src: '仿真题' }
+  ], { kpId: '16', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '仓储系统有三张表：仓库 W(仓库号,城市)、零件 P(零件号,颜色)、库存 WP(仓库号,零件号,数量)。业务需求：「查询存放了全部红色零件的仓库号」（只统计数量大于 0 的库存记录）。',
+    q: '(1) 写出该查询的关系代数表达式；(2) 写出等价的 SQL（可用两层 NOT EXISTS）；(3) 解释除法运算的语义，并说明条件「数量大于0」应放在表达式哪一步。',
+    ref: '(1) π仓库号( σ数量大于0(WP) ÷ π零件号(σ颜色=红(P)) )——严格写法：先对库存过滤，再投影为（仓库号,零件号）做被除数：π仓库号( π仓库号,零件号(σ数量>0(WP)) ÷ π零件号(σ颜色=红(P)) )。(2) SQL：SELECT DISTINCT 仓库号 FROM WP X WHERE 数量>0 AND NOT EXISTS ( SELECT * FROM P WHERE 颜色=红 AND NOT EXISTS ( SELECT * FROM WP Y WHERE Y.仓库号=X.仓库号 AND Y.零件号=P.零件号 AND Y.数量>0 ) );(3) 除法语义：R÷S 给出「在 R 中与 S 的每一个元素都关联」的 R 属性值——即「对任意红色零件，都存在该仓库的库存记录」，这是「全部都…」型查询的通用解法。数量>0 属于对 R（库存）的行过滤，应在除法之前（σ 阶段）完成，不能放到除法之后。',
+    points: ['除法使用正确，被除数投影为（仓库号,零件号）两列', 'SQL 双重否定结构完整（外层 EXISTS 仓库、内层 NOT EXISTS 缺货）', '能解释除法语义「对任意…都…」', '数量>0 过滤位置正确（σ 下推到除法之前）'],
+    frame: '答题框架：识别「全部都」题型 → 写除法（被除数投影干净） → 翻 SQL 双重否定 → 补充附加条件的下推位置与理由。',
+    kpId: '16'
+  });
+  CX.renderCase('#case2', {
+    stem: '同一需求两条等价 SQL：写法甲把客户表 C(100万行) 与订单表 O(5000万行) 先 JOIN 再用 WHERE 过滤城市=杭州；写法乙先对 C 做 WHERE 城市=杭州（约 2 万行）再 JOIN。DBMS 未启用自动优化。',
+    q: '(1) 用关系代数说明两条 SQL 对应的表达式及「等价」的含义；(2) 哪种写法更快，依据什么代数变换规则；(3) 该规则在分布式数据库（多节点分片）中的意义。',
+    ref: '(1) 甲：π…(σ城市=杭州(C ⋈ O))；乙：π…((σ城市=杭州(C)) ⋈ O)。等价指：在任意相同输入数据上，两表达式结果集完全相同——这就是关系代数等价变换（代数恒等式）。(2) 乙快。依据「选择下推（σ 尽量靠近叶子）」规则：先过滤把 C 从 100 万行缩到 2 万行，再连接的中间结果与比较次数大幅下降；甲则先做全量连接，中间结果巨大。(3) 分片场景下数据分散在多节点，把 σ/π 下推到数据所在节点本地执行、只传小结果回协调节点，能避免全网络大表搬运——这是分布式查询优化的核心一招（见 19 页）。',
+    points: ['能写出两个表达式并说明「等价=结果恒相同」', '正确指出选择下推规则及其收益（缩小中间结果）', '延伸说明分布式下「计算靠近数据」的意义'],
+    frame: '答题框架：写表达式 → 陈述等价变换规则 → 解释代价差异（中间结果规模） → 迁移到分布式场景。',
+    kpId: '16'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '项目管理系统：员工表 Emp(工号)，参与表 EP(工号,项目号)。要查「参与了全部 P0 级项目」的员工，下列思路正确的是？',
+    opts: [
+      { t: 'π工号(EP) ÷ π项目号(σ级别=P0(项目表))', why: '对：换了场景仍是「全部都…」除法模板；SQL 同样译成两层 NOT EXISTS。' },
+      { t: 'σ级别=P0(EP ⋈ 项目表)', why: '这只查出「参与了某个 P0 项目」的员工，不是「全部」。' },
+      { t: 'EP × 项目表 后手工挑选', why: '笛卡尔积不筛选，「手工挑选」不是关系代数。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['15'], 'prev');
+  CX.depChain('#bridge-next', ['17'], 'next');
+
+  /* ---- 数据 ---- */
+  var SC = [
+    { n: '林一', c: '代数', s: 92 },
+    { n: '林一', c: '英语', s: 55 },
+    { n: '赵二', c: '代数', s: 78 },
+    { n: '钱三', c: '英语', s: 64 },
+    { n: '钱三', c: '物理', s: 81 },
+    { n: '孙四', c: '物理', s: 47 }
+  ];
+  var CRED = { '代数': 5, '英语': 3, '物理': 4 };
+
+  /* ---- 动画：σ→π→⋈ 流水线 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var sTh = CX.utils.$('#sk-th');
+  sTh.addEventListener('input', function () {
+    CX.utils.$('#sk-th-out').textContent = this.value + '分';
+    draw(anim && anim.t || 0);
+  });
+  function draw(t) {
+    var th = parseInt(sTh.value, 10);
+    var phase = t < 0.33 ? 0 : (t < 0.66 ? 1 : 2);
+    var s = '<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="320" rx="12" fill="var(--bg-soft)"/>';
+    /* 三站 */
+    var st = [['σ 选择', '分数≥' + th], ['π 投影', '挑列'], ['⋈ 连接', '补学分']];
+    st.forEach(function (x, i) {
+      var on = phase === i;
+      s += '<rect x="' + (30 + i * 225) + '" y="20" width="180" height="40" rx="9" fill="' + (on ? 'var(--accent-2)' : 'var(--card-2)') + '" opacity="' + (on ? '.3' : '1') + '" stroke="' + (on ? 'var(--accent-2)' : 'var(--line)') + '"/>';
+      s += '<text x="' + (120 + i * 225) + '" y="38" text-anchor="middle" font-size="13" fill="var(--text)">' + x[0] + '</text>';
+      s += '<text x="' + (120 + i * 225) + '" y="54" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + x[1] + '</text>';
+      if (i < 2) { s += '<line x1="' + (212 + i * 225) + '" y1="40" x2="' + (255 + i * 225) + '" y2="40" stroke="var(--accent)" stroke-width="2" marker-end=""/>'; }
+    });
+    /* 表格 */
+    var x0 = 40, y0 = 90, cw = 120, rh = 26;
+    var cols = phase >= 1 ? (['姓名', '课程']) : (['姓名', '课程', '分数']);
+    var rows = SC.filter(function (r) { return r.s >= th; });
+    if (phase < 1) {
+      /* σ 阶段显示全部行，未达标行灰化 */
+      s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (cw * 3) + '" height="' + (rh * (SC.length + 1)) + '" fill="var(--card)" stroke="var(--line)"/>';
+      ['姓名', '课程', '分数'].forEach(function (h, i) {
+        s += '<text x="' + (x0 + i * cw + 12) + '" y="' + (y0 + 18) + '" font-size="12" fill="var(--accent)">' + h + '</text>';
+      });
+      SC.forEach(function (r, ri) {
+        var ok = r.s >= th;
+        var yy = y0 + rh * (ri + 1) + 17;
+        s += '<text x="' + (x0 + 12) + '" y="' + yy + '" font-size="12" fill="' + (ok ? 'var(--text)' : 'var(--bad)') + '" opacity="' + (ok ? 1 : .4) + '">' + r.n + '</text>';
+        s += '<text x="' + (x0 + cw + 12) + '" y="' + yy + '" font-size="12" fill="' + (ok ? 'var(--text)' : 'var(--bad)') + '" opacity="' + (ok ? 1 : .4) + '">' + r.c + '</text>';
+        s += '<text x="' + (x0 + 2 * cw + 12) + '" y="' + yy + '" font-size="12" fill="' + (ok ? 'var(--text)' : 'var(--bad)') + '" opacity="' + (ok ? 1 : .4) + '">' + r.s + '</text>';
+      });
+    } else {
+      s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (cw * cols.length) + '" height="' + (rh * (rows.length + 1)) + '" fill="var(--card)" stroke="var(--line)"/>';
+      cols.forEach(function (h, i) {
+        s += '<text x="' + (x0 + i * cw + 12) + '" y="' + (y0 + 18) + '" font-size="12" fill="var(--accent)">' + h + '</text>';
+      });
+      rows.forEach(function (r, ri) {
+        var yy = y0 + rh * (ri + 1) + 17;
+        s += '<text x="' + (x0 + 12) + '" y="' + yy + '" font-size="12" fill="var(--text)">' + r.n + '</text>';
+        s += '<text x="' + (x0 + cw + 12) + '" y="' + yy + '" font-size="12" fill="var(--text)">' + r.c + '</text>';
+        if (phase >= 2) {
+          s += '<text x="' + (x0 + 2 * cw + 12) + '" y="' + yy + '" font-size="12" fill="var(--ok)">学分 ' + CRED[r.c] + '</text>';
+        }
+      });
+    }
+    s += '<text x="400" y="' + (y0 + 205) + '" text-anchor="middle" font-size="13" fill="var(--accent-2)">当前结果：' + (phase < 1 ? SC.length + ' 行进入流水线，' + rows.length + ' 行过线' : rows.length + ' 行 × ' + cols.length + ' 列') + '</text>';
+    s += '<text x="400" y="' + (y0 + 228) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">表达式：π姓名,课程' + (phase >= 2 ? ',学分' : '') + '( σ分数≥' + th + '(SC)' + (phase >= 2 ? ' ⋈ Course' : '') + ' )</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (phase === 0) cap = 'σ 选择（挑行）：低于 ' + th + ' 分的行被拦下（红色淡出），' + rows.length + '/' + SC.length + ' 行存活。';
+    else if (phase === 1) cap = 'π 投影（挑列）：分数列被裁掉，只剩姓名、课程两列（代数投影会自动去重）。';
+    else cap = '⋈ 连接：与课程表按课程名对齐，横向补上学分列——三站流水线完成。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 15, duration: 10, onTick: draw });
+
+  /* ---- 实验一：查询构建器 ---- */
+  function renderQB() {
+    var th = parseInt(CX.utils.$('#qb-th').value, 10);
+    CX.utils.$('#qb-th-out').textContent = String(th);
+    var useName = CX.utils.$('#qb-name').checked;
+    var useCourse = CX.utils.$('#qb-course').checked;
+    var useScore = CX.utils.$('#qb-score').checked;
+    var useJoin = CX.utils.$('#qb-join').checked;
+    var piCols = [];
+    if (useName) piCols.push('姓名');
+    if (useCourse) piCols.push('课程');
+    if (useScore) piCols.push('分数');
+    if (useJoin) piCols.push('学分');
+    var rows = SC.filter(function (r) { return r.s >= th; });
+    var expr = 'π' + (piCols.length ? piCols.join(',') : '(空列)') + '( σ分数≥' + th + '(SC)' + (useJoin ? ' ⋈ Course' : '') + ' )';
+    CX.utils.$('#qb-expr').textContent = '关系代数：' + expr + '   |   SQL：SELECT ' + (piCols.length ? piCols.join(', ') : '…') + ' FROM SC' + (useJoin ? ' JOIN Course USING(课程)' : '') + ' WHERE 分数 >= ' + th + ';';
+    var h = '<table class="tbl"><tr>';
+    piCols.forEach(function (c) { h += '<th>' + c + '</th>'; });
+    h += '</tr>';
+    rows.forEach(function (r) {
+      h += '<tr>';
+      piCols.forEach(function (c) {
+        var v = c === '姓名' ? r.n : c === '课程' ? r.c : c === '分数' ? r.s : CRED[r.c];
+        h += '<td>' + v + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</table><p class="foreshadow">存活 ' + rows.length + ' 行 × ' + piCols.length + ' 列</p>';
+    CX.utils.$('#qb-result').innerHTML = h;
+    var fb = CX.utils.$('#lab1-fb');
+    if (!piCols.length) { fb.textContent = 'π 投影一列都没选：代数上 π() 是空结果——投影至少要保留一列。'; fb.className = 'lab-feedback bad'; }
+    else if (rows.length === 0) { fb.textContent = 'σ 条件过严：没有行满足分数 ≥ ' + th + '，选择可以先于投影，结果为空表是合法结果。'; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '对照左边的表达式与结果表：σ 决定几行，π 决定几列，⋈ 决定多出的列。'; fb.className = 'lab-feedback ok'; }
+  }
+  ['qb-th', 'qb-name', 'qb-course', 'qb-score', 'qb-join'].forEach(function (id) {
+    CX.utils.$('#' + id).addEventListener('input', renderQB);
+    CX.utils.$('#' + id).addEventListener('change', renderQB);
+  });
+  renderQB();
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['WHERE 子句', 'σ 选择：按条件挑行'],
+    ['SELECT 列名（配 DISTINCT）', 'π 投影：挑列并去重'],
+    ['JOIN ... ON', '⋈ 连接：按条件横向拼表'],
+    ['两层 NOT EXISTS（双重否定）', '÷ 除法：「全部都…」型查询'],
+    ['忘写 ON 的 JOIN', '退化为笛卡尔积 ×，行数爆炸']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点代数含义。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个 SQL 元素。'; CX.utils.$('#lab2-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '配对成功 ' + donePairs + '/5';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('#lab2-fb').textContent = '「' + selL.dataset.k + '」不对应这条——回忆对照表：WHERE 挑行(σ)、SELECT 挑列(π)、JOIN 拼表(⋈)、双重否定是除法(÷)。';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：拖拽排序 ---- */
+  var order = ['FROM（确定数据源表）', 'WHERE（按条件过滤行 σ）', 'GROUP BY（分组）', 'HAVING（过滤组）', 'SELECT（投影挑列 π）', 'ORDER BY（排序输出）'];
+  var pool = CX.utils.$('#ord-pool');
+  var slot = CX.utils.$('#ord-slot');
+  CX.shuffle(order).forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = document.querySelector('.drag-item[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#ord-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab3-fb');
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    if (got.length < order.length) { fb.textContent = '还有 ' + (order.length - got.length) + ' 项没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < order.length; i++) {
+      if (got[i] !== order[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 位放的是「' + got[i] + '」，应为「' + order[i] + '」。判断法：先有表（FROM）才能滤行（WHERE），滤完行才能分组（GROUP BY），有组才能筛组（HAVING），最后才挑列输出（SELECT）再排序（ORDER BY）。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '顺序正确：FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY。书写顺序（SELECT 在前）只是给人看的。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

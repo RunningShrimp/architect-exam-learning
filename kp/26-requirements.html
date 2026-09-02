@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26 · 需求工程 · 架构师学堂</title>
+<meta name="description" content="需求走获取、分析、确认、管理四道关，写错需求代价最大。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="25-process-models.html">前置 25</a></span>
+    <h1>26 · 需求工程</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">需求走获取、分析、确认、管理四道关，写错需求代价最大。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>小区改造项目：业主委员会说"我们要更安全"，物业说"我们要省人力"，老人说"要电梯"，年轻人说"要快递柜"。施工队按自己理解画了图就开工，竣工时四方都说"这不是我要的"。如果你是总工，问题出在哪个环节？怎么避免？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>问题出在<strong>没有做需求工程</strong>：四方的说法是不同层次的诉求（业务/用户/系统需求混在一起），没人去「获取→分析→确认」，更没有形成<strong>基线</strong>让各方签字。正确做法：分别用访谈、问卷、现场观察收集诉求；把"更安全"翻译成可验证的系统需求（如门禁响应时间）；开确认会让四方评审签字形成基线；后期改动走变更控制。软件里同理——需求是业主诉求书，写错它，后面每一层都在错上加错，修复代价随阶段指数上涨。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>25 · 软件过程模型</b>（需求是所有模型的第一格）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>需求工程 = <strong>需求开发</strong> + <strong>需求管理</strong>两大块。需求开发包括：需求获取、需求分析、需求规格说明（写成 SRS 文档）、需求确认（验证四性）；需求管理包括：建立<strong>基线</strong>、变更控制、需求跟踪。在工地上，需求就是<strong>业主诉求书</strong>——它决定了盖什么、盖多好。</p>
+      <h3>解决什么问题</h3>
+      <p>统计口径一般认为，缺陷发现得越晚修复越贵，而在需求阶段埋下的错误流传到运维阶段代价最高（放大数十倍，具体倍数各教材不一）。所以需求工程的目标只有一个：<strong>在建错之前把「盖什么」说清楚、说对、锁定</strong>。</p>
+      <h3>核心机制 1：需求获取四法</h3>
+      <table class="tbl">
+        <tr><th>方法</th><th>做法</th><th>适用场景一句话</th></tr>
+        <tr><td>访谈</td><td>与关键干系人一对一深入问答</td><td>要挖关键人物的真实意图与约束</td></tr>
+        <tr><td>问卷</td><td>发放大量标准化问题收集统计</td><td>用户量大、需要量化偏好时</td></tr>
+        <tr><td>观察（现场作业）</td><td>到现场跟岗看实际操作</td><td>用户「习以为常说不出」的隐性流程</td></tr>
+        <tr><td>原型</td><td>做可交互的样机让用户试</td><td>界面交互与流程难以凭空想象时</td></tr>
+      </table>
+      <h3>核心机制 2：需求三个层次</h3>
+      <table class="tbl">
+        <tr><th>层次</th><th>回答的问题</th><th>工地类比</th><th>典型表述</th></tr>
+        <tr><td>业务需求</td><td>业主为什么要建（目标/愿景）</td><td>「这地块要盖成什么业态」</td><td>「降低人工对账成本 50%」</td></tr>
+        <tr><td>用户需求</td><td>使用者用系统能做什么（用例）</td><td>「住户要能做什么」</td><td>「柜员要能在 10 秒内调出客户流水」</td></tr>
+        <tr><td>系统需求</td><td>开发者要实现什么（功能+非功能，可验证）</td><td>「施工图的技术要求」</td><td>「查询响应 ≤ 2s（95 分位），并发 500」</td></tr>
+      </table>
+      <p><strong>功能需求 vs 非功能需求</strong>：功能需求说「系统能做什么」（转账、查询、打印）；非功能需求说「做得怎么样」——性能、可用性、安全性、可维护性等质量属性，以及法规、平台等<strong>约束</strong>。非功能需求最常被漏写，验收时最容易扯皮。</p>
+      <h3>核心机制 3：确认 vs 管理</h3>
+      <ul>
+        <li><strong>需求确认</strong>检验需求规格的四性：<strong>正确性</strong>（每条都真实反映诉求）、<strong>一致性</strong>（条目之间不打架）、<strong>完整性</strong>（该有的都有，含异常分支）、<strong>可行性</strong>（现有技术/成本做得出来）——部分教材还要求可验证性，属口径差异，注明即可。</li>
+        <li><strong>需求管理</strong>：评审通过的需求规格形成<strong>基线</strong>（图纸盖章封存）；之后任何改动必须走<strong>变更控制</strong>（申请→影响分析→审批→更新基线→通知相关人员）；<strong>需求跟踪</strong>维护「业务需求↔系统需求↔设计↔代码↔测试用例」的对应链，保证每条需求都被实现和验证。</li>
+      </ul>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①需求<strong>确认</strong>（查四性）和需求<strong>管理</strong>（基线+变更+跟踪）是两件事，别混；②「用户说的每句话都是需求」错——用户说的是诉求，要经分析转化为可验证的系统需求；③非功能需求最易漏；④需求变更不能口头改文档直接改代码，必须走变更控制。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>requirement elicitation 需求获取 · baseline 基线 · requirements traceability 需求跟踪 · SRS 软件需求规格说明书</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把需求工程想成小区改造里的<strong>业主诉求书</strong>流转：先到处「听」（访谈/问卷/观察/原型）收集诉求，再整理成「改造图纸」（分析+规格），开听证会确认图纸没走样（确认四性），图纸盖章封存（基线），之后想改图纸必须打申请、评估造价、领导批准（变更控制），每条诉求登记在册可查（跟踪链）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>听四方意见（访谈/问卷/观察）</td><td>需求获取</td><td>成立</td></tr>
+      <tr><td>「要更安全」翻译成「门禁 2 秒开」</td><td>业务需求→系统需求的转化</td><td>成立</td></tr>
+      <tr><td>图纸盖章封存</td><td>建立基线</td><td>成立</td></tr>
+      <tr><td>想改图纸先打报告审批</td><td>变更控制</td><td>成立</td></tr>
+      <tr><td>诉求书写得越厚越好</td><td>需求文档质量</td><td><b>失效</b>：需求贵在正确、一致、完整、可行、可验证，不在厚</td></tr>
+    </table>
+    <div class="rhyme">访卷察原四把抓，诉求不漏不掺假；<br>业务用户系统三层搭，层层翻译可验证；<br>正确一致完整可行，确认四性别落下；<br>基线变更加跟踪，管理三件不掺沙。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示一张需求卡片走过「获取→分析→确认→基线」四道关；用滑块增加「基线后的变更次数」，看变更如何回到分析环节、需求如何蔓延。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>基线后变更次数 <input type="range" id="chg-slider" min="0" max="4" step="1" value="0"> <span id="chg-out">0 次</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（分类点击）：功能需求还是非功能需求？</h4>
+      <p class="foreshadow">逐条判断下面 6 条需求属于哪一类，判错会指出错在哪：</p>
+      <div id="cls-list"></div>
+      <div class="lab-feedback" id="lab1-fb">点击第一条开始。</div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：把需求工程活动按正确顺序排好</h4>
+      <p class="foreshadow">从「收集诉求」开始，把 5 张卡片拖入槽中：</p>
+      <div id="rq-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="rq-slot"></div>
+      <button class="btn" id="rq-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：需求跟踪链对应关系</h4>
+      <p class="foreshadow">先点左列一个上游制品，再点右列它的直接下游验证物：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="trace-left"></div>
+        <div id="trace-right"></div>
+      </div>
+      <button class="btn" id="trace-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>25 页说过：无论瀑布还是敏捷，第一格都是需求——本页把这一格放大成整页。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「需求要结构化、可视化」在 <b>27 · 结构化分析与数据流图</b> 变成 DFD 建模；</li><li>「用例」是用户需求的标准载体，画法在 <b>30 · UML建模</b> 的用例图展开。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>需求确认</th><th>需求管理</th></tr>
+      <tr><td>差异点</td><td>验证规格质量：正确/一致/完整/可行</td><td>控制需求变化：基线/变更控制/跟踪</td></tr>
+      <tr><td>发生时机</td><td>基线建立之前</td><td>基线建立之后持续进行</td></tr>
+      <tr><td>易错点</td><td>以为确认过就一劳永逸</td><td>以为管理就是「改文档」</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">确认是「封存前验货」，管理是「封存后控变更」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——装修房子前要先问清楚家里每个人的要求……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 需求工程=开发（获取/分析/规格/确认）+管理（基线/变更/跟踪）。</li><li>② 需求三层：业务（为何建）、用户（能做什么）、系统（可验证的规格）；别忘了非功能需求。</li><li>③ 确认查四性（正确/一致/完整/可行），基线后的一切改动必须走变更控制并保持跟踪链完整。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '26', domain: 'se', loc: 'construction', root: '..',
+  title: '需求工程', prev: '25-process-models.html', prevTitle: '25 · 软件过程模型',
+  next: '27-dfd.html', nextTitle: '27 · 结构化分析与数据流图',
+  keywords: ['需求获取','业务需求','系统需求','非功能需求','需求确认','基线','变更控制','需求跟踪']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·25】原型模型最适合解决哪类问题？',
+    opts: [
+      { t: '工期太紧', why: '原型先造样板间反而占时间，不为赶工。' },
+      { t: '需求不明确、难以事先说清', why: '对。25 页讲过：原型让用户「看着挑」，把模糊需求变具体——这正是本页需求获取的手段之一。' },
+      { t: '测试用例不够', why: '与测试设计无关。' }
+    ],
+    ans: 1, tag: '回忆:25', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '客服中心用一套系统服务上千名用户，想快速摸清大多数用户对功能优先级的偏好，最合适的获取方法是？',
+      opts: [
+        { t: '访谈', why: '访谈深但慢，适合关键人物，覆盖上千人不现实。' },
+        { t: '问卷', why: '对。用户量大、要量化偏好，正是问卷的主场。' },
+        { t: '观察', why: '观察适合发现「说不出来」的隐性流程，不适合大规模偏好统计。' },
+        { t: '原型', why: '原型验证交互方案，不能快速量化千人偏好。' }
+      ],
+      ans: 1, tag: '获取方法', src: '仿真题' },
+    { q: '「系统必须在 2 秒内返回查询结果」属于哪一类需求？',
+      opts: [
+        { t: '业务需求', why: '业务需求说目标（如降低对账成本），不说性能指标。' },
+        { t: '功能需求', why: '功能需求说「能做什么」（查询本身），速度是「做得怎么样」。' },
+        { t: '非功能需求（质量属性）', why: '对。响应时间是性能类质量属性，属于非功能需求。' },
+        { t: '设计约束', why: '它不是平台/法规类约束，而是可度量的质量目标。' }
+      ],
+      ans: 2, tag: '分层分类', src: '仿真题' },
+    { q: '下列活动中，属于「需求管理」而不是「需求确认」的是？',
+      opts: [
+        { t: '检查需求规格是否存在条目互相矛盾', why: '这是确认中的「一致性」检查。' },
+        { t: '建立需求基线并评审批准变更申请', why: '对。基线+变更控制+跟踪是需求管理三件套。' },
+        { t: '评估需求在现有技术下能否实现', why: '这是确认中的「可行性」检查。' },
+        { t: '核对每条需求都有对应验收标准', why: '这是确认（含可验证性口径）的工作。' }
+      ],
+      ans: 1, tag: '确认vs管理', src: '仿真题' },
+    { q: '【交错复习·25】需求频繁变化、要求每两周交付可用版本的项目，25 页的哪类模型最匹配？',
+      opts: [
+        { t: '瀑布模型', why: '瀑布要求需求先定死，与频繁变化冲突。' },
+        { t: '敏捷（Scrum/XP）', why: '对。25 页说过敏捷小步快跑靠迭代吸收变更——但吸收变更的前提正是本页的基线与变更控制。' },
+        { t: '喷泉模型', why: '喷泉解决面向对象迭代问题，不针对需求频繁变化的管理。' }
+      ],
+      ans: 1, tag: '交错复习:25', src: '仿真题' },
+    { q: '关于需求跟踪链，下列说法正确的是？',
+      opts: [
+        { t: '只需从需求向前跟踪到测试，反向不必', why: '反向（从测试用例回溯需求）同样重要，才能发现「做了没人要的」。' },
+        { t: '业务需求、系统需求、设计、测试用例应保持双向可追溯', why: '对。双向跟踪保证每条需求被实现、每个制品能溯源。' },
+        { t: '跟踪矩阵只在瀑布模型中使用', why: '任何模型都可用跟踪矩阵，与模型无关。' },
+        { t: '跟踪链到设计为止，代码和测试不必纳入', why: '断链会让「需求已实现、已验证」无法证明。' }
+      ],
+      ans: 1, tag: '跟踪链', src: '仿真题' }
+  ], { kpId: '26', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某医院上线门诊系统：院长说「要提高效率」，医生说「处方要快」，收费员说「别让我记快捷键」。项目组把三方原话直接写成需求文档进入开发；上线后发现三处描述互相冲突、漏掉了医保接口的法规约束，被迫返工。',
+    q: '(1) 指出该项目需求工程各环节的问题；(2) 给出补做的获取方法组合并说明理由；(3) 说明确认与管理环节应补做什么。',
+    ref: '(1) 问题：①三方原话是不同层次的诉求（业务/用户），未经分析就当作系统需求——缺少「翻译」；②没有做一致性检查——三处冲突未发现；③遗漏医保接口约束——非功能/约束类需求漏采；④无基线与跟踪，改起来各说各话。(2) 获取组合：访谈院长（业务目标量化）、观察医生与收费员现场操作（隐性习惯）、问卷收集挂号高峰偏好、对处方界面做原型（交互不确定）。(3) 确认：按正确性/一致性/完整性/可行性逐条评审，补齐法规约束并确认可验证；管理：评审通过后建立基线，此后改动走变更控制，并用跟踪矩阵把业务需求↔系统需求↔测试用例对齐。',
+    points: ['识别「原话≠系统需求」，指出层次未翻译', '获取方法与场景一一对应（访谈/观察/问卷/原型）', '指出一致性与约束遗漏，并给出确认四性', '给出基线、变更控制、跟踪链的管理补救'],
+    frame: '答题框架：先分层归位（业务/用户/系统）→逐环节找缺失（获取/分析/确认/管理）→给出可验证的补救措施。',
+    kpId: '26'
+  });
+  CX.renderCase('#case2', {
+    stem: '项目上线三个月，甲方项目负责人频繁在微信上口头提出改动，开发组「顺手就改」，两个月后没人说得清系统当前版本包含哪些需求，验收时双方对不上账。',
+    q: '(1) 指出该做法违反的需求管理原则；(2) 给出规范的变更控制流程；(3) 说明需求跟踪在本场景能提供什么帮助。',
+    ref: '(1) 违反原则：基线之后的变更必须受控——口头变更未经影响分析与审批，未更新基线，导致版本与需求失控。(2) 规范流程：①提交书面变更申请；②评估对进度/成本/其他需求的影响；③变更控制委员会（或授权人）审批；④批准后修改需求文档、代码与测试用例并更新基线、升版本号；⑤通知所有受影响干系人并做回归验证。(3) 跟踪链帮助：从每条变更需求向下查设计/代码/测试用例是否同步更新，向上查它源自哪条业务需求；验收时可用跟踪矩阵逐条对账，证明每条需求「已实现、已验证」。',
+    points: ['点出「基线后变更必须受控」的违反点', '流程五步完整且顺序正确（申请→影响分析→审批→更新→通知）', '说明跟踪矩阵双向对账的作用'],
+    frame: '答题框架：指错（原则）→给流程（步骤化）→说收益（对账/防遗漏），避免只讲道理不给步骤。',
+    kpId: '26'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '装修公司想知道一家人「说不出口」的生活习惯（比如总在厨房角落堆杂物），最该采用的类似需求获取方法是？',
+    opts: [
+      { t: '发放问卷', why: '住户自己都说不出来，问卷问不出来。' },
+      { t: '到家里现场观察', why: '对。隐性习惯要靠观察发现——对应需求获取的观察法（现场作业）。' },
+      { t: '先装修再改', why: '这是「先盖后改」，正是需求工程要避免的高代价路径。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['25'], 'prev');
+  CX.depChain('#bridge-next', ['27', '30'], 'next');
+
+  /* ---- 动画：需求四道关 + 变更回路 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var chg = 0;
+  function draw(t) {
+    var gates = ['获取', '分析', '确认', '基线'];
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="需求四道关">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    var act = t * 4;
+    for (var i = 0; i < 4; i++) {
+      var x = 60 + i * 160, on = act >= i + 0.9, doing = act >= i && act < i + 1.15;
+      s += '<rect x="' + x + '" y="96" width="110" height="52" rx="10" fill="' + (on ? 'var(--accent-2)' : (doing ? 'var(--accent)' : 'var(--card)')) + '" stroke="var(--line)"/>';
+      s += '<text x="' + (x + 55) + '" y="122" text-anchor="middle" font-size="14" fill="' + (on || doing ? 'var(--bg)' : 'var(--text-dim)') + '">' + gates[i] + '</text>';
+      s += '<text x="' + (x + 55) + '" y="140" text-anchor="middle" font-size="11" fill="' + (on || doing ? 'var(--bg)' : 'var(--text-dim)') + '">' + ['四处听诉求', '翻译成规格', '查四性评审', '盖章封存'][i] + '</text>';
+      if (i < 3) s += '<line x1="' + (x + 110) + '" y1="122" x2="' + (x + 160) + '" y2="122" stroke="var(--text-dim)" stroke-width="2"/>';
+    }
+    var cx0 = 60 + Math.min(act, 4) * 160;
+    s += '<rect x="' + (cx0 - 12) + '" y="66" width="36" height="24" rx="4" fill="var(--ok)"/><text x="' + (cx0 + 6) + '" y="82" text-anchor="middle" font-size="11" fill="var(--bg)">需求</text>';
+    if (t > 0.85 && chg > 0) {
+      for (var k = 0; k < chg; k++) {
+        var y0 = 178 + k * 20;
+        s += '<path d="M 548 ' + (148 + k * 6) + ' C 500 ' + y0 + ', 330 ' + y0 + ', 282 148" fill="none" stroke="var(--bad)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arwR)"/>';
+      }
+      s += '<text x="420" y="' + (196 + chg * 20) + '" text-anchor="middle" font-size="13" fill="var(--bad)">基线后变更 ' + chg + ' 次：每次都要回到分析评审，走变更控制——不控就「需求蔓延」</text>';
+    } else {
+      s += '<text x="360" y="200" text-anchor="middle" font-size="13" fill="var(--text-dim)">诉求书 → 图纸 → 听证会 → 盖章封存：前两步在「开发」，后两步引出「管理」</text>';
+    }
+    if (t >= 0.99) s += '<text x="615" y="86" font-size="20" fill="var(--ok)">🔒</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.25) cap = '获取：访谈/问卷/观察/原型，把诉求听全';
+    else if (t < 0.5) cap = '分析：把「要更安全」翻译成可验证的系统需求';
+    else if (t < 0.75) cap = '确认：正确、一致、完整、可行，逐条评审';
+    else if (t <= 0.99) cap = '基线：评审通过盖章封存，此后改动必须受控';
+    else cap = chg > 0 ? '变更 ' + chg + ' 次：申请→影响分析→审批→更新基线，链条回到分析' : '无变更：基线稳定，跟踪链保持完整';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 10, onTick: draw });
+  var csl = CX.utils.$('chg-slider');
+  csl.addEventListener('input', function () {
+    chg = +csl.value;
+    CX.utils.$('chg-out').textContent = chg + ' 次';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：功能/非功能分类 ---- */
+  (function () {
+    var items = [
+      { t: '系统支持柜员办理转账业务', f: 0, why: '说「能做什么」，是功能需求。' },
+      { t: '查询响应时间不超过 2 秒', f: 1, why: '性能指标=「做得怎么样」，是非功能需求（质量属性）。' },
+      { t: '系统全年可用率不低于 99.9%', f: 1, why: '可用性是质量属性，属非功能需求。' },
+      { t: '用户可以用手机号找回密码', f: 0, why: '一个具体功能，属功能需求。' },
+      { t: '必须部署在国产化服务器上（信创要求）', f: 1, why: '平台/法规类约束，属非功能需求。' },
+      { t: '报表支持导出为 Excel 格式', f: 0, why: '具体功能，属功能需求。' }
+    ];
+    var box = CX.utils.$('cls-list'), idx = 0, right = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>完成！答对 ' + right + '/' + items.length + '。</p>';
+        CX.utils.$('lab1-fb').textContent = right === items.length ? '✅ 全对：功能=能做什么，非功能=做得怎么样+约束。' : '再想想答错的条目：功能说「能做什么」，非功能说「做得怎么样」。';
+        CX.utils.$('lab1-fb').className = right === items.length ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      box.innerHTML = '<p><b>第 ' + (idx + 1) + ' 条：</b>' + items[idx].t + '</p>' +
+        '<button class="btn" data-c="0">功能需求</button> <button class="btn" data-c="1">非功能需求</button>';
+      CX.utils.$$('button[data-c]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var c = +b.getAttribute('data-c'), fb = CX.utils.$('lab1-fb');
+          if (c === items[idx].f) { right++; fb.textContent = '✅ 对：' + items[idx].why; fb.className = 'lab-feedback ok'; }
+          else { fb.textContent = '❌ 判错了——' + items[idx].why; fb.className = 'lab-feedback bad'; }
+          idx++; setTimeout(render, 800);
+        });
+      });
+    }
+    render();
+  })();
+
+  /* ---- 实验二：需求工程活动排序 ---- */
+  (function () {
+    var expect = ['获取：访谈/问卷/观察收集诉求', '分析：翻译成可验证的系统需求', '确认：查正确/一致/完整/可行并评审', '建立基线：规格盖章封存', '变更控制：走申请审批再改基线'];
+    var pool = CX.utils.$('rq-pool'), slot = CX.utils.$('rq-slot');
+    CX.shuffle(expect.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]') || slot.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('rq-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab2-fb');
+      if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      var hints = ['先有素材才有加工：没收集到诉求谈何分析；', '先翻译成规格才能拿去评审；', '评审通过才有资格封存；', '基线建立之后才谈得上「变更控制」；', '封存后的改动都要走申请→评估→审批→更新。'];
+      for (var i = 0; i < 5; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：' + hints[i];
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 顺序正确：获取→分析→确认→基线→变更控制。基线之前是「开发」，基线之后是「管理」。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验三：跟踪链连线匹配 ---- */
+  (function () {
+    var pairs = [['业务需求', '系统需求（可验证规格）'], ['系统需求', '设计元素（模块/接口）'], ['设计元素', '代码单元'], ['代码单元', '测试用例']];
+    var lBox = CX.utils.$('trace-left'), rBox = CX.utils.$('trace-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请点它的直接下游。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个上游制品。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+            CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab3-fb').textContent = '❌ 「' + selL.dataset.k + '」的直接下游不是「' + d.textContent + '」——跟踪链是逐级相邻的：业务→系统→设计→代码→测试。';
+            CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('trace-reset').addEventListener('click', function () { build(); CX.utils.$('lab3-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

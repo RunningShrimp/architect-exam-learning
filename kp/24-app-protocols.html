@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24 · 应用层协议与安全设备 · 架构师学堂</title>
+<meta name="description" content="DNS 是查号台，HTTP 是窗口办事流程，HTTPS 给管道加上锁。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机网络</span><span class="badge freq">考频 ★★★</span><span class="badge diff">难度 ★★</span>
+    <span class="badge dep"><a href="23-tcp-udp.html">前置 23 · TCP与UDP</a></span>
+    <h1>24 · 应用层协议与安全设备</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">DNS 是查号台，HTTP 是窗口办事流程，HTTPS 给管道加上锁——应用层协议定义「问什么」，安全设备决定「谁能过」。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>公司官网改造：运维说「把 DNS 的 TTL 从 24 小时调到 60 秒」，开发问为什么；安全部门要求「对外服务必须过 HTTPS，且数据库服务器不能直接暴露公网」。这两条要求分别动了城市系统里的哪个环节？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>TTL 调短 = 查号台的号码本更新更快——迁移服务器时全城能尽快查到新地址（老地址缓存 60 秒后失效）。HTTPS = 给办事窗口到用户之间的传送带加锁（TLS 加密+身份认证）；数据库不暴露公网 = 把金库搬进内城区，只留 DMZ 区的窗口对外——这就是防火墙分区（安全设备）的职责。两条要求分属<b>应用层协议</b>与<b>网络安全设备</b>两个抓手。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>23 · TCP与UDP</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>应用层协议是「应用之间约定的对话格式」：DNS（域名↔IP）、HTTP/HTTPS（网页与 API）、SMTP/POP3/IMAP（邮件收发）、FTP（文件传输）、DHCP（自动分配 IP）、Telnet/SSH（远程登录）。安全设备则是部署在城市道路上的关卡：防火墙、IDS/IPS、VPN 网关。</p>
+      <h3>解决什么问题</h3>
+      <p>记住 IP 地址不现实 → DNS；网页要统一的请求/响应格式 → HTTP；明文传输可被窃听篡改 → HTTPS（HTTP over TLS）；内网机器太多无法逐一配置地址 → DHCP。安全侧：网络边界需要「按规则放行」→ 防火墙；需要「发现混进城里的坏人」→ IDS/IPS；远程办公要安全接入内网 → VPN。</p>
+      <h3>核心机制</h3>
+      <p><b>DNS 两种查询方式</b>：递归查询（客户端只问一次，服务器负责问到底）与迭代查询（服务器告诉你「下一个该问谁」）。<b>HTTPS = HTTP + TLS</b>：TCP 三次握手后进行 TLS 握手（证书验证身份 + 协商对称密钥），之后数据用对称加密传输——非对称只用在「握手阶段交换密钥」（伏笔→50 密码学）。<b>常用端口</b>：DNS 53、HTTP 80、HTTPS 443、SMTP 25、POP3 110、FTP 20/21、SSH 22、Telnet 23、DHCP 67/68。</p>
+      <table class="tbl">
+        <tr><th>安全设备</th><th>工作层次/方式</th><th>城市比喻</th><th>局限</th></tr>
+        <tr><td>包过滤防火墙</td><td>网络层，按 IP/端口/协议规则放行</td><td>城门查门牌放行</td><td>不看内容，无法防应用层攻击</td></tr>
+        <tr><td>应用网关（代理）防火墙</td><td>应用层，代理全部连接并检查内容</td><td>办事必须经中介全检</td><td>开销大、速度慢</td></tr>
+        <tr><td>状态检测防火墙</td><td>跟踪连接状态动态放行</td><td>记脸熟的智能门卫</td><td>主流方案，成本居中</td></tr>
+        <tr><td>IDS 入侵检测</td><td>旁路监听、报警不阻断</td><td>巡逻哨兵（只喊不拦）</td><td>发现入侵但拦不住</td></tr>
+        <tr><td>IPS 入侵防御</td><td>串联在线、实时阻断</td><td>拦在路中央的关卡</td><td>误拦影响业务</td></tr>
+        <tr><td>VPN 网关</td><td>隧道加密（IPSec/SSL）</td><td>穿越危险地带的加密地道</td><td>依赖密钥管理</td></tr>
+      </table>
+      <h3>关键细节</h3>
+      <p><b>DMZ 区</b>：内网与外网之间的「半信任区」，放对外服务器（Web/邮件）；规则一般是外网可进 DMZ、DMZ 可进部分内网服务、内网可出外网——金库（数据库）不放 DMZ。HTTPS 并非「绝对安全」：它保护传输过程，不保护终端与证书体系之外的钓鱼站点。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①IDS 与 IPS 最易混：<b>旁路=IDS（检测报警），串联=IPS（检测并阻断）</b>；②「包过滤防火墙能防 SQL 注入」是错的——它不看应用内容；③DNS 既可用 UDP 53（常规查询）也可用 TCP 53（区域传送/响应过大）；④HTTPS 握手用的是<b>非对称加密交换密钥</b>，数据传输用的是<b>对称加密</b>——两个阶段别混。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把这套体系放进城市：DNS 是<b>查号台</b>（问「架构师学堂」的总机号）；HTTP 是<b>窗口办事流程</b>（一问一答、无状态）；HTTPS 是给窗口到用户之间的传送带<b>上锁</b>；防火墙是<b>城门岗哨</b>（按门牌放行）；IDS 是<b>巡逻哨兵</b>发现小偷只吹哨；IPS 是<b>路中央的拦截墩</b>直接拦下；VPN 是<b>加密地道</b>让出差员工安全进城办事。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>查号台告诉你总机号并记一段时间</td><td>DNS 解析 + 缓存 TTL</td><td>成立</td></tr>
+      <tr><td>窗口办事不带情绪、办完就忘</td><td>HTTP 无状态</td><td>成立</td></tr>
+      <tr><td>传送带上锁后内容绝对保密</td><td>HTTPS 保密性</td><td><b>失效</b>：锁只保过程，不保两端终端安全与证书信任体系</td></tr>
+      <tr><td>哨兵吹哨后小偷被自动逮捕</td><td>IDS 的阻断能力</td><td><b>失效</b>：IDS 只报警，阻断是 IPS 的活</td></tr>
+    </table>
+    <div class="rhyme">DNS 查号台，缓存 TTL 排；<br>HTTP 办事窗，无状态一把抓；<br>HTTPS 上锁，先证书后密钥；<br>包过滤看门牌，应用网关全检；<br>状态检测记脸熟；IDS 吹哨 IPS 拦，<br>VPN 地道两头钻。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>观察一次「浏览器访问 www.example.com」的完整旅程：查号台（DNS）→ 建连接（TCP）→ 加锁（TLS）→ 办事（HTTP）。拖动「缓存命中」滑块看解析步骤如何被缩短。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>本地 DNS 缓存命中率 <input type="range" id="cache-slider" min="0" max="100" value="0"> <span id="cache-out">0%</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：HTTPS 一次请求的关键步骤排序</h4>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：需求 → 安全设备/协议</h4>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>分层模型（20）给了协议的层位；TCP/UDP（23）是应用协议的承载管道。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「TLS 的锁怎么造」在 <b>50 · 密码学基础</b> 展开（对称/非对称/证书）；</li><li>「关卡怎么布防成体系」在 <b>51 · 网络安全防护体系</b> 展开；</li><li>「无状态的 HTTP 怎么记住登录态」是 <b>37 · 多层架构</b> 会话管理的前置困惑。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>递归查询</th><th>迭代查询</th></tr>
+      <tr><td>差异点</td><td>服务器替你问到底，返回最终结果</td><td>服务器告诉你「下一个问谁」</td></tr>
+      <tr><td>易错点</td><td>以为客户端与根服务器也是递归</td><td>以为本地服务器对根是递归</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">客户端→本地 DNS 通常递归；本地 DNS→根/顶级/权威通常迭代（替你跑腿的是本地 DNS）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——先打查号台问电话，再去窗口办事，传送带上了锁……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 应用协议管「对话格式」：DNS 查号、HTTP 办事、HTTPS 上锁、DHCP 发门牌。</li><li>② 安全设备管「谁能过」：包过滤看门牌、代理全检、状态检测记脸熟；IDS 吹哨、IPS 拦截。</li><li>③ DMZ 放对外窗口、金库进内城；HTTPS 锁的是过程，不是两端。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '24', domain: 'net', loc: 'roads', root: '..',
+  title: '应用层协议与安全设备', prev: '23-tcp-udp.html', prevTitle: '23 · TCP与UDP',
+  next: '25-process-models.html', nextTitle: '25 · 软件过程模型',
+  keywords: ['DNS', 'HTTP', 'HTTPS', '防火墙', 'IDS', 'IPS', 'DMZ', '端口']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·23】HTTPS 的 TLS 握手发生之前，必须先完成什么？',
+    opts: [
+      { t: 'DNS 解析 + TCP 三次握手', why: '对：先拿到 IP（DNS），再建 TCP 连接（握手），才开始 TLS 握手。' },
+      { t: '直接进行 TLS 握手', why: 'TLS 承载在 TCP 之上，没有连接就没有 TLS。' },
+      { t: '发送 HTTP 请求', why: 'HTTP 请求要在 TLS 建立之后才发送，否则是明文。' }
+    ],
+    ans: 0, tag: '回忆:23', src: '仿真题'
+  }], { mode: 'recall' });
+
+  CX.renderQuiz('#quiz-main', [
+    { q: '客户端向本地 DNS 服务器发起查询后，本地 DNS 依次询问根、顶级、权威服务器才得到结果。本地 DNS 对根服务器的查询方式与客户端对本地 DNS 的方式分别是？',
+      opts: [
+        { t: '迭代 / 递归', why: '对：本地 DNS 替客户端跑腿（对客户端是递归服务），它自己逐级问（对上游是迭代）。' },
+        { t: '递归 / 迭代', why: '两者位置弄反了。' },
+        { t: '递归 / 递归', why: '根服务器不替本地 DNS 递归到底。' }
+      ],
+      ans: 0, tag: '机制', src: '仿真题' },
+    { q: '关于 HTTPS，下列说法正确的是？',
+      opts: [
+        { t: '整个通信过程都使用非对称加密', why: '非对称只用于握手交换密钥，数据用对称加密，否则性能不可接受。' },
+        { t: '握手阶段用非对称加密协商对称密钥，数据阶段用对称加密', why: '对：兼顾安全与性能。' },
+        { t: 'HTTPS 可以防止服务器被 DDoS', why: '加密与抗 DDoS 无关。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '能够「实时阻断」攻击行为的安全设备是？',
+      opts: [
+        { t: 'IDS', why: 'IDS 旁路部署只能报警。' },
+        { t: 'IPS', why: '对：IPS 串联在线路中，检测到攻击直接阻断。' },
+        { t: 'VPN 网关', why: 'VPN 负责加密隧道，不负责入侵阻断。' }
+      ],
+      ans: 1, tag: '设备', src: '仿真题' },
+    { q: '【交错复习:23】FTP 的控制连接使用端口 21，数据连接使用 20。端口号在 TCP/UDP 里的作用等同于生活里的什么？',
+      opts: [
+        { t: '城市门牌号', why: '门牌是 IP 地址的比喻。' },
+        { t: '门牌后具体房间的收件人', why: '对：端口标识主机内具体进程，FTP 才能把控制指令与数据分房间收。' },
+        { t: '邮编', why: '邮编不指向具体进程。' }
+      ],
+      ans: 1, tag: '交错复习:23', src: '仿真题' },
+    { q: '某电商网站把 Web 服务器放在 DMZ 区、数据库放在内网。这一布局的主要目的是？',
+      opts: [
+        { t: '提高网页加载速度', why: 'DMZ 是安全分区，与加速无关。' },
+        { t: '即使 Web 服务器被攻破，攻击者也难以直接触达数据库', why: '对：分区隔离+访问控制，把「对外窗口」和「金库」分开。' },
+        { t: '节省公网 IP 费用', why: '与分区目的无关。' }
+      ],
+      ans: 1, tag: '架构', src: '仿真题' }
+  ], { kpId: '24', mode: 'test' });
+
+  CX.renderCase('#case1', {
+    stem: '某公司门户网站计划公网上线，安全部门提出：对外服务全程 HTTPS、Web 服务器置于 DMZ、数据库仅内网可达、部署一套 IDS 与一套 IPS。',
+    q: '(1) 说明 HTTPS 在本场景中提供的两项安全能力与未覆盖的一项风险；(2) 说明 Web 放 DMZ、数据库放内网的防御逻辑；(3) 给出 IDS 与 IPS 的部署位置差异。',
+    ref: '(1) HTTPS 提供机密性（传输加密）与身份认证+完整性（证书验证身份、防中间人篡改）；未覆盖：服务器自身被入侵（应用漏洞/终端安全）与钓鱼站点仿冒之外的内部威胁——加密不等于系统安全；(2) DMZ 是半信任区：外网只能触达 DMZ 的 Web 窗口，即使 Web 被攻破，防火墙策略限制 DMZ→内网仅开放必要端口，数据库（金库）不可从公网直接到达，缩小攻击面；(3) IDS 旁路镜像流量（检测报警，不影响主链路），IPS 串联在关键路径上（实时阻断，需考虑误拦与单点故障）。',
+    points: ['HTTPS 两能力+一风险（不能只说优点）', '分区防御逻辑（攻击面/纵深防御）', 'IDS 旁路 vs IPS 串联'],
+    frame: '答题框架：能力清单→未覆盖风险（体现全面性）→分区逻辑（最小可达）→部署位置与代价。',
+    kpId: '24'
+  });
+  CX.renderCase('#case2', {
+    stem: '迁移机房期间，运维将 DNS TTL 从 24 小时改为 60 秒；迁移完成后忘记改回。三个月后 DNS 服务器 QPS 是原来的 8 倍。',
+    q: '解释 TTL 与 QPS 的关系，并说明 TTL 设置过长/过短各自的代价。',
+    ref: 'TTL 是 DNS 记录在各级缓存中的存活时间：TTL 越长缓存复用越多、权威服务器查询越少；60 秒意味着全城查号台 1 分钟就要重问一次，权威 DNS QPS 放大 8 倍符合预期。过长的代价：变更（迁移/故障切换）传播慢，旧地址可能继续被访问数小时；过短的代价：权威 DNS 压力大、解析时延与故障面上升。实践：变更前提前调短，稳定后调回平衡值（如 300~3600 秒）。',
+    points: ['TTL 与缓存复用、QPS 的量化关系', '过长的故障切换代价', '过短的压力代价与工程实践'],
+    frame: '答题框架：机制解释→双向代价→给出工程实践参数与理由。',
+    kpId: '24'
+  });
+
+  CX.renderQuiz('#quiz-variant', [{
+    q: '内网数千台机器不手工配 IP，开机自动获得地址与网关——把「自动发门牌」换个场景再考一次：负责这一服务的协议是？',
+    opts: [
+      { t: 'DHCP', why: '对：DHCP 自动分配 IP/掩码/网关/DNS，端口 67/68，先到先得租约制。' },
+      { t: 'DNS', why: 'DNS 管名字→地址翻译，不管分配。' },
+      { t: 'FTP', why: '文件传输协议，与地址分配无关。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '24', mode: 'variant' });
+
+  CX.depChain('#bridge-prev', ['20', '23'], 'prev');
+  CX.depChain('#bridge-next', ['37', '50', '51'], 'next');
+
+  /* ---- 动画：一次 HTTPS 访问的旅程 ---- */
+  var cacheHit = 0;
+  var stage = CX.utils.$('demo1-stage');
+  var steps = [
+    { t: '① 浏览器问本地 DNS：www.example.com 的门牌号？', hit: '⚡ 本地缓存命中，跳过后续解析！' },
+    { t: '② 本地 DNS（未命中）→ 根 / 顶级 / 权威 迭代查询', hit: '⚡ 缓存命中则 ②③④ 全部跳过' },
+    { t: '③ 权威服务器返回 IP：93.184.216.34（TTL 内缓存）', hit: '⚡ 已从缓存拿到 IP' },
+    { t: '④ 浏览器与服务器 TCP 三次握手（端口 443）', hit: null },
+    { t: '⑤ TLS 握手：验证证书（查号台认证的招牌）+ 协商对称密钥', hit: null },
+    { t: '⑥ HTTP 请求经加密管道往返，窗口办事完成 🎉', hit: null }
+  ];
+  function draw(t) {
+    var idx = Math.min(steps.length - 1, Math.floor(t * steps.length));
+    var hit = cacheHit >= 100 && idx >= 1 && idx <= 3;
+    var s = '<svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="680" height="250" rx="12" fill="var(--bg-soft)"/>';
+    var nodes = [
+      { x: 80, y: 60, label: '💻 浏览器' },
+      { x: 250, y: 60, label: '🏠 本地DNS' },
+      { x: 420, y: 60, label: '🌐 权威DNS' },
+      { x: 590, y: 60, label: '🏬 Web服务器' }
+    ];
+    nodes.forEach(function (n) {
+      s += '<rect x="' + (n.x - 46) + '" y="' + (n.y - 20) + '" width="92" height="40" rx="9" fill="var(--card)" stroke="var(--line)"/>';
+      s += '<text x="' + n.x + '" y="' + (n.y + 5) + '" text-anchor="middle" font-size="12" fill="var(--text)">' + n.label + '</text>';
+    });
+    var flowIdx = hit ? 0 : idx;
+    var arrowY = 130;
+    var seq = [[80, 250], [250, 420], [420, 590], [590, 590], [590, 80]];
+    for (var i = 0; i < Math.min(flowIdx + 1, 5); i++) {
+      var a = seq[i];
+      var col = i >= 4 ? 'var(--ok)' : 'var(--accent-2)';
+      if (i >= 4 && flowIdx === 3) col = 'var(--ok)';
+      s += '<line x1="' + (a[0] + 20) + '" y1="' + (arrowY + i * 16) + '" x2="' + (a[1] - 20) + '" y2="' + (arrowY + i * 16) + '" stroke="' + col + '" stroke-width="2.2" marker-end="url(#arrf)" opacity="' + (i === flowIdx || i === 4 ? 1 : .45) + '"/>';
+    }
+    s += '<defs><marker id="arrf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent-2)"/></marker></defs>';
+    var cur = steps[idx];
+    s += '<text x="340" y="215" text-anchor="middle" font-size="13" fill="var(--text)">' + (hit ? cur.hit : cur.t) + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', hit ? '缓存命中：②③④ 跳过，旅程缩短（这就是 TTL 的价值与代价）' : cur.t);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 12, onTick: draw });
+  var cs = CX.utils.$('cache-slider');
+  cs.addEventListener('input', function () {
+    cacheHit = parseInt(cs.value, 10);
+    CX.utils.$('cache-out').textContent = cs.value + '%';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：HTTPS 步骤排序 ---- */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var expect = ['① DNS 解析拿到服务器 IP', '② 与服务器 443 端口完成 TCP 三次握手', '③ TLS 握手：验证证书并协商对称密钥', '④ 用对称密钥加密发送 HTTP 请求', '⑤ 服务器加密返回响应，浏览器渲染'];
+  CX.shuffle(expect.slice()).forEach(function (tx) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = tx; d.dataset.t = tx;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', tx); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var tx = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + tx + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== expect[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：先有地址（DNS）才有连接（TCP），先有连接才能加锁（TLS），先加锁才能送密文（HTTP）。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：查号 → 连线 → 上锁 → 密文办事。顺序乱了就会明文裸奔或无处可连。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：需求→设备配对 ---- */
+  var pairs = [['发现入侵并报警，不阻断业务', 'IDS（旁路巡逻哨）'], ['实时拦截攻击流量', 'IPS（串联关卡）'], ['员工远程安全接入内网', 'VPN（加密地道）'], ['按 IP 和端口放行访客', '包过滤防火墙（查门牌）'], ['对外 Web 服务器隔离区', 'DMZ（半信任区）']];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.style.borderColor = ''; });
+        d.style.borderColor = 'var(--accent)'; selL = { k: p[0] };
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点对应设备。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个需求。'; return; }
+        if (selL.k === d.dataset.v) {
+          d.style.opacity = .35; d.style.borderColor = 'var(--ok)';
+          selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 不匹配——关键在「旁路只喊 vs 串联能拦」「按门牌 vs 查内容」，回知识卡片看设备表。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

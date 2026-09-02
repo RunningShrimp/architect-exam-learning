@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>60 · AI与大模型架构 · 架构师学堂</title>
+<meta name="description" content="训练是建厂、推理是开工，大模型服务要靠缓存、分流和算力调度撑住。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🌆 未来新城</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="59-bigdata.html">前置 59</a></span>
+    <h1>60 · AI 与大模型架构</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">训练是建厂、推理是开工，服务靠缓存分流与算力调度。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>公司决定上「大模型智能客服」。立项会上老板连问三枪：① 直接调个大模型 API 不就完了？② 它把退款政策编得有鼻子有眼（其实是胡说），客户拿着截图来投诉，怎么办？③ 高峰期五千人同时问，显卡只有十张，怎么办？你是架构师——直接回答这三枪，还是先承认「大模型≠客服系统」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>三枪各有对策，合起来才是「智能客服架构」：① 直接调 API 只解决了「会说话」，没解决「说得对、说得稳、说得便宜」——需要<b>模型服务化 + 分流</b>（80% 高频重复问题用 FAQ（常见问题集）缓存与小模型承接）。② 胡说叫<b>幻觉</b>，生成模型的机制性副作用：用 <b>RAG 检索增强</b>——先去知识库把相关政策原文查出来拼进提示词，让模型「照着资料答」，查不到就<b>拒答转人工</b>。③ 算力不够靠架构而非堆卡：<b>意图识别分流 + 相似问题缓存 + GPU 算力池统一调度 + 批处理推理</b>。记住：模型是参谋，架构才是让参谋稳定上岗的那套班子。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>59 · 大数据架构</b>（大模型的语料与特征就养在大数据管道里）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：机器学习三范式</h3>
+      <table class="tbl">
+        <tr><th>范式</th><th>怎么学</th><th>典型例子</th></tr>
+        <tr><td><b>监督学习</b></td><td>拿「题目+标准答案」（标注数据）学，最常见</td><td>垃圾邮件识别（分类）、房价预测（回归）</td></tr>
+        <tr><td><b>无监督学习</b></td><td>没有标签，自己找结构与规律</td><td>用户分群聚类、降维、异常检测</td></tr>
+        <tr><td><b>强化学习</b></td><td>试错+奖励反馈，在环境里摸出策略</td><td>棋类 AI 自我对弈、机器人控制、推荐调优</td></tr>
+      </table>
+      <p>一句话记：监督是<b>师傅带徒弟对答案</b>，无监督是<b>自己分堆找规律</b>，强化是<b>下场练球靠输赢长记性</b>。</p>
+      <h3>AI 工程流程：数据到监控的闭环</h3>
+      <p><b>数据采集 → 清洗标注 → 特征工程 → 模型训练 → 评估验证 → 部署上线 → 监控迭代</b>。两条铁律：① 数据质量决定模型上限——垃圾进垃圾出；② 上线不是终点——真实数据的分布会漂移（用户变了、市场变了），模型会退化，必须监控指标并触发再训练，形成闭环。</p>
+      <h3>训练 vs 推理：建厂与开工</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>训练（建厂）</th><th>推理（开工）</th></tr>
+        <tr><td>任务性质</td><td>一次性/周期性大作业，离线批处理</td><td>长期在线服务，7×24 响应用户</td></tr>
+        <tr><td>资源形态</td><td>GPU 集群整块占用，跑完释放</td><td>常驻服务，显存长期被模型占着</td></tr>
+        <tr><td>核心指标</td><td>精度/收敛速度/训练吞吐</td><td><b>时延、吞吐、成本</b>（单次调用价格）</td></tr>
+        <tr><td>架构手段</td><td>分布式训练（数据并行/模型并行）、GPU 算力池统一调度</td><td>模型服务化、请求批处理、KV/相似问题缓存、分流降级、弹性伸缩</td></tr>
+      </table>
+      <p>易被忽略的账：训练是一次性投入，<b>推理成本长期占大头</b>（每天千万次调用 × 电费与卡折旧），所以推理架构是性价比的主战场。</p>
+      <h3>大模型四要点</h3>
+      <p>① <b>Transformer 与注意力机制</b>（一句话版）：模型读每个词时会「环顾全文」，给相关的词分配不同权重（自注意力），因此能捕捉长距离上下文。② <b>预训练+微调</b>：先在海量无标注文本上预训练出通用语言能力，再用少量领域数据微调（或提示工程、指令微调）上岗——「通才先读书，再上岗位培训班」。③ <b>RAG 检索增强生成</b>：回答前先去知识库检索相关资料拼入上下文，让模型「照资料答」——治幻觉、知识随时可更新、不必重训模型；查不到就拒答。④ <b>Agent 智能体</b>：给参谋配手脚——规划任务、调用外部工具（查库、下单、发邮件）、带记忆地多步执行。</p>
+      <h3>端云协同部署（伏笔 → 61 页）</h3>
+      <p>云端大模型能力强但时延与带宽受限；端侧/边缘侧部署小模型（蒸馏、量化后）可离线运行、保护隐私。典型分工：<b>端侧小模型做实时简单任务，云端大模型做复杂任务</b>，端云协同才是完整答案——与 61 页云边端协同一脉相承。</p>
+      <h3>「智能客服系统」架构素材（论文可整段复用）</h3>
+      <p><b>接入层</b>（APP/网页/电话多渠道统一接入）→ <b>网关</b>（鉴权、限流、防刷）→ <b>意图识别</b>（规则+小模型，把「查订单」类高频简单意图直接走 FAQ/缓存）→ <b>大模型推理服务</b>（GPU 池、请求批处理、超时降级）→ <b>RAG 知识库</b>（政策文档向量化入库，先检索后生成）→ <b>合规层</b>（敏感词过滤、答案溯源展示）→ <b>人工兜底</b>（低置信度/高风险会话转人工）→ <b>数据回流</b>（会话与人工纠正结果回流入库，用于再训练与评估）。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>Fine-tuning（微调）· RAG（Retrieval-Augmented Generation，检索增强生成）· Inference（推理）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 幻觉不是「修个 bug 就没了」：它源于生成机制（模型在「续写最像的话」，不是在「查证」），只能靠 RAG、拒答、答案溯源等架构手段压制；② 「大模型=数据库」是错的——它会生成不存在的事实，事实性必须外挂知识库；③ 训练贵≠推理便宜，推理是长期成本大头；④ 评估不是上线前做一次：数据漂移会让模型「悄悄变笨」；⑤ 分流的第一层是意图识别，不是所有请求都值得动用大模型——高频简单问题先被 FAQ 拦下才是省钱关键；⑥ 端云协同不是「端上放个大模型」，端侧跑的是蒸馏/量化后的小模型。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>未来新城里，<b>AI=规划参谋部</b>。<b>三范式</b>是参谋的三种成长方式：监督学习=师傅带着对答案（每道题都有标准答案）；无监督=发一堆资料让他自己归类找规律；强化=下场练球，赢了表扬输了复盘。<b>训练=参谋进修</b>：脱产几个月、集中营式苦读（GPU 集群整块占用）；<b>推理=上岗值班</b>：每天接待无数来访，回答要快、要稳、便宜（在线服务，时延吞吐成本）。<b>RAG=先查档案馆再回答</b>：参谋再博学也会记错政策，回答前先去中央档案馆把文件原文翻出来摆在桌上，照着答——文件更新了，参谋不用重新上学。<b>Agent=给参谋配手脚</b>：不但出主意，还能亲自查系统、下工单、订会议室。<b>端云协同</b>：社区服务站（端侧小模型）处理小病小痛，疑难杂症转总部参谋部（云端大模型）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>对答案学/分堆学/输赢学</td><td>监督/无监督/强化学习</td><td>成立</td></tr>
+      <tr><td>进修脱产 vs 上岗值班</td><td>训练离线整占 vs 推理在线常驻</td><td>成立</td></tr>
+      <tr><td>先查档案馆再回答</td><td>RAG 检索增强生成</td><td>成立</td></tr>
+      <tr><td>参谋进修一次终身受用</td><td>模型训完就一劳永逸</td><td><b>失效</b>：数据分布会漂移，模型会退化，必须监控与再训练闭环</td></tr>
+    </table>
+    <div class="rhyme">监督对答案，无监督分堆站；<br>强化靠输赢，试错慢慢换；<br>训练建工厂，推理开门店；<br>先查档案馆，回答不乱编；<br>Agent 配手脚，端云手两片。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画让同一个问题走两条车道：<b>上车道</b>是大模型「凭记忆直答」（流畅但可能幻觉），<b>下车道</b>是 RAG「先查档案馆再回答」。拖动「知识库命中率」滑块，看资料堆高度与示意正确率如何随检索质量变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>知识库命中率 <input type="range" id="hit-slider" min="0" max="100" step="5" value="70"> <span id="hit-out">70%</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把 AI 工程流程排对</h4>
+      <p class="foreshadow">从原始数据到持续在线，六步排顺序——提示：先有数据，后有模型；上线之后还没完：</p>
+      <div id="a-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="a-slot"></div>
+      <button class="btn" id="a-check">检查顺序</button>
+      <button class="btn" id="a-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：范式与技术 ↔ 典型例子</h4>
+      <p class="foreshadow">先点左列一个术语，再点右列对应例子：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="p-left"></div>
+        <div id="p-right"></div>
+      </div>
+      <button class="btn" id="p-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：推理成本计算器（示意单价）</h4>
+      <p class="foreshadow">假设：7B 小模型（参数量约 70 亿）单卡日处理约 5 万次请求，70B 大模型（参数量约 700 亿）约 8 千次（示意值）；单卡全包成本约 1.5 万元/月（示意单价）。缓存命中的请求不再占用 GPU。拖动滑块对账：</p>
+      <label>日请求量 <input type="range" id="q-slider" min="1" max="200" step="1" value="30"> <span id="q-out">30</span> 万次</label><br>
+      <label>缓存/FAQ 命中率 <input type="range" id="c-slider" min="0" max="80" step="5" value="40"> <span id="c-out">40%</span></label><br>
+      <label>模型档位 <input type="range" id="m-slider" min="0" max="1" step="1" value="1"> <span id="m-out">70B 大模型</span></label>
+      <div class="kf-caption" id="g-calc"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「检索增强 vs 直接生成」：</p>
+    <div id="quiz-variant"></div>
+    <h3>📌 论文素材角</h3>
+    <div class="callout"><span class="t">✍️ 论文写作素材，需结合自身项目改写</span>
+      <ul>
+        <li>论点句式：「针对客服场景的幻觉风险，采用 RAG 检索增强生成：先将政策文档向量化入库，回答前检索相关片段拼入上下文，要求模型『照资料作答』并展示出处；对检索不到依据的问题配置拒答与人工兜底，使事实性错误率显著下降（数值请用你自己项目的数据）。」</li>
+        <li>论点句式：「训练是建厂、推理是开工。我们将模型服务化并接入统一 GPU 算力池，通过意图分流让约八成高频重复问题由 FAQ 缓存与小模型承接，大模型只处理长尾复杂问题，单次会话推理成本下降约一半（需结合自身项目改写）。」</li>
+        <li>项目情景模板：智能客服 / 企业知识库问答 / 辅助写作助手。论证主线：背景 → 大模型直接上线的三宗罪（幻觉、成本、合规）→ 分层架构设计 → 量化收益（时延、成本、准确率）→ 遗留问题（数据飞轮建设与持续评估）。</li>
+        <li>论点句式：「建立『采集-标注-训练-评估-监控』闭环：上线后持续监控数据漂移与业务指标，指标劣化自动触发再训练与灰度回归，避免模型随业务演化而退化。」</li>
+        <li>备考提示：大模型类论文的采分点在「工程化」——服务化、分流、缓存、算力调度、监控评估；写成模型科普文拿不到分。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>59 · 大数据架构</b>：大模型的训练语料、特征与 RAG 知识库都养在大数据管道里——数据湖管「生料入库」，Lambda/Kappa 管「管道输送」，没有它 AI 就是无米之炊。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>61 · 物联网与边缘计算</b>：端侧小模型+云端大模型是「云边端协同」的一种——端云协同部署在那里展开；</li>
+      <li><b>43 · 质量属性战术</b>：推理服务的限流、降级、缓存本质是性能与可用性战术在 AI 场景的落地。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>训练（Training）</th><th>推理（Inference）</th></tr>
+      <tr><td>性质</td><td>离线大作业：用数据「调」出模型参数</td><td>在线服务：用固定参数响应用户请求</td></tr>
+      <tr><td>核心指标</td><td>精度、收敛速度、训练吞吐</td><td>时延、吞吐、单次调用成本</td></tr>
+      <tr><td>易错点</td><td>以为训完就一劳永逸——数据漂移会让模型退化</td><td>以为推理是「小钱」——每天千万次调用，长期成本往往超过训练</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">训练是建厂（一次投入大），推理是开工（天天运转、成本细水长流）——工厂建得再好，开工省钱才是经营日常。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——公司请了一位很会说的参谋，但他有时会一本正经地编答案……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 三范式各记一个例子：监督=垃圾邮件识别、无监督=用户分群、强化=自我对弈；工程主线是「数据→训练→评估→部署→监控」的闭环，数据质量决定上限。</li><li>② 训练是建厂（离线、整占 GPU、看精度），推理是开工（在线、常驻、看时延吞吐成本）；推理靠服务化、批处理、缓存、分流、算力池省钱提速。</li><li>③ 大模型四要点：注意力机制一句话（读每个词时环顾全文分配权重）、预训练+微调、RAG 先查档案馆再回答（治幻觉免重训）、Agent 给参谋配手脚；端云协同=端侧小模型+云端大模型。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '60', domain: 'trend', loc: 'newtown', root: '..',
+  title: 'AI与大模型架构',
+  prev: '59-bigdata.html', prevTitle: '59 · 大数据架构',
+  next: '61-iot-edge.html', nextTitle: '61 · 物联网与边缘计算',
+  keywords: ['机器学习', '监督学习', '强化学习', '训练', '推理', 'RAG', '大模型', 'Agent']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 59） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·59】大模型训练要用海量原始语料：网页文本、扫描件、音视频转写……格式五花八门，还要随时追加。按 59 页口径，这些「生料」最适合先放哪？',
+    opts: [
+      { t: '数据仓库：先建好星型模型再写入', why: '数仓 schema-on-write，建模周期长，装不下非结构化生料。' },
+      { t: '数据湖：原始多格式先存（schema-on-read），用时再定义', why: '对。水库什么水都蓄——训练语料的灵活接入正对数据湖的定位。' },
+      { t: '直接放消息队列里', why: '消息队列是传输管道，不是长期存储语料的仓库。' }
+    ],
+    ans: 1, tag: '回忆:59', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    {
+      q: '某团队让棋类 AI 与自己反复对弈，赢棋得分、输棋扣分，逐渐摸出高胜率下法。这是哪类学习范式？',
+      opts: [
+        { t: '监督学习', why: '监督学习靠标注好的「标准答案」，不是靠对局输赢反馈。' },
+        { t: '无监督学习', why: '无监督是给无标签数据找结构，与环境交互试错的不是它。' },
+        { t: '强化学习：试错+奖励反馈中学习策略', why: '对。自我对弈、以输赢为奖励信号是强化学习的教科书场景。' }
+      ],
+      ans: 2, tag: '三范式', src: '仿真题'
+    },
+    {
+      q: '大促期间大模型客服响应从 1.5s 劣化到 9s，GPU 利用率打满。从「推理架构」角度，最先该做的组合是？',
+      opts: [
+        { t: '立刻重新训练一个更大的模型', why: '训练是「建厂」，远水不解近渴，且更大模型推理更贵更慢。' },
+        { t: '意图分流让高频问题走 FAQ/缓存 + 扩充推理副本（算力池调度）+ 超时降级', why: '对。推理要保时延吞吐：分流减负、水平扩容、降级保底，是推理架构三板斧。' },
+        { t: '把知识库文档删掉一半', why: '知识库规模不是时延瓶颈主因，删文档还伤质量。' }
+      ],
+      ans: 1, tag: '推理架构', src: '仿真题'
+    },
+    {
+      q: '关于 RAG（检索增强生成）的作用，说法最准确的是？',
+      opts: [
+        { t: '让模型参数变得更大更聪明', why: 'RAG 不改模型参数，它改的是「答题前能看到什么资料」。' },
+        { t: '治幻觉、知识可随库更新，不必重训模型', why: '对。先检索资料拼上下文再生成，事实性外挂给知识库，库更新即可。' },
+        { t: '替代人工客服彻底免维护', why: 'RAG 治不了「检索不到/资料本身错」，仍需兜底与知识库治理。' }
+      ],
+      ans: 1, tag: 'RAG', src: '仿真题'
+    },
+    {
+      q: '【交错复习·59】RAG 知识库要「每天增量灌入新政策文档、支持按语义检索」，底层建设最贴近 59 页哪个思路？',
+      opts: [
+        { t: 'Lambda 的批流两条腿：增量实时入库（流）+ 定期全量重建索引（批）', why: '对。新文档实时可查、索引定期重算校准，正是批流协同思想的复用。' },
+        { t: '把所有文档堆进一张 MySQL 表', why: '语义检索要向量索引与管道，不是一张表能装下的场景。' },
+        { t: '只存文件路径不存内容', why: '检索必须对内容建索引，路径无从查起。' }
+      ],
+      ans: 0, tag: '交错复习:59', src: '仿真题'
+    },
+    {
+      q: '【交错复习·39】推理服务容器化部署后，大促流量涨 8 倍时希望「副本数自动跟着涨」。39 页哪项机制正对口？',
+      opts: [
+        { t: 'K8s 的 HPA 弹性伸缩：按负载指标自动增减副本', why: '对。云原生的弹性伸缩直接复用到模型服务——大模型推理的并发波动比传统服务更猛。' },
+        { t: 'IaaS 租一台裸金属', why: '裸机不含编排，不会自动伸缩。' },
+        { t: '把超时阈值调大', why: '那是掩盖过载，不是吸收流量。' }
+      ],
+      ans: 0, tag: '交错复习:39', src: '仿真题'
+    }
+  ], { kpId: '60', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某 2C 电商要上大模型智能客服：日均 30 万次咨询，其中约 80% 是「查订单、退换货政策」类高频重复问题；要求首响 <2 秒、涉资金与敏感问题必须合规可控、复杂纠纷转人工；此前直接调用大模型 API 试用，出现「编造退款政策」的截图投诉。',
+    q: '(1) 设计该智能客服系统的分层架构（说明各层职责）；(2) 针对幻觉问题给出治理方案；(3) 给出高并发与成本控制手段；(4) 列出上线后应监控的核心指标。',
+    ref: '(1) 分层架构：接入层（多渠道统一接入）→ 网关（鉴权限流防刷）→ 意图识别层（规则+小模型分类，高频简单意图直接命中 FAQ/缓存返回）→ 大模型推理服务（GPU 算力池、请求批处理、超时降级）→ RAG 知识库层（政策文档向量化，先检索后生成并展示出处）→ 合规层（敏感词/资金类问题过滤拦截）→ 人工兜底（低置信度与高风险会话转人工）→ 数据回流（会话日志与人工纠正结果入库，支撑再训练与评测）。(2) 幻觉治理：①RAG 强制「照资料作答」，答案附引用出处；②检索不到依据时拒答并转人工，不猜；③知识库治理：文档版本管理、过期政策下线、定期抽检问答质量；④资金与合规类问题走规则引擎而非自由生成。(3) 并发与成本：意图分流让约 80% 高频问题不进大模型；相似问题缓存（语义缓存）；GPU 算力池统一调度 + 弹性伸缩；请求批处理提高吞吐；非高峰任务错峰；模型量化/蒸馏降配小模型承接简单任务。(4) 监控指标：首响时延 P95/P99（95%/99% 分位响应时间）、解决率/转人工率、幻觉抽检错误率、检索命中率、GPU 利用率与排队长度、单位会话成本、用户满意度（CSAT）。',
+    points: ['分层架构完整且职责清晰（接入/分流/推理/RAG/合规/兜底/回流至少六层）', '幻觉治理成体系：RAG+出处+拒答+规则兜底+知识库治理，而非单点', '成本手段与 80% 高频重复的题面对应（分流/缓存/算力池/批处理）', '监控指标覆盖体验（时延）、质量（幻觉/命中率）、成本（GPU/单会话成本）三类'],
+    frame: '答题框架：分层架构图式作答（逐层职责一句话）→ 治理方案（针对题面每个痛点）→ 成本并发（量化到「哪些流量不进大模型」）→ 指标收尾。此架构可整体迁移到论文。',
+    kpId: '60'
+  });
+  CX.renderCase('#case2', {
+    stem: '某公司三个算法团队各自为政：A 团队独占 20 张 GPU 月均利用率仅 30%，B 团队训练要排队两周，C 团队临时任务抢不到卡。管理层问：明明卡不少，为什么又浪费又不够用？',
+    q: '(1) 从资源管理角度指出三个病因；(2) 设计统一 GPU 算力池方案（调度、配额、抢占）；(3) 说明训练任务与在线推理服务混布在同一池的风险与对策。',
+    ref: '(1) 病因：①资源独占缺乏共享——各团队圈地，闲置无法调剂；②缺乏统一调度——没有全局队列与优先级，忙闲不均；③缺乏计量与配额——用多用少无成本核算，加剧圈地。(2) 算力池方案：物理 GPU 池化统一纳管，容器化封装训练任务；建多级队列与配额（保底配额+弹性共享），按优先级调度；支持抢占与检查点：低优先级任务可被高优先级抢占，抢占前保存断点续训；任务粒度计量计费，利用率看板公开；预留弹性窗口给临时任务。(3) 混布风险与对策：风险——在线推理对时延敏感，训练任务吞吐贪婪，混跑易互相干扰（显存碎片、争抢算力导致推理长尾时延恶化）。对策：在线与离线物理/逻辑隔离（独立池或独立卡）；若必须混布，用独立显存划分与算力配额、在线任务高优先级 + 离线任务可抢占，并做压测验证 P99 时延不劣化。',
+    points: ['三个病因指向「共享/调度/计量」而非「卡不够」', '方案覆盖池化纳管、队列配额、抢占与断点续训、计量看板', '混布风险点到「时延互相干扰/显存碎片」并给出隔离与优先级对策'],
+    frame: '答题框架：现象归因（管理机制缺位）→ 机制设计（池化+队列+抢占+计量）→ 混布专项风险收尾，体现「算力也是架构资源」的视角。',
+    kpId: '60'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '企业内部「制度问答助手」要求：答案必须基于公司最新版制度文件，制度每周更新，且绝不允许模型凭记忆发挥。架构上最对口的方案是？',
+    opts: [
+      { t: '换更大的模型重新预训练', why: '预训练改通用能力，且周周重训不现实、也保证不了不发挥。' },
+      { t: 'RAG：制度文件向量化入库，先检索最新版原文再生成，检索不到就拒答', why: '对。同一个概念换到企业知识库场景——外挂知识库+照资料答+拒答兜底。' },
+      { t: '把制度文件全文塞进提示词', why: '上下文窗口装不下全量制度，且成本高、检索精度无从谈起。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '60', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['59'], 'prev');
+  CX.depChain('#bridge-next', ['61'], 'next');
+
+  /* ---- 动画：直答 vs RAG 双车道 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var HIT = 70; /* 知识库命中率 % */
+  function box(x, y, w, h, label, stroke, fill, extra) {
+    var s = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="9" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.5"/>';
+    var lines = String(label).split('|');
+    var cy = y + h / 2 - (lines.length - 1) * 8 + 4;
+    for (var i = 0; i < lines.length; i++) {
+      s += '<text x="' + (x + w / 2) + '" y="' + (cy + i * 16) + '" text-anchor="middle" font-size="12" fill="var(--text)">' + lines[i] + '</text>';
+    }
+    if (extra) s += extra;
+    return s;
+  }
+  function dot(x, y, color, label) {
+    return '<circle cx="' + x + '" cy="' + y + '" r="7" fill="' + color + '"/>' +
+      '<text x="' + x + '" y="' + (y - 12) + '" text-anchor="middle" font-size="11" fill="' + color + '">' + label + '</text>';
+  }
+  function draw(t) {
+    var ragCorrect = Math.round(HIT * 0.92 + (100 - HIT) * 0.58);
+    var s = '<svg viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="350" rx="12" fill="var(--bg-soft)"/>';
+    /* 上车道：直答 */
+    s += '<text x="36" y="30" font-size="12" fill="var(--accent-2)" font-weight="bold">车道A：大模型凭记忆直答</text>';
+    s += '<line x1="150" y1="88" x2="740" y2="88" stroke="var(--line)" stroke-width="2" stroke-dasharray="5 5"/>';
+    s += box(30, 58, 110, 60, '用户|提问', 'var(--line)', 'var(--card)');
+    s += box(250, 58, 170, 60, '大模型·参谋部|（只靠「记忆」）', 'var(--bad)', 'var(--card)');
+    s += box(600, 58, 140, 60, '流畅回答|但可能幻觉', 'var(--bad)', 'var(--card)');
+    var pA = Math.min(1, t / 0.45);
+    var stopsA = [150, 250, 430, 600, 640];
+    var posA = stopsA[0] + pA * (stopsA[4] - stopsA[0]);
+    s += dot(posA, 88, 'var(--bad)', pA >= 1 ? '已答' : '问题');
+    /* 下车道：RAG */
+    s += '<text x="36" y="170" font-size="12" fill="var(--accent-2)" font-weight="bold">车道B：RAG 先查档案馆再回答</text>';
+    s += '<line x1="150" y1="238" x2="740" y2="238" stroke="var(--line)" stroke-width="2" stroke-dasharray="5 5"/>';
+    s += box(30, 208, 110, 60, '用户|提问', 'var(--line)', 'var(--card)');
+    s += box(250, 208, 170, 60, '向量检索·档案馆|（查政策原文）', 'var(--accent)', 'var(--card)');
+    /* 检索到的资料堆高度 ∝ 命中率（位于档案馆框下方空地） */
+    var stack = 4 + Math.round(HIT / 100 * 22);
+    s += '<rect x="300" y="' + (296 - stack) + '" width="34" height="' + stack + '" rx="3" fill="var(--accent)" opacity=".6"/>';
+    s += '<text x="342" y="' + (294 - stack) + '" font-size="10" fill="var(--accent)">命中 ' + HIT + '%</text>';
+    s += box(400, 208, 80, 60, '拼|上下文', 'var(--accent)', 'var(--card)');
+    s += box(560, 208, 130, 60, '大模型·照资料答', 'var(--ok)', 'var(--card)');
+    s += box(700, 208, 40, 60, '', 'var(--ok)', 'var(--card)');
+    s += '<text x="720" y="242" text-anchor="middle" font-size="11" fill="var(--ok)">✓</text>';
+    var pB = Math.max(0, Math.min(1, (t - 0.5) / 0.5));
+    var posB = 150 + pB * (740 - 150);
+    s += dot(posB, 238, 'var(--ok)', '问题');
+    /* 底部读数 */
+    s += '<text x="380" y="310" text-anchor="middle" font-size="13" fill="var(--text)">示意正确率：直答 ≈60% ｜ RAG ≈' + ragCorrect + '%（命中率 ' + HIT + '%）</text>';
+    s += '<text x="380" y="332" text-anchor="middle" font-size="11" fill="var(--text-dim)">示意数据，仅用于教学 · 制度更新时：改知识库即可，不必重训模型</text>';
+    s += '</svg>';
+    var cap;
+    if (t < 0.12) cap = '同一个问题同时进入两条车道——A 靠记忆，B 靠档案，这就是「直接调 API」与「RAG 架构」的分水岭。';
+    else if (t < 0.45) cap = '车道A：模型凭训练时的「记忆」生成——流畅，但记忆可能过时甚至虚构，这就是幻觉。';
+    else if (t < 0.62) cap = '车道B：先去档案馆（向量检索知识库）——把政策原文找出来，堆高度就是你配的命中率。';
+    else if (t < 0.85) cap = '把检索到的资料拼进上下文，要求模型「照资料答」——事实性外挂给了知识库。';
+    else cap = 'RAG 的答案有出处可查：命中率越高越准；知识更新只改库不改模型——这就是它治幻觉的原理。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var hs = CX.utils.$('#hit-slider');
+  hs.addEventListener('input', function () {
+    HIT = +hs.value;
+    CX.utils.$('#hit-out').textContent = HIT + '%';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：流程排序 ---- */
+  var steps = ['数据采集与清洗', '标注与特征工程', '模型训练', '评估验证（指标/过拟合）', '部署上线（服务化）', '监控与迭代'];
+  var aPool = CX.utils.$('#a-pool'), aSlot = CX.utils.$('#a-slot');
+  function buildA() {
+    aPool.innerHTML = ''; aSlot.innerHTML = '';
+    CX.utils.$('#lab1-fb').textContent = '';
+    CX.shuffle(steps.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      aPool.appendChild(d);
+    });
+  }
+  buildA();
+  aSlot.addEventListener('dragover', function (e) { e.preventDefault(); aSlot.classList.add('hot'); });
+  aSlot.addEventListener('dragleave', function () { aSlot.classList.remove('hot'); });
+  aSlot.addEventListener('drop', function (e) {
+    e.preventDefault(); aSlot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = null;
+    var all = document.querySelectorAll('#a-pool .drag-item, #a-slot .drag-item');
+    for (var k = 0; k < all.length; k++) { if (all[k].textContent === t) { src = all[k]; break; } }
+    if (src) aSlot.appendChild(src);
+  });
+  CX.utils.$('#a-reset').addEventListener('click', buildA);
+  CX.utils.$('#a-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(aSlot.children, function (c) { return c.textContent; });
+    var fb = CX.utils.$('#lab1-fb');
+    if (got.length < 6) { fb.textContent = '还有 ' + (6 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 6; i++) {
+      if (got[i] !== steps[i]) {
+        var hint = (i === 0) ? '一切从数据开始：没有干净数据，后面全白干。'
+          : (got[i] === '模型训练' && i < 2) ? '还没标注特征就训练，是无米之炊。'
+          : (steps[i] === '评估验证（指标/过拟合）') ? '训练完不评估就上线，等于不开验收直接入住。'
+          : (steps[i] === '监控与迭代') ? '上线不是终点：数据会漂移，模型会退化，监控闭环才算完。' : '回忆主线：数据 → 特征 → 训练 → 评估 → 上线 → 监控。';
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」，这里应该是「' + steps[i] + '」。「' + got[i] + '」' + hint;
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 顺序正确！数据→特征→训练→评估→上线→监控，闭环最后一环是再训练。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs2 = [
+    ['监督学习', '垃圾邮件识别（有标签）'],
+    ['无监督学习', '用户分群（无标签找结构）'],
+    ['强化学习', '棋类 AI 自我对弈靠输赢'],
+    ['RAG', '先查档案馆再回答'],
+    ['Agent', '给参谋配手脚：规划+调工具']
+  ];
+  var lBox = CX.utils.$('#p-left'), rBox = CX.utils.$('#p-right');
+  var selL = null, doneN = 0;
+  function buildP() {
+    selL = null; doneN = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('#lab2-fb').textContent = '';
+    pairs2.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的例子。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs2).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        var fb = CX.utils.$('#lab2-fb');
+        if (!selL) { fb.textContent = '先点左列一个术语。'; fb.className = 'lab-feedback'; return; }
+        if (selL.textContent === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; doneN++;
+          fb.textContent = '✅ 配对成功 ' + doneN + '/5'; fb.className = 'lab-feedback ok';
+        } else {
+          fb.textContent = '❌「' + selL.textContent + '」不对应「' + d.textContent + '」——三范式看「怎么学」，RAG/Agent 看「架构角色」，再想想。';
+          fb.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildP();
+  CX.utils.$('#p-reset').addEventListener('click', buildP);
+
+  /* ---- 实验三：推理成本计算器 ---- */
+  var qS = CX.utils.$('#q-slider'), cS = CX.utils.$('#c-slider'), mS = CX.utils.$('#m-slider');
+  function calc() {
+    var reqWan = +qS.value, hit = +cS.value, big = mS.value === '1';
+    CX.utils.$('#q-out').textContent = reqWan;
+    CX.utils.$('#c-out').textContent = hit + '%';
+    CX.utils.$('#m-out').textContent = big ? '70B 大模型' : '7B 小模型';
+    var cap1 = big ? 8000 : 50000;           /* 单卡日处理能力（示意） */
+    var perCard = 1.5;                       /* 万元/卡/月（示意） */
+    var valid = reqWan * 10000 * (1 - hit / 100);
+    var cards = Math.ceil(valid / cap1);
+    var cost = cards * perCard;
+    var noHitCards = Math.ceil(reqWan * 10000 / cap1);
+    CX.utils.$('#g-calc').textContent = '有效请求 ' + Math.round(valid).toLocaleString() + ' 次/日 → 需要 ' + cards + ' 张卡 → 月成本约 ' + cost.toFixed(1) + ' 万元（无缓存需 ' + noHitCards + ' 张卡）';
+    var fb = CX.utils.$('#lab3-fb');
+    var saved = noHitCards - cards;
+    if (hit >= 40) {
+      fb.textContent = '✅ 命中率 ' + hit + '% 已为你省下 ' + saved + ' 张卡（约 ' + (saved * perCard).toFixed(1) + ' 万元/月）——这就是「意图分流+语义缓存」的价值：别让大模型回答它答过一百遍的问题。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      fb.textContent = '⚠️ 命中率不足 ' + hit + '%，几乎每条请求都在烧 GPU。先建 FAQ 与语义缓存、把高频问题拦在大模型之前，再谈扩容。';
+      fb.className = 'lab-feedback bad';
+    }
+    if (big && cards > 20) fb.textContent += ' 另外：70B 大模型吞吐低，考虑蒸馏/量化小模型承接简单任务。';
+  }
+  calc();
+  [qS, cS, mS].forEach(function (sl) { sl.addEventListener('input', calc); });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

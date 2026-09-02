@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12 · 分页分段与虚拟内存 · 架构师学堂</title>
+<meta name="description" content="虚拟内存让每个程序以为独占整座城市，页表负责把假地址翻译成真地址。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">操作系统 · 🏛️ 市政厅</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="05-cache-memory.html">前置 05</a></span>
+    <h1>12 · 分页分段与虚拟内存</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">页表把假地址翻译成真地址，缺页才进城调页，置换算法定缺页率。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>一台 8GB 内存的开发机，同时跑着总申请内存 20GB 的十几个容器和 IDE，居然都能正常运行，只是偶尔卡顿。free 命令显示物理内存早满了，但磁盘上的 swap 分区很忙。问题：8GB 怎么装下 20GB？「偶尔卡顿」又卡在哪？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>每个进程拿到的是<b>虚拟地址空间</b>——它以为自己独占整座城市的地址编号；真正装进物理内存的只是<b>当前活跃的那部分页</b>，其余放在磁盘（swap）里，用到时经<b>缺页中断</b>调入。这是「部分装入+按需调页」的<b>虚拟内存</b>机制。偶尔卡顿正是缺页：要访问的页不在内存，得从磁盘读入——磁盘比内存慢十万倍量级，一次缺页就是一次明显停顿。程序整体能跑，靠的是 <b>局部性原理</b>：任意时刻只活跃着页集合的一小角。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>05 · 存储层次与Cache</b>（虚拟内存就是「主存—磁盘」这一层的同款设计）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><b>虚拟内存（Virtual Memory）</b>= 程序只部分装入内存即可运行 + 运行中按需调页 + 内存不够时置换。它让每个进程活在统一的「假地址」（逻辑/虚拟地址）里，由<b>页表</b>负责把假地址翻译成真地址（物理块号+页内偏移）。这一层「主存↔磁盘」的调度，与 05 页「Cache↔主存」同构，共同的地基都是<b>局部性原理</b>。</p>
+      <h3>解决什么问题</h3>
+      <p>物理内存装不下所有程序；连续分配又产生大量碎片、程序大小受物理内存硬约束。分页把内存切成等长页框「按页装填」，虚拟内存进一步允许「先装一部分」，程序大小不再受物理内存限制，多道程序度也上去了。</p>
+      <h3>核心机制：三种存储管理方式对比</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>分页</th><th>分段</th><th>段页式</th></tr>
+        <tr><td>划分单位</td><td>等大小的页（物理切，对用户透明）</td><td>不等长的段（按逻辑意义切）</td><td>先分段，段内再分页</td></tr>
+        <tr><td>地址结构</td><td>一维：页号 + 页内偏移</td><td>二维：段号 + 段内偏移</td><td>二维：段号 + 段内页号 + 页内偏移</td></tr>
+        <tr><td>越界检查</td><td>偏移必小于页长，不用查</td><td>必须查「偏移 &lt; 段长」</td><td>查段长，再查页表</td></tr>
+        <tr><td>典型碎片</td><td>页内碎片（内部碎片）</td><td>段间外部碎片</td><td>页内碎片</td></tr>
+        <tr><td>目的</td><td>提高内存利用率（系统视角）</td><td>模块化、共享与保护（用户视角）</td><td>两者兼得</td></tr>
+      </table>
+      <h3>核心机制：地址翻译与缺页</h3>
+      <p><b>页式翻译公式：物理地址 = 块号 × 页大小 + 页内偏移</b>（页内偏移原样照抄）。页号 = 逻辑地址 ÷ 页大小取整。查页表前先查<b>快表 TLB</b>（Translation Lookaside Buffer，页表项的高速缓存）：命中省一次访存。要访问的页不在内存时硬件发<b>缺页中断</b>——它与一般中断有三点不同：在指令执行<b>期间</b>产生并立即处理、一条指令可能引发多次缺页、属内中断。操作系统调页入内存，必要时按置换算法淘汰一页。</p>
+      <h3>核心机制：置换算法</h3>
+      <table class="tbl">
+        <tr><th>算法</th><th>淘汰谁</th><th>要点</th></tr>
+        <tr><td>OPT 最佳</td><td>以后最长时间不再用的页</td><td>需要预知未来，无法实现，作性能基准</td></tr>
+        <tr><td>FIFO 先进先出</td><td>最早进入内存的页</td><td>实现简单；有 <b>Belady 异常</b>（物理块加多缺页反而可能变多）</td></tr>
+        <tr><td>LRU 最近最久未用</td><td>最长时间没被访问的页</td><td>看「过去」近似 OPT；开销大（要记访问时间戳）</td></tr>
+        <tr><td>CLOCK（NRU 近似）</td><td>引用位为 0 的页（二次机会）</td><td>给每页一个引用位，循环扫描：1 清 0 跳过，0 淘汰</td></tr>
+      </table>
+      <p><b>缺页率 = 缺页次数 ÷ 访问总次数</b>。有效访问时间 EAT ≈ (1−p)×内存访问时间 + p×缺页处理时间（教材口径，忽略快表时）；p 稍大 EAT 就爆炸，因为缺页处理是一次磁盘 I/O。</p>
+      <h3>关键细节：抖动（颠簸，Thrashing）</h3>
+      <p>分配给进程的物理块数少于它的<b>工作集</b>（当前活跃页集合）时，刚换出的页马上又要用，页面在内存和磁盘之间来回搬，CPU 几乎全在等缺页 I/O——利用率骤降。对策：按工作集分配物理块、降低多道程序度、加内存或优化程序局部性。</p>
+      <h3>专业英语小贴士</h3>
+      <p>Virtual Memory（虚拟内存）、Page Fault（缺页/缺页中断）、TLB = Translation Lookaside Buffer（快表/旁路缓冲）。英语题干中「resident set」指驻留集（分到的物理块集合）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>
+        ① 物理地址 = <b>块号</b>（查页表得来）× 页大小 + 偏移；偏移<b>原样照抄</b>，别拿页号去乘。<br>
+        ② Belady 异常是 <b>FIFO 独有</b>：物理块从 3 加到 4，缺页可能反而更多；LRU/OPT 没有此病。<br>
+        ③ 段式地址是<b>二维</b>的（段号，段内偏移），两个二维地址相加没有意义——这是段式与页式最经典的判别点。<br>
+        ④ 快表 EAT 要分「命中/未命中」两条路径分别加权，未命中路径里 TLB 时间与内存访问时间是<b>累加</b>的。
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🏛️ 市政厅的<b>地址翻译处</b>：每个商户拿到的门牌号都是「假地址」，从 1 开始随便编（虚拟地址空间）；翻译处案头有一本对照表（页表），把假门牌翻成仓库里的真货位（物理块号+偏移）。案头还压着一张<b>常用速查卡</b>（快表 TLB），翻得飞快。要找的货还没运进城（<b>缺页</b>），就派人从城外档案馆调货（磁盘 I/O）；仓库货架满了，先撤「最久没人动」的货（置换）。如果一批货进城刚上架就被撤下、下一秒又要进城——装卸口就被自家货堵死了（<b>抖动</b>）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>假门牌号</td><td>虚拟地址</td><td>成立</td></tr>
+      <tr><td>翻译处的对照表</td><td>页表</td><td>成立</td></tr>
+      <tr><td>案头速查卡</td><td>快表 TLB</td><td>成立</td></tr>
+      <tr><td>货不在城里，进城调货</td><td>缺页中断 + 请求调页</td><td>成立</td></tr>
+      <tr><td>最久没人动的货先撤</td><td>LRU 置换</td><td>成立</td></tr>
+      <tr><td>「调一次货和从货架拿货差不多快」</td><td>（错误类比）</td><td><b>失效边界</b>：磁盘 I/O 比内存访问慢约十万倍量级，一次缺页一次停顿——类比在这里断掉</td></tr>
+    </table>
+    <div class="rhyme">页等长、段有义，段号页号偏移齐；<br>快表一站慢表二，缺页中断进城取；<br>队首先让是 FIFO，最久没动 LRU 淘；<br>块多缺页本该少，FIFO 偏闹 Belady。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画逐个访问页面访问串 1,2,3,4,1,2,5,1,2,3,4,5，实时显示物理块内容、命中/缺页与累计缺页率。用滑块调<b>物理块数</b>、用按钮切<b>置换算法</b>，亲手找出 FIFO 的 Belady 异常（块 3→4 时缺页 9→10）。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>物理块数 <input type="range" id="demo1-f" min="3" max="5" step="1" value="3"> <span id="demo1-f-out">3</span></label>
+      <span id="demo1-algo">
+        <button class="btn" data-algo="FIFO">FIFO</button>
+        <button class="btn" data-algo="LRU">LRU</button>
+        <button class="btn" data-algo="CLOCK">CLOCK</button>
+        <button class="btn" data-algo="OPT">OPT(基准)</button>
+      </span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（分步翻译）：把逻辑地址翻译成物理地址</h4>
+      <p class="foreshadow">页大小 4KB（4096B）。页表：页 0→块 10，页 1→块 25，页 2→块 15，页 3→块 9。任务：翻译逻辑地址 <b>8639</b>。<b>第一步</b>：点选它的页号：</p>
+      <div id="mm-page-btns"></div>
+      <p id="mm-step2" style="display:none"><b>第二步</b>：填物理地址（块号 × 页大小 + 页内偏移）：<input type="number" id="mm-phy" style="width:120px"> <button class="btn" id="mm-check">检查</button></p>
+      <button class="btn" id="mm-reset">重做</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（你来置换）：FIFO 淘汰哪一页？</h4>
+      <p class="foreshadow">物理块 3 个，访问串 <b>1,2,3,4,1,2,5,1</b>。前 3 次直接装入；此后每次缺页由你点击「淘汰哪一页」，做错会告诉你错在哪：</p>
+      <p>访问进度：<b id="pf-progress">—</b></p>
+      <div id="pf-frames"></div>
+      <p>点击要淘汰的页：</p>
+      <div id="pf-btns"></div>
+      <button class="btn" id="pf-reset">重做</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（计算自测）：缺页率与 Belady 异常</h4>
+      <p class="foreshadow">基于实验二：8 次访问共缺页 <b>7</b> 次。</p>
+      <p>① 缺页率是多少？（填百分数数值，如 50 表示 50%）<input type="number" id="rt-rate" style="width:90px"> <button class="btn" id="rt-check1">检查①</button></p>
+      <p>② 物理块从 3 个加到 4 个、仍用 FIFO 访问完整串 1,2,3,4,1,2,5,1,2,3,4,5，缺页次数一定减少吗？
+        <button class="btn" id="rt-yes">一定减少</button>
+        <button class="btn" id="rt-no">不一定</button>
+        <button class="btn" id="rt-why" style="display:none">看解释</button></p>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>05 · 存储层次与Cache：局部性原理、命中率与平均访问时间的算法口径、LRU 淘汰——虚拟内存把整套「层次换容量」的思想从 Cache↔主存推广到主存↔磁盘，只是速度差从十倍放大到十万倍量级。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>13 · 文件系统与设备管理：缺页调度的「磁盘那头」就是文件系统与磁盘调度——页往哪个磁道读，由下一页的 SCAN 决定；</li>
+      <li>19 · 分布式数据库：把「本地装不下就放远处、用时调来」推广到数据分片与缓存场景。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>分页</th><th>分段</th></tr>
+      <tr><td>差异点</td><td>等大小物理切分，一维地址，对用户透明</td><td>按逻辑意义切分，二维地址（段号+段内偏移）</td></tr>
+      <tr><td>易错点</td><td>页内偏移天然不会越界</td><td>必须检查「段内偏移 &lt; 段长」，否则非法地址</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">分页是「机器切馅饼，块块一样大」，分段是「按菜式切菜，长短看用途」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——你的书桌放不下所有课本，桌上只放今天要用的几本……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3">
+      <li>① 虚拟内存 = 部分装入 + 请求调页 + 置换；页表负责「假地址→真地址」，快表用局部性原理给翻译提速。</li>
+      <li>② 物理地址 = 块号×页大小+偏移（偏移照抄）；段式地址是二维的且要查段长，段页式兼取两家。</li>
+      <li>③ 置换看缺页率：LRU 看过去近似 OPT，FIFO 简单但有 Belady 异常；缺页率高到磁盘忙、CPU 闲就是抖动。</li>
+    </ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '12', domain: 'os', loc: 'govhall', root: '..',
+  title: '分页分段与虚拟内存',
+  prev: '11-deadlock.html', prevTitle: '11 · 死锁',
+  next: '13-fs-device.html', nextTitle: '13 · 文件系统与设备管理',
+  keywords: ['虚拟内存', '页表', '快表', '缺页中断', 'LRU', 'FIFO', '缺页率', '抖动']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---------- 回忆题（前置 05） ---------- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·05】Cache 能够用小容量挡住大流量，依据的根本性质是？',
+    opts: [
+      { t: '程序指令都很短', why: '与指令长短无关。' },
+      { t: '局部性原理：刚访问过的数据与其邻近数据很可能马上再被访问', why: '对：时间局部性+空间局部性。下一页你会看到：主存↔磁盘的页面调度靠的也是它。' },
+      { t: 'Cache 比内存便宜', why: '恰恰相反，越快越贵。' }
+    ],
+    ans: 1, tag: '回忆:05', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---------- 随堂 5 题 ---------- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '页大小 1KB（1024B）。页表：页 0→块 2，页 1→块 4，页 2→块 6，页 3→块 8。逻辑地址 2500 的物理地址是？',
+      opts: [
+        { t: '6596', why: '对：2500 ÷ 1024 = 2 余 452，页号 2 查表得块 6，物理地址 = 6×1024 + 452 = 6596。偏移 452 原样照抄。' },
+        { t: '8652', why: '把页号算成了 3：3×1024 = 3072 已超过 2500，页号不可能大于 2。' },
+        { t: '6144', why: '只用块号乘了页大小，把页内偏移 452 弄丢了。' },
+        { t: '2500', why: '拿逻辑地址当物理地址——页号 2 和块号 6 不是同一个数，必须查页表。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '访问串 1,2,3,4,1,2,5,1,2,3,4,5，分配 3 个物理块，用 LRU 置换，缺页次数与缺页率约为？',
+      opts: [
+        { t: '9 次，75%', why: '9 次是 FIFO 的结果，LRU 在这串上是 10 次——别把算法记混。' },
+        { t: '10 次，约 83.3%', why: '对：LRU 淘汰「最久未访问」的页，全程缺页 10 次，缺页率 = 10/12 ≈ 83.3%。' },
+        { t: '7 次，约 58.3%', why: '7 次是 OPT（理论基准）的成绩，现实算法达不到。' },
+        { t: '12 次，100%', why: '命中率不会为零：1、2、5 等页有多次命中机会。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '段页式存储管理中，逻辑地址的结构是？',
+      opts: [
+        { t: '（页号，页内偏移）', why: '这是纯分页的一维地址结构。' },
+        { t: '（段号，段内偏移）', why: '这是纯分段的二维地址结构，段内偏移直接是位移量。' },
+        { t: '（段号，段内页号，页内偏移）', why: '对：段页式先按逻辑分段、段内再等长分页，翻译要查两次表——先段表得页表基址，再查该段页表得块号。' },
+        { t: '连续的一维物理地址', why: '物理地址才是最终一维结果，逻辑地址在段页式下必须是三维结构。' }
+      ],
+      ans: 2, tag: '概念', src: '仿真题' },
+    { q: '【交错复习:05】页面置换 LRU 与 Cache 行淘汰 LRU 名字相同、思想同源。LRU 判定「淘汰谁」的依据是？',
+      opts: [
+        { t: '谁最早进入内存/缓存就淘汰谁', why: '那是 FIFO 的口径；LRU 不看进入时间，看访问时间。' },
+        { t: '谁最长时间没有被访问过就淘汰谁', why: '对：LRU = 最近最久未使用。05 页的类比是「便利店货架最久没人买的先下架」——页面与 Cache 行在这里完全同构。' },
+        { t: '谁被访问的次数最少就淘汰谁', why: '那是 LFU（最不经常使用）的口径，统计的是频率不是新旧。' },
+        { t: '随机挑一页淘汰', why: '随机置换存在但与 LRU 无关。' }
+      ],
+      ans: 1, tag: '交错复习:05', src: '仿真题' },
+    { q: '关于 Belady 异常，正确的说法是？',
+      opts: [
+        { t: '所有置换算法都会出现「物理块加多、缺页反而变多」', why: 'LRU 与 OPT 属于「栈算法」，物理块加多缺页单调不增；有此异常的只有 FIFO 一类。' },
+        { t: '只有 FIFO 会出现：物理块从 3 个加到 4 个，同一访问串的缺页次数反而可能增加', why: '对：FIFO 淘汰只看进入顺序，与访问热度无关，块数变化会扰乱淘汰序列——这正是题串 3 块 9 次、4 块 10 次的反常。' },
+        { t: '它指缺页率随访问串变长而增大', why: '访问串变长缺页次数自然变多，那是正常现象不是异常。' },
+        { t: '它是抖动的别称', why: '抖动是物理块不足导致页面高频换入换出，与 Belady 异常是两回事。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' }
+  ], { kpId: '12', mode: 'test' });
+
+  /* ---------- 案例分析 ---------- */
+  CX.renderCase('#case1', {
+    stem: '某 32 位系统：逻辑地址空间 32 位，页大小 4KB，页表项 4B，页表需常驻内存且连续存放。引入快表后：TLB 访问 20ns，命中率 90%，访问主存一次 100ns（忽略缺页与其他开销）。',
+    q: '(1) 该进程的页表有多大？为什么这个尺寸会成为问题？(2) 计算引入 TLB 后的有效访问时间 EAT（写清命中/未命中两条路径）。(3) 针对 (1) 的问题给出两种主流改进并说明原理。',
+    ref: '(1) 页数 = 2^32 / 2^12 = 2^20 页；页表大小 = 2^20 × 4B = 4MB。问题：每个进程都要一块 4MB 且必须连续的内存来放页表，还要常驻，多进程下既费内存又加重碎片。(2) 命中路径：查 TLB 20ns + 访存 100ns = 120ns；未命中路径：查 TLB 20ns + 查页表 100ns + 访存 100ns = 220ns。EAT = 0.9×120 + 0.1×220 = 108 + 22 = 130ns。(3) 改进一：多级页表——把页表切块，页目录常驻、二级页表按需分配与调入，不必连续也不必整表常驻；改进二：大页（如 4MB 页）——页数减少页表随之缩小，TLB 覆盖范围也变大。两者本质都是「用层次与粒度换表的大小」。',
+    points: ['页数与页表大小的计算链完整：2^20 页 × 4B = 4MB', 'EAT 分命中/未命中两条路径分别加权，未命中路径三段时间相加', '指出单级页表「连续 + 常驻」的两大缺陷', '两种改进都说到位：多级页表按需分配、大页减少表项与 TLB 压力'],
+    frame: '答题框架：列参数 → 依次算页数、表长 → 分「命中/未命中」两条路径算 EAT 加权 → 从「表太大且要连续」引出多级页表/大页 → 收尾回到局部性解释为什么快表有效。',
+    kpId: '12'
+  });
+  CX.renderCase('#case2', {
+    stem: '某数据分析服务在数据量翻倍后：CPU 利用率从 70% 跌到 3%，磁盘 I/O 饱和，内存占用顶到上限，页面换入换出极频繁。运维先给机器加了 8 个 CPU 核心，指标毫无改善。',
+    q: '(1) 判断该服务出了什么问题，给出判断依据；(2) 从工作集与多道程序度的角度解释成因；(3) 给出三条不同层次的对策，并解释为什么「加 CPU」无效。',
+    ref: '(1) 抖动（颠簸，Thrashing）。依据是特征组合：CPU 极闲 + 磁盘极忙 + 页面高频换入换出——CPU 大部分时间在等缺页 I/O。(2) 数据量翻倍后进程的工作集（当前活跃页集合）变大，超过分配给它的物理块数：刚换出的页马上又要访问，每次访问都可能缺页；系统层面多道程序度过高，物理内存被摊得更薄，所有进程一起缺页。(3) 对策：①按工作集模型调度——为进程分配不小于其工作集的物理块，工作集之外的页换出；②降低多道程序度——挂起/换出部分进程，把内存集中给活跃进程；③增加内存，或改造程序提高局部性（数据分块处理、改变遍历顺序）。加 CPU 无效：瓶颈在「等磁盘换页」的 I/O 链路上，算力根本不是当前短板。',
+    points: ['用「CPU 低 + 磁盘忙 + 换页频繁」的组合特征定性为抖动', '用工作集超过物理块、多道程序度过高解释成因，而非笼统说内存不足', '对策分层次：给够物理块 / 降并发 / 增资源与优化局部性', '解释加 CPU 无效的原因（瓶颈在缺页 I/O）'],
+    frame: '答题框架：现象定性 → 机理归因（工作集/多道度）→ 对策分层展开 → 回应题干中的错误决策并给出正确的监控指标（缺页率、磁盘等待占比）。',
+    kpId: '12'
+  });
+
+  /* ---------- 变式迁移 ---------- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '小区快递柜只有 4 个格子：新快递到时若柜满，管理员把「最久没人取的那件」寄回仓库；居民凭取件码取件。把快递柜类比页式虚拟内存，「缺页」对应什么？',
+    opts: [
+      { t: '格子满了要寄走一件', why: '那是「置换/淘汰」环节。' },
+      { t: '凭取件码取件', why: '那是正常的「命中」访问。' },
+      { t: '要取的件不在柜里，必须去仓库调回来', why: '对：缺页 = 要访问的页不在内存，需从磁盘（仓库）调入——调回要占用时间，正如缺页要一次磁盘 I/O。' },
+      { t: '管理员登记快递单号', why: '登记更像是页表维护，不是缺页。' }
+    ],
+    ans: 2, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---------- 概念桥 ---------- */
+  CX.depChain('#bridge-prev', ['05'], 'prev');
+  CX.depChain('#bridge-next', ['13'], 'next');
+
+  /* ---------- 置换算法模拟 ---------- */
+  var REFS = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5];
+  var ALGO = 'FIFO';
+  var NF = 3;
+  var stage = CX.utils.$('demo1-stage');
+  function simulate(algo, nf, refs) {
+    var steps = [], faults = 0;
+    var frames = [];      /* {p, bit}；FIFO/LRU：下标 0 = 将被淘汰者 */
+    var clock = [], ptr = 0;
+    for (var i = 0; i < refs.length; i++) {
+      var pg = refs[i];
+      var rec = { page: pg, fault: false, frames: [], evicted: null, ptr: 0, note: '' };
+      if (algo === 'CLOCK') {
+        var hit = -1;
+        for (var j = 0; j < clock.length; j++) { if (clock[j].p === pg) { hit = j; break; } }
+        if (hit >= 0) { clock[hit].bit = 1; rec.note = '命中：引用位已是/置为 1'; }
+        else {
+          rec.fault = true; faults++;
+          if (clock.length < nf) { clock.push({ p: pg, bit: 1 }); rec.note = '缺页：还有空位，直接装入（引用位=1）'; }
+          else {
+            for (;;) {
+              if (clock[ptr].bit === 0) {
+                rec.evicted = clock[ptr].p;
+                clock[ptr] = { p: pg, bit: 1 };
+                ptr = (ptr + 1) % nf;
+                rec.note = '缺页：扫描到引用位为 0 的页，淘汰并装入';
+                break;
+              }
+              clock[ptr].bit = 0;
+              ptr = (ptr + 1) % nf;
+            }
+          }
+        }
+        rec.frames = clock.map(function (c) { return { p: c.p, bit: c.bit }; });
+        rec.ptr = ptr;
+      } else {
+        var idx = -1;
+        for (var k = 0; k < frames.length; k++) { if (frames[k].p === pg) { idx = k; break; } }
+        if (idx >= 0) {
+          if (algo === 'LRU') { frames.push(frames.splice(idx, 1)[0]); }
+          rec.note = '命中';
+        } else {
+          rec.fault = true; faults++;
+          if (frames.length < nf) { frames.push({ p: pg, bit: 0 }); rec.note = '缺页：还有空位，直接装入'; }
+          else {
+            var victim;
+            if (algo === 'FIFO') { victim = frames.shift().p; }
+            else if (algo === 'LRU') { victim = frames.shift().p; }
+            else {
+              var far = -1, best = 0;
+              for (var m = 0; m < frames.length; m++) {
+                var nxt = refs.indexOf(frames[m].p, i + 1);
+                if (nxt === -1) nxt = 9999;
+                if (nxt > far) { far = nxt; best = m; }
+              }
+              victim = frames[best].p;
+              frames.splice(best, 1);
+            }
+            frames.push({ p: pg, bit: 0 });
+            rec.evicted = victim;
+            rec.note = '缺页：淘汰页 ' + victim;
+          }
+        }
+        rec.frames = frames.map(function (f) { return { p: f.p, bit: f.bit }; });
+      }
+      steps.push(rec);
+    }
+    return { steps: steps, faults: faults };
+  }
+  function faultsSoFar(steps, idx) {
+    var n = 0;
+    for (var i = 0; i <= idx; i++) { if (steps[i].fault) n++; }
+    return n;
+  }
+  function draw(t) {
+    var sim = simulate(ALGO, NF, REFS);
+    var idx = Math.min(REFS.length - 1, Math.floor(t * REFS.length));
+    var rec = sim.steps[idx];
+    var soFar = faultsSoFar(sim.steps, idx);
+    var rate = ((soFar / (idx + 1)) * 100).toFixed(0);
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="页面置换动画">';
+    s += '<defs><marker id="arw3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent-2)"/></marker></defs>';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="30" y="34" font-size="12" fill="var(--text-dim)">访问串（当前高亮）</text>';
+    for (var i = 0; i < REFS.length; i++) {
+      var cx = 30 + i * 55;
+      var cur = i === idx;
+      var past = i < idx;
+      var isFault = past && sim.steps[i].fault;
+      s += '<rect x="' + cx + '" y="44" width="40" height="34" rx="8" fill="' + (cur ? 'var(--accent-2)' : (isFault ? 'var(--bad)' : (past ? 'var(--ok)' : 'var(--card)'))) + '" opacity="' + (past || cur ? '.9' : '.5') + '" stroke="var(--line)"/>';
+      s += '<text x="' + (cx + 20) + '" y="67" text-anchor="middle" font-size="15" font-weight="bold" fill="' + (cur ? 'var(--bg)' : 'var(--text)') + '">' + REFS[i] + '</text>';
+    }
+    s += '<text x="30" y="122" font-size="12" fill="var(--text-dim)">物理块（' + NF + ' 个）' + (ALGO === 'FIFO' ? ' · 左侧=最早进入（下一个淘汰）' : (ALGO === 'LRU' ? ' · 左侧=最久未用（下一个淘汰）' : (ALGO === 'CLOCK' ? ' · 角标=引用位，箭头=当前指针' : ' · 角标=引用位（OPT 仅作基准）'))) + '</text>';
+    for (var b = 0; b < NF; b++) {
+      var bx = 30 + b * 110;
+      s += '<rect x="' + bx + '" y="134" width="90" height="60" rx="10" fill="var(--card)" stroke="var(--line)" stroke-width="2"/>';
+      if (b < rec.frames.length) {
+        s += '<text x="' + (bx + 45) + '" y="172" text-anchor="middle" font-size="20" font-weight="bold" fill="var(--text)">' + rec.frames[b].p + '</text>';
+        if (ALGO === 'CLOCK' || ALGO === 'OPT') {
+          s += '<text x="' + (bx + 76) + '" y="152" text-anchor="middle" font-size="10" fill="var(--accent)">' + rec.frames[b].bit + '</text>';
+        }
+      } else {
+        s += '<text x="' + (bx + 45) + '" y="170" text-anchor="middle" font-size="11" fill="var(--text-dim)">空</text>';
+      }
+    }
+    if (ALGO === 'CLOCK' && rec.frames.length === NF) {
+      var px = 30 + rec.ptr * 110;
+      s += '<path d="M ' + (px + 45) + ' 250 L ' + (px + 45) + ' 202" stroke="var(--accent-2)" stroke-width="2" marker-end="url(#arw3)"/>';
+    }
+    if (rec.evicted != null) {
+      s += '<text x="400" y="172" font-size="14" fill="var(--bad)" font-weight="bold">淘汰页 ' + rec.evicted + '</text>';
+    }
+    s += '<text x="30" y="262" font-size="13" fill="var(--text)">已访问 ' + (idx + 1) + '/' + REFS.length + ' · 缺页 ' + soFar + ' 次 · 缺页率 ' + rate + '%</text>';
+    s += '<text x="30" y="286" font-size="11" fill="var(--text-dim)">提示：FIFO 块 3 缺 9 次，块 4 反而缺 10 次（Belady 异常）——换滑块试试</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + (idx + 1) + '/' + REFS.length + ' 步 · 访问页 ' + rec.page + '：' + (rec.fault ? '缺页' : '命中') + '，' + rec.note);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 24, onTick: draw });
+  function refreshAlgoBtns() {
+    CX.utils.$$('#demo1-algo .btn').forEach(function (b) {
+      b.style.borderColor = b.getAttribute('data-algo') === ALGO ? 'var(--accent-2)' : '';
+      b.style.color = b.getAttribute('data-algo') === ALGO ? 'var(--accent-2)' : '';
+    });
+  }
+  var fSlider = CX.utils.$('demo1-f');
+  fSlider.addEventListener('input', function () {
+    NF = parseInt(fSlider.value, 10);
+    CX.utils.$('demo1-f-out').textContent = NF;
+    draw(anim.t);
+  });
+  CX.utils.$$('#demo1-algo .btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ALGO = b.getAttribute('data-algo');
+      refreshAlgoBtns();
+      draw(anim.t);
+    });
+  });
+  refreshAlgoBtns();
+
+  /* ---------- 实验一：地址翻译 ---------- */
+  var mmPage = -1;
+  function mmReset() {
+    mmPage = -1;
+    CX.utils.$('lab1-fb').textContent = ''; CX.utils.$('lab1-fb').className = 'lab-feedback';
+    CX.utils.$('mm-step2').style.display = 'none';
+    CX.utils.$('mm-phy').value = '';
+    var box = CX.utils.$('mm-page-btns');
+    box.innerHTML = '';
+    for (var p = 0; p <= 3; p++) {
+      (function (pg) {
+        var b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = '页号 ' + pg;
+        b.addEventListener('click', function () { mmPickPage(pg); });
+        box.appendChild(b);
+      })(p);
+    }
+  }
+  function mmPickPage(pg) {
+    var fb = CX.utils.$('lab1-fb');
+    if (pg !== 2) {
+      fb.textContent = '❌ 第一步就错了：页号 = 逻辑地址 ÷ 页大小 再取整数部分。8639 ÷ 4096 = 2 余 447——商是页号，页号应为 2（页号 3 需要 12288 以上）。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    mmPage = pg;
+    fb.textContent = '✅ 页号 = 2（8639 ÷ 4096 商 2 余 447，页内偏移 = 447）。第二步：页 2 在页表里对应块 15，请填物理地址。';
+    fb.className = 'lab-feedback ok';
+    CX.utils.$('mm-step2').style.display = '';
+  }
+  CX.utils.$('mm-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    if (mmPage < 0) { fb.textContent = '先完成第一步（选页号）。'; fb.className = 'lab-feedback bad'; return; }
+    var v = parseInt(CX.utils.$('mm-phy').value, 10);
+    if (isNaN(v)) { fb.textContent = '请输入数字形式的物理地址。'; fb.className = 'lab-feedback bad'; return; }
+    if (v !== 15 * 4096 + 447) {
+      fb.textContent = '❌ 页号对了（页 2 → 块 15），但物理地址 = 块号 × 页大小 + 页内偏移 = 15 × 4096 + 447。检查一下：偏移 447 要原样照抄，乘的是块号 15 不是页号 2。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    fb.textContent = '✅ 8639 → 页 2 → 块 15 → 15×4096+447 = 61887。记住两条：商是页号、余数照抄。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('mm-reset').addEventListener('click', mmReset);
+  mmReset();
+
+  /* ---------- 实验二：FIFO 淘汰选择 ---------- */
+  var PF_REFS = [1, 2, 3, 4, 1, 2, 5, 1];
+  var pfFrames, pfIdx, pfFaults, pfDone;
+  function pfReset() {
+    pfFrames = []; pfIdx = 0; pfFaults = 0; pfDone = [];
+    CX.utils.$('lab2-fb').textContent = ''; CX.utils.$('lab2-fb').className = 'lab-feedback';
+    pfAdvance();
+  }
+  function pfAdvance() {
+    /* 自动处理命中与空位装入，停在需要淘汰的位置 */
+    while (pfIdx < PF_REFS.length) {
+      var pg = PF_REFS[pfIdx];
+      var have = false;
+      for (var i = 0; i < pfFrames.length; i++) { if (pfFrames[i] === pg) { have = true; break; } }
+      if (have) {
+        pfDone.push({ pg: pg, fault: false });
+        pfIdx++;
+        continue;
+      }
+      if (pfFrames.length < 3) {
+        pfFrames.push(pg);
+        pfFaults++;
+        pfDone.push({ pg: pg, fault: true, auto: true });
+        pfIdx++;
+        continue;
+      }
+      /* 需要玩家选择淘汰 */
+      pfFaults++; /* 缺页已成事实 */
+      pfRender();
+      CX.utils.$('lab2-fb').textContent = '缺页！内存已满，FIFO 该淘汰谁？（第 ' + (pfIdx + 1) + ' 次访问：页 ' + pg + '）';
+      CX.utils.$('lab2-fb').className = 'lab-feedback';
+      return;
+    }
+    pfRender(true);
+    CX.utils.$('lab2-fb').textContent = '🎉 完成！全程缺页 ' + pfFaults + '/8，缺页率 87.5%。最后一次访问命中页 1，无需淘汰。';
+    CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+  }
+  function pfRender(finished) {
+    var prog = '';
+    for (var i = 0; i < PF_REFS.length; i++) {
+      prog += '<span style="display:inline-block;width:26px;text-align:center;' + (i === pfIdx && !finished ? 'color:var(--accent-2);font-weight:bold' : (i < pfIdx ? 'opacity:.55' : 'opacity:.3')) + '">' + PF_REFS[i] + '</span>';
+    }
+    CX.utils.$('pf-progress').innerHTML = prog;
+    var fr = '内存中的页（最早进入在左）：';
+    pfFrames.forEach(function (p, i2) {
+      fr += ' <span style="display:inline-block;padding:2px 10px;margin:2px;border:1px solid var(--line);border-radius:8px;' + (i2 === 0 ? 'border-color:var(--accent-2);color:var(--accent-2)' : '') + '">' + p + '</span>';
+    });
+    CX.utils.$('pf-frames').innerHTML = fr;
+    var box = CX.utils.$('pf-btns');
+    box.innerHTML = '';
+    if (finished) return;
+    pfFrames.forEach(function (p) {
+      (function (victim) {
+        var b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = '淘汰页 ' + victim;
+        b.addEventListener('click', function () { pfPick(victim); });
+        box.appendChild(b);
+      })(p);
+    });
+  }
+  function pfPick(victim) {
+    var fb = CX.utils.$('lab2-fb');
+    var oldest = pfFrames[0];
+    if (victim !== oldest) {
+      var pos = pfFrames.indexOf(victim);
+      fb.textContent = '❌ 你淘汰了页 ' + victim + '，它是内存中第 ' + (pos + 1) + ' 个进入的。FIFO 只看进入顺序：当前队列（最早→最晚）是 ' + pfFrames.join('、') + '，队首是页 ' + oldest + '。' + (victim === PF_REFS[pfIdx] ? '另外注意：页 ' + victim + ' 是这次要【调入】的新页，不是淘汰对象。' : '');
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    pfFrames.shift();
+    pfFrames.push(PF_REFS[pfIdx]);
+    pfDone.push({ pg: PF_REFS[pfIdx], fault: true, evicted: victim });
+    fb.textContent = '✅ 淘汰页 ' + victim + '（最早进入），装入页 ' + PF_REFS[pfIdx] + '。';
+    fb.className = 'lab-feedback ok';
+    pfIdx++;
+    if (pfIdx >= PF_REFS.length) {
+      pfRender(true);
+      CX.utils.$('lab2-fb').textContent = '🎉 完成！全程缺页 ' + pfFaults + '/8，缺页率 87.5%。你共做出 ' + pfDone.filter(function (d) { return d.fault && d.evicted != null; }).length + ' 次淘汰决策。';
+      return;
+    }
+    pfAdvance();
+  }
+  CX.utils.$('pf-reset').addEventListener('click', pfReset);
+  pfReset();
+
+  /* ---------- 实验三：缺页率与 Belady ---------- */
+  CX.utils.$('rt-check1').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    var v = parseFloat(CX.utils.$('rt-rate').value);
+    if (isNaN(v)) { fb.textContent = '请先填入缺页率数值。'; fb.className = 'lab-feedback bad'; return; }
+    if (Math.abs(v - 87.5) > 0.01) {
+      fb.textContent = '❌ 缺页率 = 缺页次数 ÷ 访问总次数 = 7 ÷ 8 = 0.875，按百分数是 87.5。你填的 ' + v + ' 再核一下分子分母。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    fb.textContent = '✅ 7÷8 = 87.5%。第②问：物理块加多，FIFO 缺页一定减少吗？';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('rt-yes').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    fb.textContent = '❌ 直觉会这么选，但这正是 Belady 异常：同一访问串 1,2,3,4,1,2,5,1,2,3,4,5，FIFO 在 3 个物理块时缺页 9 次，加到 4 个块反而缺页 10 次。点「看解释」。';
+    fb.className = 'lab-feedback bad';
+    CX.utils.$('rt-why').style.display = '';
+  });
+  CX.utils.$('rt-no').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    fb.textContent = '✅ 「不一定」正确：FIFO 存在 Belady 异常——3 块缺 9 次、4 块缺 10 次。LRU/OPT 属栈算法，块加多缺页单调不增。点「看解释」了解原理。';
+    fb.className = 'lab-feedback ok';
+    CX.utils.$('rt-why').style.display = '';
+  });
+  CX.utils.$('rt-why').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    fb.innerHTML = '原理：FIFO 淘汰只看「进入顺序」，与访问热度无关。块数变多后，各页进入内存的相对先后发生变化，淘汰序列被打乱，恰好把马上要用的页送了出去。LRU/OPT 满足「包含性质」（n 块时刻驻留集 ⊆ n+1 块驻留集），块多缺页只会更少或持平。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

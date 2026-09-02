@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>57 · 成本估算与挣值分析 · 架构师学堂</title>
+<meta name="description" content="挣值分析三个数定乾坤：PV 计划值、AC 实际成本、EV 干完活按预算值多少钱；偏差用减法，指数用除法。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">项目管理与管理数学</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="56-schedule-cpm.html">前置 56</a></span>
+    <h1>57 · 成本估算与挣值分析</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">挣值分析：三个基础值，两减两除判乾坤，EAC 预报终局。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>项目第 4 个月，财务总监找项目经理对账：「预算说这个月该花 50 万，你们才花了 45 万，省了 5 万，表扬！」项目经理却愁眉苦脸。财务总监不理解：<b>花得比预算少，为什么反而是坏消息？要判断项目健康与否，还缺哪两个数？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>因为「花了多少钱」只是三分之一个故事。财务总监只看了 <strong>AC（实际成本）=45 万</strong>，还缺：<strong>PV（计划价值）=50 万</strong>——计划里这个月该干的活值多少钱；<strong>EV（挣值）</strong>——<strong>实际干完的活按预算单价值多少钱</strong>。一问才知道实际只完成了计划工作量的 80%，EV=40 万。于是真相是：SV=EV−PV=40−50=−10 万（进度落后），CV=EV−AC=40−45=−5 万（成本超支）——「少花 5 万」是因为「少干了活」，而且干的活还比预算贵。<strong>挣值分析的革命性在于把「钱」和「活」绑在一起算</strong>：干完活按预算值多少钱，三个数一对比，进度和成本两条线同时现形。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>56 · 进度管理与关键路径</b>——挣值的「进度落后」要和工期主线对上话：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>挣值分析（EVM）</strong>是把范围、进度、成本放在一起度量的方法。任一检查时点只看三个基础值：<strong>PV（计划价值）</strong>——按计划，此时此刻应该干完的活值多少钱（计划口径）；<strong>EV（挣值）</strong>——实际干完的活，按<strong>预算单价</strong>折算值多少钱（实绩口径，这就是「挣」的含义）；<strong>AC（实际成本）</strong>——干这些活实际花了多少钱（实报口径）。三者都用<strong>同一把预算尺子</strong>度量，所以能相减相除。</p>
+      <h3>解决什么问题</h3>
+      <p>只比「花了多少钱 vs 预算多少钱」，分不清「省了钱」还是「没干活」；只比「干了多少活」，说不清「干得贵不贵」。挣值把<strong>量差</strong>与<strong>价差</strong>拆开：进度问题看 EV 对 PV，成本问题看 EV 对 AC，一个体系两个维度。</p>
+      <h3>核心机制</h3>
+      <table class="tbl">
+        <tr><th>指标</th><th>公式</th><th>判读</th><th>记忆锚</th></tr>
+        <tr><td>成本偏差 CV</td><td>EV − AC</td><td>正=省（好），负=超支</td><td>挣值比实际看成本</td></tr>
+        <tr><td>进度偏差 SV</td><td>EV − PV</td><td>正=提前（好），负=落后</td><td>挣值比计划看进度</td></tr>
+        <tr><td>成本绩效指数 CPI</td><td>EV ÷ AC</td><td>&gt;1 好：每花 1 元挣回多于 1 元的活</td><td>同上，除法版</td></tr>
+        <tr><td>进度绩效指数 SPI</td><td>EV ÷ PV</td><td>&gt;1 好：干活速度高于计划</td><td>同上，除法版</td></tr>
+      </table>
+      <p>口诀：<strong>偏差用减法、指数用除法，EV 永远在前面（被减数/分子）</strong>。减谁比谁：比 AC 是成本，比 PV 是进度。</p>
+      <h3>关键细节</h3>
+      <p><strong>预测指标</strong>：BAC（完工预算）= 项目总预算；ETC（完工尚需估算）= 还要花多少；EAC（完工估算）= AC + ETC。EAC 按偏差是否持续分两种口径（教材通用口径）：</p>
+      <table class="tbl">
+        <tr><th>口径</th><th>公式</th><th>适用前提</th><th>算例（BAC=100，EV=40，AC=45，CPI≈0.89）</th></tr>
+        <tr><td>典型偏差</td><td>EAC = BAC ÷ CPI</td><td>当前成本偏差会持续到完工（最常考）</td><td>100 ÷ 0.89 ≈ <strong>112.5 万</strong></td></tr>
+        <tr><td>非典型偏差</td><td>EAC = AC + (BAC − EV)</td><td>偏差是一次性的，剩下按预算干</td><td>45 + 60 = <strong>105 万</strong></td></tr>
+      </table>
+      <p><strong>完整算例</strong>：项目 BAC=100 万，第 4 月末计划完成 50%（PV=50 万），实际完成 40%（EV=40 万），实花 AC=45 万。CV=40−45=−5（超支）；SV=40−50=−10（落后）；CPI=40÷45≈0.89；SPI=40÷50=0.8。典型口径 EAC=100÷0.89≈112.5 万，即照此下去完工要花约 112.5 万，超 12.5 万。<br>
+      <strong>两个防坑</strong>：①SPI/CPI 接近完工时会失真（项目收尾时 PV、EV 都逼近 BAC，SPI 自动趋向 1，不说明问题好转）；②SPI&gt;1 也可能只是<strong>非关键活动</strong>抢着干完，关键路径照样延误（56 页的总时差思想在这里接上）——挣值要和关键路径分析配合用。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①公式方向记反：CV=EV−AC、SV=EV−PV，<strong>都是 EV 在前</strong>；写成 AC−EV 符号全反，判断全错；②指数分子是 EV：CPI=EV/AC、SPI=EV/PV，别把分母搞反；③EAC 典型口径是 BAC÷CPI（除法），非典型口径是 AC+(BAC−EV)（减法），题干说「偏差持续」用前者、「一次性」用后者，不说就用典型口径；④「负偏差=坏」仅对 CV/SV 成立，对指数是「&lt;1=坏」；⑤AC 是实付口径，含分摊间接费按题目口径来，别自行增减。</div>
+      <h3>专业英语小贴士</h3>
+      <p>earned value（挣值，EV）；planned value（计划价值，PV）；actual cost（实际成本，AC）；cost performance index（成本绩效指数，CPI）；estimate at completion（完工估算，EAC）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>指挥部里管钱的台账是<strong>资金簿</strong>，但光记流水没用，要记「<strong>挣</strong>」：把项目想成<strong>计件工钱的装修队</strong>——业主预算表就是工资单价表（预算尺子）。月底三本账对一对：<strong>按计划该刷完值多少钱</strong>（PV）、<strong>实际刷完的墙按单价值多少钱</strong>（EV）、<strong>实际发了多少工钱</strong>（AC）。刷的墙多但工钱发更多（EV&lt;AC）是请贵了师傅（成本问题）；墙刷得少（EV&lt;PV）是师傅磨洋工（进度问题）。类比的失效边界：装修墙可以逐面数，软件项目的「活」要靠<strong>完工百分比/权重</strong>折算，权重定得不合理，EV 就失真——挣值的难点在度量口径，不在算术。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>计划该刷的墙按单价折钱</td><td>PV 计划价值</td><td>成立</td></tr>
+      <tr><td>实际刷完的墙按单价折钱</td><td>EV 挣值</td><td>成立</td></tr>
+      <tr><td>实际发出去的工钱</td><td>AC 实际成本</td><td>成立</td></tr>
+      <tr><td>「工钱发得少=省钱」</td><td>只看 AC 低于预算</td><td><b>失效</b>：可能只是活干少了，必须配 EV/PV</td></tr>
+      <tr><td>墙刷完一块是一块</td><td>EV 度量客观</td><td><b>失效</b>：软件活动权重/完工百分比主观性强，口径要先定死</td></tr>
+    </table>
+    <div class="rhyme">三个数，PV、EV、AC 排成行；<br>挣值比实际看成本，挣值比计划看进度；<br>偏差减法 EV 在前，指数除法 EV 在上；<br>一次性偏差加尾巴，持续性偏差除着查。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画把一个 10 个月、预算 100 万的项目<strong>按月直播</strong>：蓝色 PV 计划曲线、绿色 EV 挣值曲线、红色 AC 实际成本曲线。播放看检查线右移时三线如何撕开口子；拖两个滑块改「进度滞后月数」和「成本绩效 CPI」，看四指标与 EAC 跟着变。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>进度滞后 <input type="range" id="ev-lag" min="0" max="3" step="0.5" value="1"> <span id="ev-lag-out">1 个月</span></label>
+      <label>成本绩效 CPI <input type="range" id="ev-cpi" min="60" max="120" step="5" value="90"> <span id="ev-cpi-out">0.90</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：滑块调 PV / EV / AC，看四指标与完工预测</h4>
+      <p class="foreshadow">设 BAC=100 万。拖三个滑块设定检查点的三个基础值，全部指标即时重算：</p>
+      <label>PV <input type="range" id="s-pv" min="0" max="100" value="50"> <span id="o-pv">50</span> 万</label>
+      <label>EV <input type="range" id="s-ev" min="0" max="100" value="40"> <span id="o-ev">40</span> 万</label>
+      <label>AC <input type="range" id="s-ac" min="0" max="120" value="45"> <span id="o-ac">45</span> 万</label>
+      <div id="evm-out" class="foreshadow" style="margin-top:6px"></div>
+      <p class="foreshadow"><b>挑战模式</b>：拖动滑块达成下面的目标，再点「验收」。<button class="btn" id="ch-btn">出挑战目标</button> <span id="ch-goal" style="font-weight:700">（先出题）</span></p>
+      <button class="btn" id="ch-check">验收我的参数</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：指标 ↔ 公式与判读</h4>
+      <p class="foreshadow">先点左列一个指标，再点右列对应公式与判读：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（诊断室）：看体检单开药方</h4>
+      <p class="foreshadow">每张体检单给出 CPI 与 SPI，选出正确诊断：</p>
+      <p class="foreshadow"><b>病历 <span id="dg-no">1</span>/4</b>：<span id="dg-q" style="font-weight:700"></span></p>
+      <div id="dg-opts"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、4 题为先前知识点交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>56 · 进度管理与关键路径提供了「进度落后/提前」的精确刻度（总时差、关键路径）；挣值的 SPI 是它的钱味近似——两者配合才不会误诊。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「按当前绩效外推终局」的 EAC 思想，与 <b>58 · 管理科学与决策分析</b> 的决策树期望值同宗：都拿概率与比率预报未来；</li><li>「CPI&lt;1 要么提价要么提效」的权衡，是 58 页线性规划「资源有限下最优配比」的现实版本。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>成本偏差 CV=EV−AC</th><th>进度偏差 SV=EV−PV</th></tr>
+      <tr><td>差异点</td><td>挣值与<strong>实付</strong>的差：活干得贵不贵</td><td>挣值与<strong>计划</strong>的差：活干得快不快</td></tr>
+      <tr><td>易错点</td><td>记成 AC−EV（符号反）；与「预算结余」混为一谈——AC&lt;PV 不代表省钱</td><td>以为 SV&lt;0 就该赶工——先看落后的是不是关键路径活动</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">都拿挣值打头：减 AC 问成本，减 PV 问进度；对应指数除 AC 是 CPI、除 PV 是 SPI。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——装修队刷墙，先算好该刷多少面墙值多少钱……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 三个基础值：PV 计划该干的活值多少、EV 实际干完的活按预算值多少、AC 实际花了多少。</li>
+    <li>② 偏差减法、指数除法，EV 恒在前：CV=EV−AC、SV=EV−PV、CPI=EV/AC、SPI=EV/PV；正值/&gt;1 为好。</li>
+    <li>③ 预测看 EAC：典型口径 EAC=BAC/CPI（偏差持续），非典型口径 EAC=AC+(BAC−EV)；挣值要配关键路径分析，收尾期 SPI 会失真。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '57', domain: 'pm', loc: 'command', root: '..',
+  title: '成本估算与挣值分析',
+  prev: '56-schedule-cpm.html', prevTitle: '56 · 进度管理与关键路径',
+  next: '58-ops-research.html', nextTitle: '58 · 管理科学与决策分析',
+  keywords: ['挣值', '计划价值', '实际成本', '成本偏差', '进度偏差', 'CPI', 'SPI', '完工估算']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 56） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·56】某活动 ES=6、LS=8，紧后活动都在它的下游。它的总时差和关键性判断是？',
+    opts: [
+      { t: '总时差 2 天，非关键活动', why: '对：TF=LS−ES=8−6=2＞0，有机动；关键活动要求 TF=0。' },
+      { t: '总时差 2 天，关键活动', why: '关键活动的判定标准是 TF=0，有机动就不是关键活动。' },
+      { t: '总时差 8 天', why: '8 是 LS 本身，TF 要减去 ES。' }
+    ],
+    ans: 0, tag: '回忆:56', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '项目第 4 月末：PV=50 万，EV=40 万，AC=45 万。CV 与 SV 分别是多少？',
+      opts: [
+        { t: 'CV=−5 万，SV=−10 万', why: '对：CV=EV−AC=40−45=−5（超支 5 万），SV=EV−PV=40−50=−10（落后 10 万的活）。' },
+        { t: 'CV=5 万，SV=10 万', why: '方向反了：公式是 EV 打头（EV−AC、EV−PV），负值才对。' },
+        { t: 'CV=−10 万，SV=−5 万', why: '把 AC 与 PV 的对象对调了：减 AC 是成本、减 PV 是进度。' },
+        { t: 'CV=−95 万，SV=−90 万', why: '误用了 40−135 之类口径混乱的算法，三个基础值先摆正。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '项目 BAC=200 万，执行到中期 CPI=0.8，且判断该成本偏差将持续到完工。按典型偏差口径，EAC 约为多少？',
+      opts: [
+        { t: '250 万', why: '对：EAC=BAC÷CPI=200÷0.8=250 万，超支 50 万。' },
+        { t: '160 万', why: '200×0.8 是把「超支」算成「节省」，方向反了。' },
+        { t: '240 万', why: '240=AC+(BAC−EV) 型的结果才会出现，典型口径用除法不用加减。' },
+        { t: '200 万', why: 'BAC 是预算不是预测；有持续超支时完工必然超预算。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '【交错复习·56】某月报表 SPI=1.05（看似提前），但关键路径上的核心模块实际延期 5 天。最合理的解释是？',
+      opts: [
+        { t: '报表算错了，重算即可', why: '公式没错，是 SPI 这个汇总指标的盲区。' },
+        { t: '非关键活动提前完成推高了 EV，掩盖了关键活动的延误——挣值必须与关键路径分析配合', why: '对：SPI 是全部活动挣值的汇总，它不区分关键与否；56 页的「总时差」思想在此接上：非关键活动的提前救不了关键路径。' },
+        { t: '关键模块延期不影响总工期', why: '关键活动 TF=0，延期多少总工期就延多少。' },
+        { t: 'SPI&gt;1 时不存在进度风险', why: '恰恰相反，汇总指标健康可能掩盖局部恶化。' }
+      ],
+      ans: 1, tag: '交错复习:56', src: '仿真题' },
+    { q: '【交错复习·06】项目上线要依次通过 3 个串行子系统切换，每个子系统按期切换的概率均为 0.9（相互独立）。整个项目按期上线的概率约是？',
+      opts: [
+        { t: '0.9', why: '0.9 是单环节水平；串联链路只会更脆。' },
+        { t: '0.729', why: '对：串联概率连乘 0.9³≈0.729。与 56 页同构：串联工期连加、串联可靠度/按期率连乘。' },
+        { t: '0.99', why: '0.99 是并联兜底（1−0.1²）的结果，这里是串行没有兜底。' },
+        { t: '0.81', why: '少乘了一次，是两个环节的结果。' }
+      ],
+      ans: 1, tag: '交错复习:06', src: '仿真题' },
+    { q: '口诀「挣值比实际看成本，挣值比计划看进度」对应的两个指数公式是？',
+      opts: [
+        { t: 'CPI=EV÷AC，SPI=EV÷PV', why: '对：比「实际(AC)」的是成本指数 CPI，比「计划(PV)」的是进度指数 SPI，分子都是挣值。' },
+        { t: 'CPI=AC÷EV，SPI=PV÷EV', why: '分子分母倒置：那样「花得多」反而指数大，判读全反。' },
+        { t: 'CPI=EV÷PV，SPI=EV÷AC', why: '两个指数的对象对调了：比计划的是进度不是成本。' },
+        { t: 'CPI=BAC÷EAC，SPI=BAC÷ETC', why: '那是预测量之间的关系，不是绩效指数定义。' }
+      ],
+      ans: 0, tag: '概念', src: '仿真题' }
+  ], { kpId: '57', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某智慧园区项目总预算 BAC=200 万元，工期 10 个月。第 6 月末检查：计划应完成 60% 的工作量（PV=120 万），实际完成 48%（EV=96 万），实际支出 AC=135 万。管理层认为「超支 15 万而已，问题不大」。',
+    q: '(1) 计算 CV、SV、CPI、SPI 并评价项目状态；(2) 分别按典型偏差与非典型偏差口径计算 EAC 与 ETC，说明两种口径的含义与适用前提；(3) 给出接下来两条管理措施，并说明若不干预按典型口径的最终后果。',
+    ref: '(1) CV=EV−AC=96−135=−39 万（超支）；SV=EV−PV=96−120=−24 万（落后）；CPI=96/135≈0.71；SPI=96/120=0.8。项目同时超支与落后，且 CPI=0.71 恶化程度比 SPI=0.8 更深——「每花 1 元只挣回约 0.71 元的活」，问题不小，「超支 15 万而已」只看到了 AC 与 PV 的表面差。(2) 典型偏差口径（当前偏差持续）：EAC=BAC/CPI=200/0.711≈281.3 万，ETC=EAC−AC≈146.3 万；非典型偏差口径（本次偏差一次性，其余按预算）：EAC=AC+(BAC−EV)=135+(200−96)=239 万，ETC=239−135=104 万。适用前提：偏差是系统性问题（流程/价格/估算缺陷）用典型口径；偶发事件（一次返工/一笔意外采购）用非典型口径。(3) 措施一：做成本偏差归因分析（价格型还是用量型），修订成本基准并走整体变更控制；措施二：对关键路径活动赶工/加资源追进度，同时冻结非关键支出。若不干预，按典型口径完工约需 281.3 万，超预算约 81.3 万（超约 41%）。',
+    points: ['四个指标公式与数值全对（CV=−39、SV=−24、CPI≈0.71、SPI=0.8），并纠正「问题不大」的说法', '两种 EAC 口径公式、数值与适用前提都答出（约 281.3 万 / 239 万）', '措施与偏差成因挂钩（归因+变更控制、关键路径赶工），不空喊「加强管控」', '算出不干预的最终超支额（约 81.3 万）'],
+    frame: '答题框架：摆三值 → 四指标逐个算并给判读 → 两种口径算 EAC/ETC 并说前提 → 措施对应根因 → 以 EAC 收尾量化后果。',
+    kpId: '57'
+  });
+  CX.renderCase('#case2', {
+    stem: '某项目月度挣值报表：CPI=1.05、SPI=1.12，管理层准备通报表嘉奖团队。但项目经理查看网络图发现：关键路径上的核心链路开发活动已延误 6 天（TF=0），SPI 健康是因为几个非关键活动（文档、备件采购）提前抢完推高了 EV。',
+    q: '(1) 解释挣值报表为何「失真」，说明 SPI 的两个固有局限；(2) 应采取什么补充监控手段，对关键链路延误给出应对措施与代价；(3) 若业主此时追加一档新报表需求，挣值体系层面应做何处理？',
+    ref: '(1) 失真原因：SPI=EV/PV 是全部活动的汇总比值，不区分关键与否。局限一：非关键活动提前完成可推高 EV，掩盖关键活动延误（本例）；局限二：接近完工时 PV、EV 都趋于 BAC，SPI 自动趋近 1，即使实际仍在延期也会「看起来好转」。CPI=1.05、SPI=1.12 只说明「总量层面」不差，不能证明里程碑健康。(2) 补充手段：挣值与关键路径分析（56 页）联用——对关键活动单独跟踪里程碑与剩余工期，同时监控「次关键路径」（TF 接近 0 的路径）。措施：对延误的核心链路赶工（加人/加班，代价是成本上升，CPI 可能跌破 1）或快速跟进（串改并，代价是返工风险）；也可与业主协商里程碑顺延（代价是商誉/合同）。(3) 追加范围要更新范围基准并重编 PV 曲线、调整 BAC（走整体变更控制），否则 EV 与 PV 失去共同基线，挣值报表从此失真——挣值三值的可比性建立在「同一把预算尺子」上。',
+    points: ['说出 SPI 汇总不辨关键、收尾期趋近 1 两个局限', '监控手段落到「关键路径+次关键路径单独跟踪」，措施与代价成对', '变更必须重定基线（BAC/PV 曲线）才能保持 EV 可比', '不把 CPI/SPI 健康误读为里程碑健康'],
+    frame: '答题框架：先解释指标口径（为什么失真）→ 列局限（两条）→ 给补充工具（网络图/里程碑）→ 措施+代价 → 变更与基线的体系性收尾。',
+    kpId: '57'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '装修队合同：刷完 200 面墙总价 4 万元（每面预算 200 元）。计划本月刷完 100 面，实际刷完 80 面、发工钱 2 万元。本月 EV 与成本状态是？',
+    opts: [
+      { t: 'EV=1.6 万元，CV=−0.4 万元（超支）', why: '对：EV=80 面×200 元=1.6 万（干完的活按预算值多少）；CV=EV−AC=1.6−2=−0.4 万，超支。' },
+      { t: 'EV=2 万元，成本刚好', why: '2 万是 AC（实发工钱），不是挣值；挣值按「活」折算不按「钱」报账。' },
+      { t: 'EV=1.6 万元，CV=+0.4 万元（省钱）', why: '符号错：花的 2 万多于挣的 1.6 万，是超支不是省钱。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['56'], 'prev');
+  CX.depChain('#bridge-next', ['58'], 'next');
+
+  /* ================= 动画：三曲线直播 ================= */
+  var PVs = [0, 5, 12, 22, 35, 50, 65, 78, 89, 96, 100];
+  var lag = 1, cpiA = 0.9;
+  var stage = CX.utils.$('demo1-stage');
+  function PAt(x) {
+    x = Math.max(0, Math.min(10, x));
+    var i = Math.floor(x);
+    if (i >= 10) return 100;
+    return PVs[i] + (PVs[i + 1] - PVs[i]) * (x - i);
+  }
+  function evAt(x) { return PAt(x - lag); }
+  function acAt(x) { return evAt(x) / cpiA; }
+  function mx(m) { return 60 + m * 60; }
+  function my(v) { return 240 - v * 2.1; }
+  function curve(fn, from, to, color, dash) {
+    var pts = [];
+    for (var x = from; x <= to + 1e-9; x += 0.2) pts.push(mx(x).toFixed(1) + ',' + my(fn(Math.min(x, to))).toFixed(1));
+    if (!pts.length) return '';
+    var s = '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="3"';
+    if (dash) s += ' stroke-dasharray="7 5"';
+    return s + '/>';
+  }
+  function dot(m, fn, color, label) {
+    return '<circle cx="' + mx(m) + '" cy="' + my(fn(m)) + '" r="5.5" fill="' + color + '"/>' +
+      '<text x="' + (mx(m) + 9) + '" y="' + (my(fn(m)) - 7) + '" font-size="12" font-weight="700" fill="' + color + '">' + label + '</text>';
+  }
+  function drawEVM(t) {
+    var cm = t * 10;
+    var pv = PAt(cm), ev = evAt(cm), ac = acAt(cm);
+    var cv = ev - ac, sv = ev - pv;
+    var cpi = ac > 0 ? ev / ac : 1, spi = pv > 0 ? ev / pv : 1;
+    var eac = cpi > 0 ? 100 / cpi : 100;
+    var s = '<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="280" rx="12" fill="var(--bg-soft)"/>';
+    for (var g = 0; g <= 5; g++) {
+      s += '<line x1="55" y1="' + my(g * 20) + '" x2="665" y2="' + my(g * 20) + '" stroke="var(--line)" stroke-width="1" opacity=".5"/>';
+      s += '<text x="48" y="' + (my(g * 20) + 4) + '" text-anchor="end" font-size="11" fill="var(--text-dim)">' + (g * 20) + '</text>';
+    }
+    for (var m2 = 0; m2 <= 10; m2++) s += '<text x="' + mx(m2) + '" y="256" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + m2 + '</text>';
+    s += '<text x="30" y="140" font-size="11" fill="var(--text-dim)" transform="rotate(-90 30 140)">累计万元</text><text x="360" y="272" text-anchor="middle" font-size="11" fill="var(--text-dim)">月份</text>';
+    s += curve(PAt, 0, 10, 'var(--accent)', false);
+    if (cm < 10) s += curve(PAt, cm, 10, 'var(--accent)', true);
+    if (cm > 0) {
+      s += curve(evAt, 0, cm, 'var(--ok)', false);
+      s += curve(acAt, 0, cm, 'var(--bad)', false);
+      s += '<line x1="' + mx(cm) + '" y1="18" x2="' + mx(cm) + '" y2="240" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="4 4"/>';
+      s += '<text x="' + (mx(cm) + 4) + '" y="16" font-size="11" fill="var(--text)">第 ' + cm.toFixed(1) + ' 月检查</text>';
+      s += dot(cm, PAt, 'var(--accent)', 'PV ' + pv.toFixed(0));
+      s += dot(cm, evAt, 'var(--ok)', 'EV ' + ev.toFixed(0));
+      s += dot(cm, acAt, 'var(--bad)', 'AC ' + ac.toFixed(0));
+    }
+    s += '<text x="660" y="34" text-anchor="end" font-size="12" fill="var(--accent)">━ PV 计划</text>';
+    s += '<text x="660" y="52" text-anchor="end" font-size="12" fill="var(--ok)">━ EV 挣值</text>';
+    s += '<text x="660" y="70" text-anchor="end" font-size="12" fill="var(--bad)">━ AC 实际</text>';
+    if (cm > 0.5) {
+      s += '<text x="66" y="80" font-size="12.5" font-weight="700" fill="var(--text)">SV=' + sv.toFixed(1) + '  SPI=' + spi.toFixed(2) + '｜CV=' + cv.toFixed(1) + '  CPI=' + cpi.toFixed(2) + '｜EAC≈' + eac.toFixed(1) + ' 万</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (cm < 1.5) cap = '项目启动：三条线还没拉开，检查线右移看撕口。';
+    else {
+      cap = '第 ' + cm.toFixed(1) + ' 月检查：EV ' + ev.toFixed(0) + ' vs PV ' + pv.toFixed(0) + ' → 进度' + (sv < -0.5 ? '落后' : (sv > 0.5 ? '领先' : '持平')) + '（SV=' + sv.toFixed(1) + '）；EV ' + ev.toFixed(0) + ' vs AC ' + ac.toFixed(0) + ' → 成本' + (cv < -0.5 ? '超支' : (cv > 0.5 ? '节省' : '持平')) + '（CV=' + cv.toFixed(1) + '）；典型口径 EAC≈' + eac.toFixed(1) + ' 万。';
+    }
+    CX.setCap('#demo1-ctl', cap);
+  }
+  CX.makeAnim('#demo1-ctl', { steps: 20, duration: 20, onTick: drawEVM });
+  var lagS = CX.utils.$('ev-lag'), cpiS = CX.utils.$('ev-cpi');
+  function sliderRedraw() {
+    lag = +lagS.value;
+    cpiA = +cpiS.value / 100;
+    CX.utils.$('ev-lag-out').textContent = lag + ' 个月';
+    CX.utils.$('ev-cpi-out').textContent = cpiA.toFixed(2);
+    drawEVM(0.45);
+  }
+  lagS.addEventListener('input', sliderRedraw);
+  cpiS.addEventListener('input', sliderRedraw);
+  sliderRedraw();
+
+  /* ================= 实验一：参数实验 + 挑战 ================= */
+  function fmt(v, d) { return v.toFixed(d === undefined ? 1 : d); }
+  function evmCalc() {
+    var pv = +CX.utils.$('s-pv').value, ev = +CX.utils.$('s-ev').value, ac = +CX.utils.$('s-ac').value;
+    var cv = ev - ac, sv = ev - pv;
+    var cpi = ac > 0 ? ev / ac : 0, spi = pv > 0 ? ev / pv : 0;
+    var eacT = cpi > 0 ? 100 / cpi : 999;
+    var eacA = ac + (100 - ev);
+    CX.utils.$('o-pv').textContent = pv; CX.utils.$('o-ev').textContent = ev; CX.utils.$('o-ac').textContent = ac;
+    CX.utils.$('evm-out').innerHTML =
+      'CV=EV−AC=' + fmt(cv) + ' 万（' + (cv < -0.05 ? '❌ 超支' : cv > 0.05 ? '✅ 节省' : '持平') + '）｜' +
+      'SV=EV−PV=' + fmt(sv) + ' 万（' + (sv < -0.05 ? '❌ 落后' : sv > 0.05 ? '✅ 提前' : '持平') + '）<br>' +
+      'CPI=EV/AC=' + (ac > 0 ? cpi.toFixed(2) : '—') + '｜SPI=EV/PV=' + (pv > 0 ? spi.toFixed(2) : '—') + '<br>' +
+      'EAC 典型=BAC/CPI=' + (cpi > 0 ? fmt(eacT) : '—') + ' 万｜EAC 非典型=AC+(BAC−EV)=' + fmt(eacA) + ' 万｜ETC 典型=' + (cpi > 0 ? fmt(eacT - ac) : '—') + ' 万';
+    return { pv: pv, ev: ev, ac: ac, cv: cv, sv: sv, cpi: cpi, spi: spi };
+  }
+  ['s-pv', 's-ev', 's-ac'].forEach(function (id) {
+    CX.utils.$(id).addEventListener('input', evmCalc);
+  });
+  evmCalc();
+  var challenges = [
+    { g: '让项目「进度提前且成本节省」（SV>0 且 CV>0）', ok: function (r) { return r.sv > 0 && r.cv > 0; }, why: 'SV>0 要 EV 高于 PV（活干得比计划多），CV>0 要 EV 高于 AC（干这些活比预算便宜）。' },
+    { g: '让进度刚好持平（|SV|≤0.5 万）但成本超支（CV<0）', ok: function (r) { return Math.abs(r.sv) <= 0.5 && r.cv < 0; }, why: 'EV 拉到与 PV 相等，再把 AC 抬到 EV 之上——干活速度正常但请的师傅贵。' },
+    { g: '让 CPI≥1（成本不超）但进度落后（SV<0）', ok: function (r) { return r.ac > 0 && r.ev / r.ac >= 1 && r.sv < 0; }, why: 'EV 要同时高于 AC 又低于 PV：即 AC 更低。省着钱但活干少了——省钱不等于快。' }
+  ];
+  var curCh = -1;
+  CX.utils.$('ch-btn').addEventListener('click', function () {
+    curCh = (curCh + 1) % challenges.length;
+    CX.utils.$('ch-goal').textContent = '目标' + (curCh + 1) + '：' + challenges[curCh].g;
+    CX.utils.$('lab1-fb').textContent = '';
+  });
+  CX.utils.$('ch-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    if (curCh < 0) { fb.textContent = '先点「出挑战目标」领取任务。'; fb.className = 'lab-feedback'; return; }
+    var r = evmCalc(), ch = challenges[curCh];
+    if (ch.ok(r)) {
+      fb.textContent = '✅ 达成！' + ch.why;
+      fb.className = 'lab-feedback ok';
+    } else {
+      var misses = [];
+      if (ch.g.indexOf('进度提前') >= 0 && r.sv <= 0) misses.push('SV=' + fmt(r.sv) + ' 还没大于 0：EV 得拖到 PV 上方');
+      if (ch.g.indexOf('成本节省') >= 0 && r.cv <= 0) misses.push('CV=' + fmt(r.cv) + ' 还没大于 0：AC 得压到 EV 下方');
+      if (ch.g.indexOf('持平') >= 0 && Math.abs(r.sv) > 0.5) misses.push('|SV|=' + fmt(Math.abs(r.sv)) + ' 还没进 ±0.5：微调 EV 靠近 PV');
+      if (ch.g.indexOf('CPI≥1') >= 0 && (r.ac <= 0 || r.ev / r.ac < 1)) misses.push('CPI=' + (r.ac > 0 ? (r.ev / r.ac).toFixed(2) : '—') + ' 还没到 1：EV 得不低于 AC');
+      if (ch.g.indexOf('成本超支') >= 0 && r.cv >= 0) misses.push('CV=' + fmt(r.cv) + ' 还没小于 0：AC 得抬到 EV 上方');
+      if (ch.g.indexOf('进度落后') >= 0 && r.sv >= 0) misses.push('SV=' + fmt(r.sv) + ' 还没小于 0：EV 得压到 PV 下方');
+      fb.textContent = '❌ 未达成：' + (misses.join('；') || '再核对目标条件。') + ' ' + ch.why;
+      fb.className = 'lab-feedback bad';
+    }
+  });
+
+  /* ================= 实验二：连线匹配 ================= */
+  var pairs = [
+    ['CV', 'EV−AC：负=成本超支'],
+    ['SV', 'EV−PV：负=进度落后'],
+    ['CPI', 'EV÷AC：小于 1 每元少挣活'],
+    ['SPI', 'EV÷PV：小于 1 干活慢'],
+    ['EAC 典型', 'BAC÷CPI：偏差持续到完工'],
+    ['EAC 非典型', 'AC+(BAC−EV)：偏差一次性']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的公式与判读。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个指标。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/6';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + selL.dataset.k + '」不对应「' + d.textContent + '」。口诀：偏差减法、指数除法、EV 恒在前；比 AC 是成本，比 PV 是进度。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+
+  /* ================= 实验三：诊断室 ================= */
+  var dgQs = [
+    { q: '体检单：CPI=0.80，SPI=1.15', a: 1, opts: [
+      '一切正常，继续观察',
+      '成本超支但进度提前：查价格型/用量型超支原因，暂不必赶工',
+      '进度严重落后，立即全员加班赶工',
+      '成本节省，可再压缩人力'
+    ], why: 'CPI<1 是每花 1 元只挣回 0.8 元的活（超支）；SPI>1 干得快。药方先治成本，别被进度好的表象带偏。' },
+    { q: '体检单：CPI=1.10，SPI=0.70', a: 2, opts: [
+      '成本超支，立即冻结采购',
+      '一切正常',
+      '省钱但干活慢：在关键路径活动上加资源赶工，防里程碑失守',
+      '项目必亏，申请终止'
+    ], why: 'CPI>1 省钱、SPI<1 慢。省钱不救工期：先看慢的是不是关键路径（56 页），是就得花钱换时间。' },
+    { q: '体检单：CPI=1.00，SPI=1.00，项目尚在早期', a: 0, opts: [
+      '按计划推进，维持基线监控',
+      '立即追赶进度',
+      '申请追加预算',
+      '压缩范围保工期'
+    ], why: '双 1.0 是理想态：监控照常、别乱动基线——乱赶工反而制造偏差。' },
+    { q: '体检单：CPI=0.85，SPI=0.80，且判断偏差将持续', a: 2, opts: [
+      '小幅优化即可，无需上报',
+      '只加人赶进度，成本以后再说',
+      '双差且持续：归因分析、上报高层，走整体变更控制修订成本/进度基准',
+      '直接宣布项目失败'
+    ], why: '又超支又落后且将持续，EAC=BAC/CPI 会显著超预算——超出项目经理权限，必须上报走变更控制，而不是单点补丁。' }
+  ];
+  var dgIdx = 0, dgRight = 0;
+  function showDg() {
+    var item = dgQs[dgIdx];
+    CX.utils.$('dg-no').textContent = dgIdx + 1;
+    CX.utils.$('dg-q').textContent = item.q;
+    var box = CX.utils.$('dg-opts');
+    box.innerHTML = '';
+    item.opts.forEach(function (o, i) {
+      var b = document.createElement('button');
+      b.className = 'btn'; b.style.margin = '4px'; b.textContent = String.fromCharCode(65 + i) + '. ' + o;
+      b.addEventListener('click', function () {
+        if (i === item.a) {
+          dgRight++;
+          CX.utils.$('lab3-fb').textContent = '✅ 诊断正确！' + item.why;
+          CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab3-fb').textContent = '❌ 选错。排除法要点：' + item.why;
+          CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+        }
+        dgIdx++;
+        if (dgIdx < dgQs.length) setTimeout(showDg, 1200);
+        else CX.utils.$('lab3-fb').textContent += '｜诊断完成 ' + dgRight + '/4。';
+      });
+      box.appendChild(b);
+    });
+  }
+  showDg();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

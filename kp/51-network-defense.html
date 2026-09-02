@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>51 · 网络安全防护体系 · 架构师学堂</title>
+<meta name="description" content="防火墙守城门，IDS 巡逻报警，IPS 动手拦截，VPN 挖加密地道。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">信息安全与法律法规</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="50-crypto.html">前置 50</a></span>
+    <h1>51 · 网络安全防护体系</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">防火墙守门，IDS 报警，IPS 拦截，VPN 隧道。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某公司为省钱，把对外的 Web 服务器直接插在内网交换机上。某天夜里 Web 应用被攻破，攻击者从这台服务器<strong>横着走进财务数据库</strong>，拖走了全部客户资料。复盘会上老板拍桌：「防火墙不是买了吗？！」——防火墙确实有，可它挡得住这次入侵吗？防线到底该怎么布？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>问题出在「平坦网络」：对外服务与核心资产住同一个院子，外 door 一开，内室全裸。正确做法是把对外服务（Web/邮件/DNS）放进 <strong>DMZ 隔离区</strong>，用内外两道防火墙夹住它；内网再叠加 IDS 报警、IPS 拦截、蜜罐诱捕。<b>单点设备救不了架构缺陷——这叫纵深防御。</b>另外要纠正老板：那台防火墙挡的是「从外到内的非法访问」，而攻击者当时「合法地」访问着一台本来就对外的机器。本页把整套防线的名词、分工、布局一次讲清。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>50 · 密码学基础</b>（防线的「地道」全靠它打底）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>网络安全防护体系是 🛡️ 城防司法局外面的<strong>整套城防工事</strong>：城门岗哨（防火墙）、巡逻哨兵（IDS）、拦截闸机（IPS）、穿危险地带的加密地道（VPN）、诱敌的假城（蜜罐）、内外城之间的市场区（DMZ），再加上给全城建筑定级的「网络安全等级保护」。核心思想四个字：<strong>纵深防御</strong>——任何单点都可能失守，防线要一层层叠。</p>
+      <h3>解决什么问题</h3>
+      <p>没有防线，内网与外网之间「一捅就穿」；有了但布错了位置（如对外服务放内网），等于把城门开在卧室门口。本页解决三个问题：<b>设备怎么选</b>（防火墙三类）、<b>设备放哪</b>（DMZ 布局）、<b>发现入侵怎么办</b>（IDS/IPS 分工）。</p>
+      <h3>核心机制</h3>
+      <p><strong>① 防火墙三类（高频对比）：</strong></p>
+      <table class="tbl">
+        <tr><th>类型</th><th>检查什么</th><th>城市比喻</th><th>性能</th><th>安全</th></tr>
+        <tr><td>包过滤防火墙</td><td>网络层：IP 地址、端口、协议（只看「门牌」）</td><td>岗哨抄门牌放行</td><td>最快、开销小</td><td>最粗：看不到内容，不懂连接前后文</td></tr>
+        <tr><td>应用网关（代理）防火墙</td><td>应用层：报文内容全部代理转发、逐项检查</td><td>中间人代办，货货全查</td><td>最慢，每种协议要专门代理</td><td>最深：可审计内容</td></tr>
+        <tr><td>状态检测防火墙</td><td>连接状态表：这包是不是「已建立连接」的回包</td><td>岗哨记脸熟，认得出「回头的客」</td><td>居中</td><td>安全与性能折中，当前主流</td></tr>
+      </table>
+      <p>防火墙的天生短板（判断题常考）：防不了<strong>绕过它的连接</strong>（如私接拨号），防不了<strong>内部攻击</strong>，也不能有效阻止<strong>病毒</strong>随文件进入——所以它只是第一道门，不是全部。</p>
+      <p><strong>② IDS 与 IPS：</strong>入侵检测系统（IDS）<b>旁路</b>挂在网络里（镜像流量），像巡逻哨兵，看见异常就<strong>报警</strong>，但不动手；入侵防御系统（IPS）<b>串联</b>在链路上，像闸机，发现攻击<strong>当场拦截断链</strong>。代价不同：IDS 误报只是多响一次警报，IPS 误报会<strong>直接切断正常业务</strong>——这是两者选型的经典论据。</p>
+      <p><strong>③ VPN 隧道：</strong>在公共网络上用「隧道 + 加密 + 认证」挖一条专线。<b>IPSec VPN</b> 工作在<strong>网络层</strong>，对应用透明，适合机构之间「站点对站点」长期互联；<b>SSL VPN</b> 工作在传输层之上，浏览器（HTTPS 基础）即可使用、可按应用精细授权，适合移动办公。隧道里的机密性靠对称加密，密钥协商靠非对称（50 页的数字信封思想）。</p>
+      <p><strong>④ 蜜罐：</strong>一台「故意露出破绽」的诱饵主机，里面没有真实业务，谁咬谁暴露——用于吸引攻击、拖延时间、收集手法情报。</p>
+      <p><strong>⑤ DMZ（非军事区/隔离区）：</strong>夹在外防火墙与内防火墙之间的缓冲区，放<strong>必须对外的服务</strong>（Web、邮件、对外 DNS）。方向规则三条（默背）：外网→DMZ 允许（限所需端口）；外网→内网 禁止；<b>DMZ→内网 禁止</b>（防攻破对外服务后横向深入）。内网→DMZ 允许管理维护。</p>
+      <p><strong>⑥ 网络安全等级保护五级（概览）：</strong>按受破坏后对公民、社会、国家的损害程度分五级，级别越高要求越严。推广中常用口径为：一级自主保护、二级指导保护、三级监督保护、四级强制保护、五级专控保护；一般业务系统常见定为二级或三级，定级备案、按级建设整改、测评（教材/推广口径，标准原文措辞略有差异）。</p>
+      <h3>关键细节</h3>
+      <p>判断题式速记：<b>「包过滤=只查门牌」「应用网关=全查」「状态检测=记脸熟」「IDS=旁路报警」「IPS=串联阻断」「IPSec=网络层」「SSL=浏览器就能用」「蜜罐=假城」「DMZ=对外服务专用区」。</b>每条都能直接翻命成一道判断题。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 「IDS 串联在链路上拦截攻击」——错，那是 IPS；IDS 旁路只报警。② 「包过滤防火墙能识别网页里的攻击载荷」——错，看内容是应用网关的活。③ 「防火墙装了就安全」——防不了内部、绕行与病毒。④ Web 服务器放内网「更安全」——错，那要求防火墙向全网开洞到内网，应放 DMZ。⑤ IPSec 与 SSL 的层次别记反：IPSec 网络层、SSL 传输层之上。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>firewall（防火墙）、intrusion detection system / IDS（入侵检测系统）、demilitarized zone / DMZ（隔离区）——英语题里 IDS 常以「detect but not block」的描述出现。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🚦 道路邮政域里我们已认识「防火墙＝城门岗哨」；到了 🛡️ 城防司法局，岗哨成建制了：有人<strong>抄门牌</strong>（包过滤）、有人<strong>代办全查</strong>（应用网关）、有人<strong>记脸熟</strong>（状态检测）；岗哨之外还有巡逻的（IDS）、把门的闸机（IPS）、城外的地道（VPN）与假城（蜜罐）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>岗哨只抄门牌不拆包</td><td>包过滤（网络层）</td><td>成立；失效点：现实哨兵能掀篷布看货，包过滤永远看不到应用层内容</td></tr>
+      <tr><td>中间人代办、货货全查</td><td>应用网关/代理</td><td>成立</td></tr>
+      <tr><td>岗哨记得「这客人是刚进去又出来的」</td><td>状态检测（连接表）</td><td>成立</td></tr>
+      <tr><td>巡逻哨兵吹号不抓人</td><td>IDS 旁路报警</td><td>成立；失效点：现实哨兵其实能抓人，IDS 只能喊——抓人的是 IPS</td></tr>
+      <tr><td>闸机当场拦下</td><td>IPS 串联阻断</td><td>成立</td></tr>
+      <tr><td>城外「市场区」外人可入、货不进内城</td><td>DMZ 放对外服务</td><td>成立；失效点：现实市场的人可随意回内城，DMZ 主机被明令禁止主动访问内网</td></tr>
+    </table>
+    <div class="rhyme">包过滤只查门牌，放行快而不拆袋；<br>应用网关做代办，货货全查最实在；<br>状态检测记脸熟，回头的客放得快；<br>IDS 旁路光吹号，IPS 串联把闸带；<br>VPN 挖加密道，蜜罐假城引人来；<br>对外服务进 DMZ，三道防线进内宅。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示<strong>一个数据包的进城之旅</strong>：正常请求与攻击包如何被各道防线区别对待。拖动「规则严格度」滑块，看有多少攻击包漏进 DMZ、蜜罐与 IDS 何时报警。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>规则严格度 <input type="range" id="fw-strict" min="0" max="100" value="60"> <span id="fw-strict-out">60</span></label>
+      <span class="kf-caption" id="fw-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：布一道纵深防御</h4>
+      <p class="foreshadow">外部流量自左向右依次穿过 5 道设施，把它们按正确顺序拖入槽：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：技术 ↔ 一句话职责</h4>
+      <p class="foreshadow">先点左列一项技术，再点右列它的职责：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（判断快答）：这句话对吗？</h4>
+      <p class="foreshadow">逐句判断——考场上判断题的日常训练：</p>
+      <div id="tf-list"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>50 · 密码学基础</b>提供了全部「锁具」：VPN 隧道的机密性、防火墙双机认证、IDS 报文的完整性校验，都跑在加密与摘要之上。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li><b>52 · 攻击与恶意代码</b>换到进攻视角：注入、DDoS 与社会工程学正是对这些防线的「绕过、耗尽与人心侧攻击」；</li><li><b>42 · 质量属性</b>里的「安全性」属性，其战术（验证用户、限制访问、检测入侵、恢复）与本页设备一一对应——横向呼应。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>IDS（入侵检测）</th><th>IPS（入侵防御）</th></tr>
+      <tr><td>差异点</td><td><b>旁路</b>镜像监听，只报警不阻断</td><td><b>串联</b>在链路上，实时拦截断链</td></tr>
+      <tr><td>易错点</td><td>误写成「串联阻断」——那是 IPS</td><td>误以为它零成本：误报会切断正常业务，需精细调优</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">IDS 是<strong>吹号的哨兵</strong>（喊错只是虚惊），IPS 是<strong>拦人的闸机</strong>（拦错就堵死全城）；所以检测算法相同的两台设备，部署位置和容忍度完全不同。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——城门口有三种门卫……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 防火墙三类记三句话：包过滤查门牌最快、应用网关代办全查最严、状态检测记脸熟居中；防火墙防不了内部、绕行与病毒。</li><li>② IDS 旁路报警、IPS 串联阻断，误报代价决定选型；蜜罐是诱饵，DMZ 夹在两道防火墙之间放对外服务，DMZ→内网默认禁止。</li><li>③ VPN 是加密地道：IPSec 在网络层适合站点互联，SSL 浏览器即用适合移动办公；等保五级按危害定级、级高要求严。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '51', domain: 'sec', loc: 'citadel', root: '..',
+  title: '网络安全防护体系', prev: '50-crypto.html', prevTitle: '50 · 密码学基础',
+  next: '52-attacks-malware.html', nextTitle: '52 · 攻击与恶意代码',
+  keywords: ['防火墙', '包过滤', '应用网关', '状态检测', '入侵检测', '入侵防御', 'VPN 隧道', 'DMZ']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 50 · 密码学基础） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·50】A 给 B 发订单并附数字签名。B 应该用哪把钥匙验证这份签名？',
+    opts: [
+      { t: 'A 的公钥', why: '对：签名是 A 用自己的私钥生成的，公钥才能验——私钥签、公钥验。' },
+      { t: 'A 的私钥', why: '私钥只有 A 自己持有，验证方不可能拿到，方向反了。' },
+      { t: 'B 的私钥', why: 'B 的私钥用于解「B 的公钥加密」的内容，与验证 A 的签名无关。' },
+      { t: '双方约定的对称密钥', why: '对称密钥能解密数据，但做不了「仅 A 能生成」的签名。' }
+    ],
+    ans: 0, tag: '回忆:50', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '包过滤防火墙最显著的特点是？',
+      opts: [
+        { t: '检查应用层数据内容，可拦截网页中的攻击载荷', why: '看内容是应用网关（代理）的能力，包过滤只看头部信息。' },
+        { t: '在网络层按 IP 地址、端口、协议过滤，速度快但不懂连接内容', why: '对：只查「门牌」，所以快而粗。' },
+        { t: '必须为每种协议单独配置代理', why: '那是应用网关的特点与代价。' },
+        { t: '通过维护连接状态表识别回包', why: '那是状态检测防火墙的机制。' }
+      ],
+      ans: 1, tag: '防火墙分类', src: '仿真题' },
+    { q: '安全团队要求：发现攻击流量时「立刻在链路上拦截并断开会话」。应部署的设备是？',
+      opts: [
+        { t: 'IDS', why: 'IDS 旁路监听只能报警，动不了链路。' },
+        { t: 'IPS', why: '对：IPS 串联在链路上，实时阻断是它的本职。' },
+        { t: '蜜罐', why: '蜜罐是诱饵主机，用于收集情报，不是链路设备。' },
+        { t: 'VPN 网关', why: 'VPN 负责加密隧道，与拦截攻击无关。' }
+      ],
+      ans: 1, tag: 'IDS与IPS', src: '仿真题' },
+    { q: '按 DMZ 区的布局原则，下列哪台设备应放在 DMZ？',
+      opts: [
+        { t: '财务数据库服务器', why: '核心资产放内网，且禁止 DMZ 主动访问，减少横向暴露面。' },
+        { t: '对外网站 Web 服务器', why: '对：必须对外服务的机器放隔离区，即使被攻破也进不了内网。' },
+        { t: '人力资源档案服务器', why: '纯内部服务，放内网。' },
+        { t: '开发人员的代码仓库', why: '内部资产，放内网并做访问控制。' }
+      ],
+      ans: 1, tag: 'DMZ布局', src: '仿真题' },
+    { q: '【交错复习·50】IPSec VPN 隧道中，保护数据机密性的核心机制是？',
+      opts: [
+        { t: '用对称算法加密数据（会话密钥经非对称方式协商）', why: '对：正是 50 页数字信封的分工——对称干活、非对称送钥匙。' },
+        { t: '只对报文做 MD5 摘要', why: '摘要只管完整性，机密性必须加密。' },
+        { t: '把数据压缩后再发', why: '压缩不保密，有时反而引入新漏洞。' },
+        { t: '用接收方私钥加密全部数据', why: '私钥不能外发，且非对称加密全量数据性能不可行。' }
+      ],
+      ans: 0, tag: '交错复习:50', src: '仿真题' },
+    { q: '【交错复习·24】与 IPSec VPN 相比，SSL VPN 最主要的优势是？',
+      opts: [
+        { t: '工作在网络层，对应用完全透明', why: '这是 IPSec 的特点，不是 SSL 的。' },
+        { t: '加密强度一定更高', why: '两者都用成熟对称算法，强度取决于密钥与配置而非类型。' },
+        { t: '浏览器即可使用、无需专用客户端，可按应用精细授权', why: '对：SSL VPN 站在 HTTPS 基础上，移动办公友好。' },
+        { t: '不需要任何身份认证', why: '恰恰相反，SSL VPN 通常必须做用户认证。' }
+      ],
+      ans: 2, tag: '交错复习:24', src: '仿真题' }
+  ], { mode: 'test', kpId: '51' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某企业对外 Web 服务器与财务数据库同接一台内网交换机（平坦网络）。攻击者利用 Web 应用漏洞拿到服务器权限后，直接横向访问财务库拖走数据。事后整改会议上，预算有限，只能分两期建设。',
+    q: '(1) 指出原网络布局的根本缺陷；(2) 画出/描述整改后的分区布局；(3) 写出区域之间的访问控制规则；(4) 第一期、第二期分别优先做什么？',
+    ref: '(1) 根本缺陷：对外服务与核心资产同处一个安全域，边界一旦失守即全域失守，无纵深。(2) 目标布局：外网——边界防火墙——DMZ（Web/邮件/对外 DNS）——内部防火墙——内网（数据库、办公区），核心服务器再划独立服务器区。(3) 规则：外网→DMZ 仅开放所需端口（如 443）；外网→内网 禁止；DMZ→内网 默认禁止（按需最小化放行）；内网→DMZ 仅限管理流量。(4) 一期：两道防火墙 + 把 Web 迁入 DMZ（改布局，花小钱解决大问题）；二期：部署 IDS/IPS 与日志审计、蜜罐诱捕、补丁与口令等主机加固、财务库最小权限与备份。',
+    points: ['点出「平坦网络/无安全域划分」是根因，而非「防火墙不够贵」', '布局正确：两道防火墙夹 DMZ，核心资产在内网', '三条方向规则完整，特别写出 DMZ→内网默认禁止', '分期排序合理：先改结构后加监测加固，体现纵深防御'],
+    frame: '答题框架：现状风险 → 目标分区（画三层：外网/DMZ/内网）→ 规则矩阵（方向×允许/禁止）→ 监测与运营（IDS/蜜罐/审计/加固）→ 收一句「安全是体系不是单点」。',
+    kpId: '51'
+  });
+  CX.renderCase('#case2', {
+    stem: '某集团总部与 3 个异地分支需要 7×24 小时互访内部系统；另有约 200 名销售常年出差，用笔记本和手机随处接入。信息安全部提出统一采购一种 VPN 的方案，架构师认为应分场景选型。',
+    q: '(1) 分支互联应选哪种 VPN，为什么；(2) 出差人员接入应选哪种，为什么；(3) 说明隧道中加密与认证分别由什么机制承担（呼应 50 页）。',
+    ref: '(1) 分支互联选 IPSec VPN：工作在网络层、对应用透明，适合固定站点之间 7×24 的网关到网关隧道，一次配置长期运行。(2) 出差人员选 SSL VPN：浏览器即可接入、免装客户端，能按具体应用授权（只开邮件/OA），适配多终端与弱管控环境。(3) 机密性由对称算法加密数据（如 AES/SM4）承担；密钥协商/身份认证由非对称机制（证书、公钥算法）承担；完整性由 HMAC/摘要机制保证——即「对称干活、非对称送钥匙与验身份」的数字信封思想。',
+    points: ['站点对站点选 IPSec、移动办公选 SSL，选型与理由匹配（层次、透明性、客户端）', '说出 IPSec=网络层对应用透明、SSL=传输层之上浏览器即用', '加密/密钥协商/完整性三机制分工清楚，能挂钩数字信封', '提及按应用授权、认证要求等运营细节加分'],
+    frame: '答题框架：先拆场景（固定 vs 移动、站点 vs 个人）→ 每场景给选型+两条理由 → 机制层回答「谁来加密、谁来送钥匙、谁来验完整」→ 结尾提示统一账号认证与日志审计。',
+    kpId: '51'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '家用智能路由器宣称「SPI 防火墙：只放行由你主动发起的连接的回包，外部主动进来的连接一律拒绝」。这体现的是哪类机制的思想？',
+    opts: [
+      { t: '包过滤：只看 IP 和端口', why: '只看门牌分不清「回包」与「主动入侵」，SPI 之所以能放行回包，靠的是记住连接。' },
+      { t: '状态检测：维护连接状态表，认得出「这是对既有连接的回应」', why: '对：同一思想换到家庭场景——「记脸熟」的哨兵。' },
+      { t: '应用网关：代理所有应用流量', why: '家用路由并没有替每个应用做代理转发。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant', kpId: '51' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['50'], 'prev');
+  CX.depChain('#bridge-next', ['52'], 'next');
+
+  /* ---- 动画：数据包进城之旅 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var strictSlider = CX.utils.$('fw-strict');
+  var strictOut = CX.utils.$('fw-strict-out');
+  var calcOut = CX.utils.$('fw-calc');
+  var STRICT = 60;
+  var CAPS = [
+    '第1帧：城外出现 1 个正常请求（绿）与 8 个攻击包（红），按规则严格度决定红包的命运。',
+    '第2帧：包过滤岗哨查门牌（IP/端口）：绿包放行；严格度越高，被拦下的红包越多。',
+    '第3帧：绿包进入 DMZ 访问 Web 服务器；漏网的红包大多被蜜罐诱捕，IDS 灯亮起报警。',
+    '第4帧：Web 服务器要读数据——穿过内部防火墙按最小规则访问内网数据库。',
+    '第5帧：IDS 与 IPS 的区别：旁路镜像只报警（哨兵吹号），串联闸机当场拦人。',
+    '第6帧：VPN 地道：分支机构的密文包穿过公网危险区直达内网，旁观者只见到天书。'
+  ];
+  function draw(t) {
+    var seg = t * 6;
+    var f = Math.min(5, Math.floor(seg));
+    var frac = seg - f;
+    var pass = Math.round((100 - STRICT) * 8 / 100); /* 漏进DMZ的红包数 */
+    var blocked = 8 - pass;
+    var s = '<svg viewBox="0 0 740 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="数据包进城之旅">';
+    s += '<rect width="740" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 区域 */
+    s += '<rect x="10" y="40" width="86" height="200" rx="8" fill="var(--card)" stroke="var(--line)"/><text x="53" y="145" text-anchor="middle" font-size="13" fill="var(--text-dim)">外网</text>';
+    s += '<rect x="180" y="40" width="180" height="200" rx="8" fill="var(--accent-2)" opacity=".08" stroke="var(--accent-2)"/><text x="270" y="60" text-anchor="middle" font-size="13" fill="var(--accent-2)">DMZ 隔离区</text>';
+    s += '<rect x="470" y="40" width="180" height="200" rx="8" fill="var(--card)" stroke="var(--line)"/><text x="560" y="60" text-anchor="middle" font-size="13" fill="var(--text-dim)">内网</text>';
+    /* 岗哨 */
+    s += '<rect x="120" y="100" width="34" height="80" rx="6" fill="var(--card)" stroke="var(--accent)"/><text x="137" y="92" text-anchor="middle" font-size="11" fill="var(--text-dim)">包过滤</text>';
+    s += '<rect x="392" y="100" width="34" height="80" rx="6" fill="var(--card)" stroke="var(--accent)"/><text x="409" y="92" text-anchor="middle" font-size="11" fill="var(--text-dim)">内部防火墙</text>';
+    /* DMZ 内容 */
+    s += '<rect x="200" y="90" width="70" height="46" rx="6" fill="var(--card)" stroke="var(--line)"/><text x="235" y="118" text-anchor="middle" font-size="11" fill="var(--text)">Web</text>';
+    s += '<rect x="290" y="90" width="56" height="46" rx="6" fill="var(--bad)" opacity=".18" stroke="var(--bad)"/><text x="318" y="112" text-anchor="middle" font-size="11" fill="var(--bad)">蜜罐</text><text x="318" y="128" text-anchor="middle" font-size="10" fill="var(--bad)">假城</text>';
+    /* 内网内容 */
+    s += '<rect x="500" y="90" width="120" height="46" rx="6" fill="var(--card)" stroke="var(--line)"/><text x="560" y="118" text-anchor="middle" font-size="11" fill="var(--text)">财务数据库</text>';
+    /* IDS/IPS 小舞台 */
+    s += '<rect x="500" y="180" width="70" height="44" rx="6" fill="var(--card)" stroke="var(--line)" stroke-dasharray="4 3"/><text x="535" y="207" text-anchor="middle" font-size="11" fill="var(--text-dim)">IDS 旁路</text>';
+    s += '<rect x="590" y="180" width="60" height="44" rx="6" fill="var(--card)" stroke="var(--ok)"/><text x="620" y="207" text-anchor="middle" font-size="11" fill="var(--ok)">IPS 闸机</text>';
+    /* 帧0：包出现在外网 */
+    if (f === 0) {
+      s += '<circle cx="60" cy="120" r="9" fill="var(--ok)"/><text x="60" y="104" text-anchor="middle" font-size="10" fill="var(--ok)">请求</text>';
+      for (var i = 0; i < 8; i++) s += '<circle cx="' + (40 + (i % 4) * 22) + '" cy="' + (165 + Math.floor(i / 4) * 22) + '" r="7" fill="var(--bad)"/>';
+      s += '<text x="53" y="255" text-anchor="middle" font-size="11" fill="var(--bad)">8 攻击包</text>';
+    }
+    /* 帧1：包过滤 */
+    if (f === 1) {
+      s += '<circle cx="140" cy="120" r="9" fill="var(--ok)"/><text x="137" y="150" text-anchor="middle" font-size="10" fill="var(--ok)">放行</text>';
+      for (var b = 0; b < blocked; b++) s += '<text x="' + (100 + (b % 4) * 14) + '" y="' + (160 + Math.floor(b / 4) * 20) + '" font-size="12" fill="var(--bad)">✗</text>';
+      for (var p = 0; p < pass; p++) s += '<circle cx="' + (158 + p * 14) + '" cy="' + (196 + Math.floor(p / 4) * 18) + '" r="6" fill="var(--bad)" opacity=".8"/>';
+      if (pass > 0) s += '<text x="137" y="238" text-anchor="middle" font-size="11" fill="var(--bad)">' + pass + ' 个漏网</text>';
+    }
+    /* 帧2：DMZ 内蜜罐诱捕 + IDS 报警 */
+    if (f === 2) {
+      s += '<circle cx="235" cy="160" r="9" fill="var(--ok)"/><text x="235" y="182" text-anchor="middle" font-size="10" fill="var(--ok)">访问Web</text>';
+      var caught = Math.max(0, pass - (pass > 4 ? 1 : 0));
+      for (var c = 0; c < caught; c++) s += '<circle cx="' + (300 + (c % 3) * 14) + '" cy="' + (150 + Math.floor(c / 3) * 14) + '" r="6" fill="var(--bad)" opacity=".55"/>';
+      if (caught > 0) s += '<text x="318" y="196" text-anchor="middle" font-size="10" fill="var(--bad)">被蜜罐诱捕</text>';
+      s += '<circle cx="500" cy="202" r="8" fill="var(--bad)"><animate attributeName="opacity" values="1;.2;1" dur="1s" repeatCount="indefinite"/></circle>';
+      s += '<text x="512" y="230" font-size="10" fill="var(--bad)">IDS 报警灯亮</text>';
+    }
+    /* 帧3：Web 经内部防火墙取数 */
+    if (f === 3) {
+      var x3 = 270 + frac * (500 - 270);
+      s += '<circle cx="' + x3 + '" cy="113" r="9" fill="var(--ok)"/><text x="' + x3 + '" y="96" text-anchor="middle" font-size="10" fill="var(--ok)">按最小规则取数</text>';
+      s += '<text x="409" y="150" text-anchor="middle" font-size="10" fill="var(--text-dim)">Web→内网：仅放行特定端口</text>';
+    }
+    /* 帧4：IDS vs IPS 对比 */
+    if (f === 4) {
+      s += '<line x1="470" y1="205" x2="500" y2="205" stroke="var(--bad)" stroke-dasharray="4 3" stroke-width="2"/>';
+      s += '<text x="535" y="238" text-anchor="middle" font-size="10" fill="var(--bad)">镜像流量·只报警</text>';
+      s += '<circle cx="620" cy="170" r="8" fill="var(--bad)"/><text x="646" y="174" font-size="12" fill="var(--ok)">✗ 拦下</text>';
+      s += '<text x="620" y="238" text-anchor="middle" font-size="10" fill="var(--ok)">串联链路·当场阻断</text>';
+      s += '<text x="370" y="268" text-anchor="middle" font-size="12" fill="var(--text-dim)">同样的检测算法，部署位置（旁路/串联）决定它的职责与误报代价</text>';
+    }
+    /* 帧5：VPN 地道 */
+    if (f === 5) {
+      s += '<path d="M 60 196 Q 300 130 560 196" fill="none" stroke="var(--accent-2)" stroke-width="14" opacity=".35" stroke-linecap="round"/>';
+      var vx = 60 + frac * 500;
+      s += '<rect x="' + (vx - 12) + '" y="' + (196 - 46 * Math.sin(Math.PI * frac) - 8) + '" width="24" height="16" rx="4" fill="var(--accent-2)"/>';
+      s += '<text x="' + vx + '" y="' + (196 - 46 * Math.sin(Math.PI * frac) - 12) + '" text-anchor="middle" font-size="9" fill="var(--text)">密文</text>';
+      s += '<text x="300" y="150" text-anchor="middle" font-size="11" fill="var(--accent-2)">VPN 加密地道（IPSec/SSL）</text>';
+      s += '<text x="370" y="268" text-anchor="middle" font-size="12" fill="var(--text-dim)">纵深防御：门牌哨→DMZ→内部哨→监测/诱捕/地道，层层设防</text>';
+    }
+    s += '<text x="370" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="var(--text)">数据包进城之旅：第 ' + (f + 1) + '/6 帧</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', CAPS[f]);
+    if (calcOut) calcOut.textContent = '严格度 ' + STRICT + '：包过滤拦下 ' + blocked + ' 个攻击包，漏进 DMZ ' + pass + ' 个（蜜罐/IDS 兜底）';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 24, duration: 14, onTick: draw });
+  strictSlider.addEventListener('input', function () {
+    STRICT = parseInt(strictSlider.value, 10);
+    strictOut.textContent = String(STRICT);
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var EXPECT = ['边界路由器', '包过滤防火墙（第一道岗哨）', 'DMZ 区：对外 Web/邮件服务', '内部防火墙（第二道岗哨）', '内网核心：数据库与办公区'];
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var items = CX.shuffle(EXPECT.slice());
+  items.forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== EXPECT[i]) {
+        var hint = '';
+        if (i === 0) hint = '提示：流量最早遇到的是最外侧的边界路由器。';
+        else if (i === 1 || i === 3) hint = '提示：两道防火墙把 DMZ 夹在中间——先包过滤岗哨，DMZ 之后还有内部防火墙。';
+        else hint = '提示：对外服务住隔离区，核心资产住最里面的内网。';
+        fb.textContent = '第 ' + (i + 1) + ' 道放错了：你放了「' + got[i] + '」，这里应是「' + EXPECT[i] + '」。' + hint;
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：边界路由 → 包过滤 → DMZ（对外服务）→ 内部防火墙 → 内网核心。这就是纵深防御。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['包过滤防火墙', '只查门牌（IP/端口），最快'],
+    ['应用网关防火墙', '代理全查应用内容，最严'],
+    ['状态检测防火墙', '记连接状态，认得出回包'],
+    ['IDS', '旁路监听，只报警不阻断'],
+    ['IPS', '串联链路，当场拦截'],
+    ['VPN 隧道', '穿越公网的加密专线'],
+    ['蜜罐', '没有真业务的诱饵主机'],
+    ['DMZ', '隔离区：放对外服务']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的职责。';
+        CX.utils.$('lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一项技术。'; CX.utils.$('lab2-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/8';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + selL.dataset.k + '」不负责「' + d.textContent + '」。用比喻再想一遍：谁抄门牌？谁吹号？谁拦人？';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：判断快答 ---- */
+  var TF = [
+    { s: '包过滤防火墙可以检查 HTTP 请求里是否带有攻击载荷。', a: false, e: '错。包过滤只看网络层头部（IP/端口），拆包看内容是应用网关（代理）的工作。' },
+    { s: '防火墙安装到位后，内部员工泄密的风险就不存在了。', a: false, e: '错。防火墙防不了内部攻击与绕过它的连接——内鬼与私接线路都在它的视野之外。' },
+    { s: 'IDS 误报的代价是多发一次警报，IPS 误报可能直接切断正常业务。', a: true, e: '对。旁路 vs 串联决定了误报代价，这也是两者部署与调优策略不同的根源。' },
+    { s: '把 Web 服务器放进内网比放进 DMZ 更安全。', a: false, e: '错。放内网等于要求防火墙向全网开洞直达内网；放 DMZ 才能做到「攻破也进不了内网」。' },
+    { s: 'IPSec VPN 工作在网络层，SSL VPN 浏览器即可使用。', a: true, e: '对。层次决定用法：IPSec 对应用透明适合站点互联，SSL 之上免客户端适合移动办公。' }
+  ];
+  var tfBox = CX.utils.$('tf-list');
+  TF.forEach(function (it, i) {
+    var row = document.createElement('div');
+    row.style.margin = '8px 0';
+    row.innerHTML = '<p style="margin:0 0 4px">' + (i + 1) + '. ' + it.s + '</p>';
+    var bT = document.createElement('button'); bT.className = 'btn'; bT.textContent = '✔ 对';
+    var bF = document.createElement('button'); bF.className = 'btn'; bF.textContent = '✘ 错';
+    var out = document.createElement('span'); out.className = 'lab-feedback'; out.style.marginLeft = '8px';
+    function answer(said) {
+      bT.disabled = true; bF.disabled = true;
+      if (said === it.a) { out.textContent = ' ✅ 对！' + it.e; out.className = 'lab-feedback ok'; }
+      else { out.textContent = ' ❌ 错了。' + it.e; out.className = 'lab-feedback bad'; }
+    }
+    bT.addEventListener('click', function () { answer(true); });
+    bF.addEventListener('click', function () { answer(false); });
+    row.appendChild(bT); row.appendChild(bF); row.appendChild(out);
+    tfBox.appendChild(row);
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

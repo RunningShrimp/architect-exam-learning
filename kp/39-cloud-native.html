@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>39 · 云计算与云原生 · 架构师学堂</title>
+<meta name="description" content="IaaS 租毛坯、PaaS 租精装、SaaS 拎包入住；容器是共享内核的标准化集装箱，K8s 编排自愈伸缩。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="38-microservices.html">前置 38</a></span>
+    <h1>39 · 云计算与云原生</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">IaaS租毛坯，PaaS租精装，SaaS拎包入住。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某公司 30 个微服务准备上线。方案 A：买 30 台虚拟机，每台装操作系统再部署一个服务——采购周期 2 个月，内存大头被操作系统吃掉，扩容要再走采购。方案 B：把每个服务打成镜像，在一批大机器上用容器跑——分钟级起停、密度高、扩容像「多搬几个集装箱」。问题：B 为什么可行？「容器」和你在 12 页学的「虚拟内存」是一回事吗？谁负责管这几十个集装箱的生死与伸缩？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>方案 B 是<b>容器化</b>：容器共享宿主机内核，只打包应用与依赖，所以镜像小、秒级启动、单机可跑几十个；虚拟机每台都要完整 Guest OS，重而慢。注意区分：<b>容器≠虚拟内存</b>——虚拟内存（12 页）是操作系统给进程的地址空间假象，容器是操作系统级的隔离与打包技术。管几十上百个集装箱生死的「港口调度长」就是 <b>Kubernetes</b>：声明期望状态，自动自愈、伸缩、滚动发布。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>38 · SOA与微服务</b>（微服务是云原生四件套的架构前提）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：三层服务模型</h3>
+      <table class="tbl">
+        <tr><th>模型</th><th>你租到什么</th><th>你管什么</th><th>比喻</th></tr>
+        <tr><td><b>IaaS</b>（基础设施即服务）</td><td>虚拟机、存储、网络</td><td>OS 及以上全部（系统、运行时、应用、数据）</td><td>租毛坯房：自己装修</td></tr>
+        <tr><td><b>PaaS</b>（平台即服务）</td><td>现成的运行环境/中间件/托管数据库</td><td>应用与数据</td><td>租精装房：带家具家电</td></tr>
+        <tr><td><b>SaaS</b>（软件即服务）</td><td>直接可用的成品软件</td><td>只用（连数据怎么用都按人家约定）</td><td>住酒店：拎包入住</td></tr>
+      </table>
+      <p>规律：<b>越往上（SaaS），云厂商管得越多，用户管得越少、责任越少</b>。部署形态：公有云（共享大园区）、私有云（自家园子）、混合云（核心放私有、弹性放公有）。</p>
+      <h3>容器 vs 虚拟机</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>虚拟机 VM</th><th>容器 Container</th></tr>
+        <tr><td>隔离层</td><td>虚拟化整台机器，含完整 Guest 操作系统</td><td>共享宿主内核，进程级隔离（Namespace/Cgroup）</td></tr>
+        <tr><td>体积/启动</td><td>GB 级、分钟级启动</td><td>MB 级镜像、秒级启动</td></tr>
+        <tr><td>密度</td><td>单机跑十几个</td><td>单机跑几十上百个</td></tr>
+        <tr><td>隔离强度</td><td>强（内核都独立）</td><td>较弱（共享内核，这是它的安全短板）</td></tr>
+      </table>
+      <h3>Kubernetes 编排：港口调度长</h3>
+      <p>K8s 是<b>声明式</b>编排：你只声明「我想要 5 个健康副本」，控制器持续把现实对齐到期望。四大能力：<b>自愈</b>（容器挂了自动重建）、<b>弹性伸缩</b>（HPA 按负载加减副本）、<b>滚动发布</b>（新旧版本逐步替换、可回滚，不中断服务）、服务发现与负载均衡。</p>
+      <h3>Serverless / FaaS 与云原生四件套</h3>
+      <p><b>Serverless</b>：用户不再管服务器——代码以<b>函数（FaaS）</b>为单位部署，事件触发、按调用计费、自动伸缩；适合突发、短任务；代价：冷启动延迟、长任务与强状态不友好（「没有服务器」指不用管，服务器依然存在）。<b>云原生四件套</b>（常见口径）：<b>容器 + 微服务 + DevOps + 持续交付</b>——应用「生在云上、长在云上」：弹性、可观测、可灰度。（也有口径把服务网格、不可变基础设施计入，答题以四件套为主并注明口径。）</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>Infrastructure/Platform/Software as a Service（IaaS/PaaS/SaaS）· container（容器）· orchestration（编排）· serverless（无服务器）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 归层题：租虚拟机=IaaS；托管数据库/消息队列/容器编排=PaaS；在线 CRM/网盘=SaaS——「托管了中间件」是 PaaS 最易被判错；② <b>容器≠虚拟机</b>，更<b>≠虚拟内存</b>（12 页：那是地址空间抽象）；③ Serverless 不是没有服务器，是「不用你管服务器」；④ 云原生≠只用公有云：私有云里同样可以云原生；⑤ 弹性伸缩的对象是「副本数」，不是「把一个副本变大」（那是纵向扩展，受单机上限约束）。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>云上三层=三种租房方式：<b>IaaS 租毛坯</b>（水电通了，装修自己来）、<b>PaaS 租精装</b>（家具家电齐，拎包做饭）、<b>SaaS 住酒店</b>（连床单都不用你换）——租得越「全」，自己操的心越少。<b>虚拟机=独门独院</b>：每户带独立地基水电（Guest OS），住得安稳但盖得慢；<b>容器=标准化集装箱</b>：尺寸统一、随便堆叠、秒装卸，一艘船能装几百个——但它共用船体（内核），船出事大家都晃。<b>K8s=港口调度长</b>：你说「我要 5 个集装箱在线」，它盯着，少了一个立刻补、货多了自动加船、换货时一条船一条船滚动换。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>毛坯/精装/酒店</td><td>IaaS/PaaS/SaaS 责任边界</td><td>成立</td></tr>
+      <tr><td>集装箱统一尺寸快速装卸</td><td>容器镜像标准化、秒级启动</td><td>成立</td></tr>
+      <tr><td>集装箱互相绝对隔离</td><td>容器隔离强度</td><td><b>失效</b>：容器共享内核，隔离弱于虚拟机，安全敏感场景要叠加沙箱/虚拟机隔离</td></tr>
+      <tr><td>调度长盯梢补货换船</td><td>K8s 自愈/伸缩/滚动发布</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">IaaS 租毛坯，PaaS 带装修，SaaS 拎包住，责任跟着走；<br>虚拟机独门院，集装箱共享楼；<br>声明式编排，挂了自动救；<br>伸缩滚发布，不慌也不抖；<br>四件套记心头：容器微服务，DevOps 交付不停留。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画上半场演示 IaaS/PaaS/SaaS 的<b>责任分界</b>（蓝色=云厂商管，橙色=用户管），下半场演示 K8s 的<b>弹性伸缩</b>：流量上涨自动加副本、回落后缩容。拖动「流量」滑块预览副本数。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>流量（请求/秒） <input type="range" id="load-slider" min="100" max="5000" step="100" value="800"> <span id="load-out">800</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽归层）：这朵云是 IaaS、PaaS 还是 SaaS？</h4>
+      <p class="foreshadow">把 9 张服务卡拖进对应的云层，注意「托管」二字是 PaaS 信号：</p>
+      <div id="c-pool" style="min-height:50px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><b>IaaS</b><div class="drag-slot" id="slot-iaas" data-layer="iaas"></div></div>
+        <div style="flex:1;min-width:140px"><b>PaaS</b><div class="drag-slot" id="slot-paas" data-layer="paas"></div></div>
+        <div style="flex:1;min-width:140px"><b>SaaS</b><div class="drag-slot" id="slot-saas" data-layer="saas"></div></div>
+      </div>
+      <button class="btn" id="c-check">检查归层</button>
+      <button class="btn" id="c-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：虚拟机 vs 容器的资源账单</h4>
+      <p class="foreshadow">假设：应用实例本体占 0.5GB；VM 每实例额外带 Guest OS 2GB、启动 60 秒；容器额外仅 0.05GB、启动 3 秒。拖动实例数对账：</p>
+      <label>应用实例数 <input type="range" id="ins-slider" min="1" max="60" step="1" value="10"> <span id="ins-out">10</span></label>
+      <div class="kf-caption" id="ins-calc"></div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（交互实验）：K8s 自愈与滚动发布模拟台</h4>
+      <p class="foreshadow">当前期望：3 个健康副本。点按钮制造故障或发新版，观察控制器如何对齐期望状态：</p>
+      <div id="k8s-status" class="kf-caption"></div>
+      <div>
+        <button class="btn" data-k="kill">💥 干掉一个 Pod</button>
+        <button class="btn" data-k="deploy">🚀 发布新版本（滚动）</button>
+        <button class="btn" data-k="scale">📈 期望副本升到 5</button>
+        <button class="btn" data-k="reset">↺ 重置</button>
+      </div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考上云决策：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>38 · SOA与微服务</b>给了云原生的架构前提——没有拆好的服务，容器与编排只是「把巨石搬进集装箱」；<b>19 · 分布式数据库与NoSQL</b>的副本思想在云上变成了多可用区部署。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>61 · 物联网与边缘计算</b>：云边协同——云端编排与边缘小节点的配合；</li>
+      <li><b>60 · AI与大模型架构</b>：大模型推理服务同样靠容器伸缩与分流扛流量；</li>
+      <li><b>43 · 质量属性战术</b>：弹性伸缩、心跳重试本质是可用性与性能战术在云上的落地。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>虚拟机</th><th>容器</th></tr>
+      <tr><td>隔离内容</td><td>整台机器+独立内核（Guest OS）</td><td>应用及其依赖，共享宿主内核</td></tr>
+      <tr><td>体积与速度</td><td>GB 级、分钟级启动</td><td>MB 级、秒级启动、密度高</td></tr>
+      <tr><td>易错点</td><td>以为容器是「轻量虚拟机所以绝对安全」——共享内核是它的安全短板</td><td>与「虚拟内存」（12 页）毫无关系，一个是地址空间抽象，一个是打包隔离技术</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">虚拟机独门独院带地基，集装箱共享船体走量——要隔离选独院，要密度选集装箱。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——租毛坯房、租精装房和住酒店的区别……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① IaaS/PaaS/SaaS 是责任边界：租毛坯自己装修、租精装带家具、拎包入住只管用，越往上厂商管得越多。</li><li>② 容器共享内核：秒级启动、高密度，隔离弱于虚拟机；K8s 声明式编排负责自愈、伸缩、滚动发布。</li><li>③ 云原生四件套=容器+微服务+DevOps+持续交付；Serverless 事件触发按量计费，「无服务器」指不用管服务器。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '39', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '云计算与云原生',
+  prev: '38-microservices.html', prevTitle: '38 · SOA与微服务',
+  next: '40-middleware-eda.html', nextTitle: '40 · 中间件与事件驱动架构',
+  keywords: ['IaaS','PaaS','SaaS','容器','Kubernetes','弹性伸缩','Serverless','云原生']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 38） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·38】云原生四件套里的「微服务」，其拆分依据按 38 页口径是？',
+    opts: [
+      { t: 'DDD 限界上下文/业务能力，每服务独享数据库', why: '对。拆对了服务，容器化与编排才有意义。' },
+      { t: '按代码目录结构拆', why: '按目录拆是分布式单体的成因。' },
+      { t: '按数据库表数量拆', why: '表数量与业务边界无关。' }
+    ],
+    ans: 0, tag: '回忆:38', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '云厂商提供「托管 MySQL 数据库」：用户不用装系统、不用打补丁，只管建库写 SQL。这属于？',
+      opts: [
+        { t: 'IaaS', why: 'IaaS 只租到虚机与存储，数据库运维仍在用户。' },
+        { t: 'PaaS', why: '对。托管了运行环境/中间件/数据库，用户只管应用与数据——「托管」是 PaaS 的信号词。' },
+        { t: 'SaaS', why: 'SaaS 是成品应用（如在线文档），不是让你自己建库的服务。' }
+      ],
+      ans: 1, tag: '云层级', src: '仿真题' },
+    { q: '容器比虚拟机启动快、密度高的根本原因是？',
+      opts: [
+        { t: '容器用了更快的 CPU', why: '与硬件无关。' },
+        { t: '容器共享宿主机内核，不携带完整 Guest 操作系统', why: '对。少了一整个 OS，镜像 MB 级、秒级启动；代价是共享内核带来的隔离减弱。' },
+        { t: '容器不占用任何内存', why: '容器照样占内存，只是没有 Guest OS 的开销。' },
+        { t: '虚拟机不能运行 Web 应用', why: '虚拟机能跑任何应用，只是更重。' }
+      ],
+      ans: 1, tag: '容器', src: '仿真题' },
+    { q: 'Kubernetes「声明式编排」的含义是？',
+      opts: [
+        { t: '运维逐条命令指挥每个容器做什么', why: '那是命令式；声明式恰恰相反。' },
+        { t: '用户声明期望状态（如 5 个健康副本），控制器持续把现实对齐到期望', why: '对。自愈、伸缩、滚动发布都是「对齐期望」的体现。' },
+        { t: '把所有配置写死在镜像里', why: '配置一般由配置中心/K8s 对象管理，且声明式说的是状态而非配置写死。' }
+      ],
+      ans: 1, tag: 'Kubernetes', src: '仿真题' },
+    { q: '【交错复习·38】把 30 个「伪微服务」容器化上云后仍要整体一起发版、服务间共连同一个库，38 页把这叫？',
+      opts: [
+        { t: '分布式单体：只搬了形态没拆边界，运维成本翻倍收益为零', why: '对。容器化救不了错误的拆分边界——先有正确的微服务拆分，云原生才有意义。' },
+        { t: 'Serverless', why: 'Serverless 是函数级按量运行，与本现象无关。' },
+        { t: '多租户', why: '多租户指一套系统服务多个客户组织，不是这个概念。' }
+      ],
+      ans: 0, tag: '交错复习:38', src: '仿真题' },
+    { q: '关于 Serverless/FaaS，下列说法正确的是？',
+      opts: [
+        { t: '服务器真的不存在了', why: '服务器还在机房里，只是运维责任转移给了云厂商。' },
+        { t: '代码以函数为单位部署，事件触发、按调用计费、自动伸缩', why: '对。适合突发短任务；冷启动延迟与长任务/强状态是它的短板。' },
+        { t: '适合长驻的高状态在线服务', why: '函数实例随时生灭，长驻状态要外置存储。' }
+      ],
+      ans: 1, tag: 'Serverless', src: '仿真题' }
+  ], { kpId: '39', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某传统企业 CIO 决策上云。系统包含三块：① 核心财务库（监管要求数据自主可控、不可出私有网络）；② 官网与电商 Web 应用（日常流量平稳，大促流量涨 20 倍）；③ 邮箱与办公协同（通用能力，无自研必要）。CIO 问：全上公有云行不行？',
+    q: '(1) 设计混合云方案并说明每块的归属与理由；(2) 说明三块分别对应 IaaS/PaaS/SaaS 中的哪种使用方式；(3) 列出上云的主要风险与对策。',
+    ref: '(1) 混合云：①核心财务库放私有云（合规与数据主权，物理/网络隔离）；②官网电商放公有云（弹性伸缩应对 20 倍脉冲流量，按量付费最经济）；③邮箱协同直接采购公有 SaaS（通用能力不自研）。公有云与私有云之间用专线/VPN 打通必要的业务流。(2) 使用方式：①私有云自建 IaaS（或托管 IaaS）承载核心库；②公有云上 Web 应用可 IaaS 虚机自管或容器化上 PaaS（托管 K8s），数据库用托管数据库（PaaS）；③SaaS 拎包入住。(3) 风险与对策：数据安全与合规→加密存储传输、私有化部署关键数据、明确责任边界；网络依赖与断网→专线双链路、本地降级预案；厂商锁定→采用容器与开放标准、数据可导出、多云/混合架构保留退路；成本失控→预算与用量监控、弹性上限与自动缩容策略。',
+    points: ['三块业务的归属正确（私有云/公有云弹性/SaaS），混合云结构清晰', 'IaaS/PaaS/SaaS 使用方式对应准确，能点出「托管=PaaS」', '风险与对策成对出现且覆盖合规、网络、锁定、成本至少三类'],
+    frame: '答题框架：按业务逐块「归属+理由」列表 → 映射服务模型 → 风险对策表收尾，体现「按合规与流量特征分配云」的决策逻辑。',
+    kpId: '39'
+  });
+  CX.renderCase('#case2', {
+    stem: '某团队把 30 个微服务直接搬上 K8s 后仍频繁故障：发布互相影响、一个服务故障扩散到全站、线上问题定位平均要 4 小时；发布仍靠人工拷贝部署包执行脚本。',
+    q: '(1) 指出该团队「上云」却「不云原生」的三个表现；(2) 给出云原生落地顺序建议；(3) 论述「上云≠云原生」。',
+    ref: '(1) 表现：①缺持续交付——发布靠人工拷贝脚本，没有 CI/CD 流水线与自动化发布；②缺治理与隔离——发布互相影响、故障全站扩散，说明没有滚动发布、熔断限流、资源隔离等机制；③缺可观测性——定位 4 小时说明没有集中日志、指标监控与链路追踪。(2) 落地顺序：容器化统一交付物→K8s 编排（自愈/伸缩/滚动发布）→建 CI/CD 流水线与持续交付（自动构建、测试、灰度、回滚）→补齐可观测性（日志/指标/追踪）与治理（网关、熔断、配置中心）→演练混沌与容量规划。(3) 论述：上云只是把机器换成了租来的（IaaS 层变化）；云原生是应用的设计方式——以容器为交付单元、以微服务为架构风格、以 DevOps+持续交付为工程方法，让应用天生弹性、可观测、可灰度。「把旧应用搬上云」不改变它的耦合与运维方式，故障依旧；只有按四件套改造，云的弹性与自动化红利才真正兑现。',
+    points: ['三个表现与案例现象对应（交付/治理隔离/可观测）', '落地顺序合理（容器化→编排→CI/CD→可观测→演练）', '能从「责任与工程方法」层面论述上云与云原生的区别，而非罗列产品'],
+    frame: '答题框架：现象归因（三缺）→ 路线图（先地基后能力）→ 概念辨析收束（搬进去 vs 生在云上）。',
+    kpId: '39'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某图片处理服务：平时每天几千次调用，每逢用户上传活动暴涨到每秒上万次，单次处理 2 秒内完成。除了 K8s+HPA，还有一种按量计费、免运维的形态特别适合，它是？',
+    opts: [
+      { t: 'Serverless/FaaS：事件触发、按调用计费、自动伸缩，突发短任务正对口', why: '对。脉冲式、短时长、无状态的任务是 FaaS 的教科书场景；代价冷启动要用预留实例缓解。' },
+      { t: '买一台大型机长期独占', why: '脉冲流量下 99% 时间在浪费。' },
+      { t: 'SaaS 在线修图软件', why: '这是内部处理能力，不是采购成品软件的问题。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '39', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['38'], 'prev');
+  CX.depChain('#bridge-next', ['61', '60'], 'next');
+
+  /* ---- 动画：责任分界 + 弹性伸缩 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var LOAD = 800;
+  var rows = ['数据中心/硬件', '虚拟化', '操作系统', '运行时/中间件', '应用', '数据'];
+  function draw(t) {
+    var phase = Math.min(1, t / 0.6); /* 0~0.6 责任分界扫描, 0.6~1 伸缩 */
+    var s = '<svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="330" rx="12" fill="var(--bg-soft)"/>';
+    var i;
+    var layers = [
+      { name: 'IaaS 毛坯', userFrom: 2, y: 26 },
+      { name: 'PaaS 精装', userFrom: 4, y: 26 },
+      { name: 'SaaS 酒店', userFrom: 6, y: 26 }
+    ];
+    /* 三列楼 */
+    layers.forEach(function (L, col) {
+      var x = 40 + col * 230;
+      s += '<text x="' + (x + 90) + '" y="22" text-anchor="middle" font-size="13" fill="var(--accent-2)" font-weight="bold">' + L.name + '</text>';
+      var spot = phase * 6; /* 扫描行进度 */
+      for (i = 0; i < 6; i++) {
+        var y = 36 + i * 34;
+        var vendorManaged = i < L.userFrom;
+        var lit = (col === Math.min(2, Math.floor(spot / 2))) && (spot >= i && spot < i + 1.6);
+        var fill = vendorManaged ? 'var(--accent)' : 'var(--accent-2)';
+        s += '<rect x="' + x + '" y="' + y + '" width="180" height="28" rx="6" fill="' + fill + '" opacity="' + (lit ? '.55' : '.18') + '" stroke="' + fill + '"/>';
+        s += '<text x="' + (x + 90) + '" y="' + (y + 19) + '" text-anchor="middle" font-size="11" fill="var(--text)">' + rows[i] + '</text>';
+      }
+      s += '<text x="' + (x + 90) + '" y="252" text-anchor="middle" font-size="11" fill="var(--accent)">蓝=云厂商管</text>';
+      s += '<text x="' + (x + 90) + '" y="270" text-anchor="middle" font-size="11" fill="var(--accent-2)">橙=用户管</text>';
+    });
+    /* 下半场：弹性伸缩 */
+    s += '<text x="360" y="292" text-anchor="middle" font-size="12" fill="var(--text-dim)">流量 ' + LOAD + '/s → HPA 副本数 = ' + Math.max(1, Math.ceil(LOAD / 500)) + '（挂一个自动补一个，滚动发布不中断）</text>';
+    var copies = Math.min(10, Math.max(1, Math.ceil(LOAD / 500)));
+    for (i = 0; i < copies; i++) {
+      s += '<rect x="' + (140 + i * 46) + '" y="' + (300 + Math.sin(i) * 2) + '" width="38" height="18" rx="4" fill="var(--ok)" opacity=".75"/>';
+    }
+    if (phase >= 0.95) s += '<text x="620" y="292" text-anchor="middle" font-size="10" fill="var(--ok)">↑ 正在对齐期望状态</text>';
+    s += '</svg>';
+    var cap;
+    if (t < 0.6) cap = '上半场：探照灯扫过三层楼——IaaS 只管到虚机（OS 以上自己装），PaaS 管到运行时（应用数据自己写），SaaS 全托管。';
+    else cap = '下半场：K8s 声明期望副本数，控制器按流量自动伸缩——挂了自愈、版本滚动替换。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 18, duration: 12, onTick: draw });
+  var ls = CX.utils.$('load-slider');
+  ls.addEventListener('input', function () {
+    LOAD = +ls.value;
+    CX.utils.$('load-out').textContent = LOAD;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：归层 ---- */
+  var cCards = [
+    { t: '云主机（虚拟机）', layer: 'iaas', why: '租到的是计算基础设施=IaaS。' },
+    { t: '对象存储', layer: 'iaas', why: '存储资源=IaaS。' },
+    { t: '托管 MySQL', layer: 'paas', why: '「托管数据库」是 PaaS 信号词：你不装系统不打补丁。' },
+    { t: '托管 Kubernetes', layer: 'paas', why: '托管编排平台=PaaS。' },
+    { t: '托管消息队列', layer: 'paas', why: '托管中间件=PaaS，最容易误判为 IaaS/SaaS。' },
+    { t: '函数计算 FaaS', layer: 'paas', why: 'FaaS 属平台能力的延伸，一般归 PaaS 侧（教材口径）。' },
+    { t: '在线 CRM 系统', layer: 'saas', why: '成品业务软件=SaaS。' },
+    { t: '在线文档协作', layer: 'saas', why: '直接用的成品=SaaS。' },
+    { t: '云上负载均衡服务', layer: 'iaas', why: '网络与流量基础设施=IaaS 侧。' }
+  ];
+  var cPool = CX.utils.$('c-pool');
+  function buildC() {
+    cPool.innerHTML = '';
+    ['slot-iaas', 'slot-paas', 'slot-saas'].forEach(function (id) { CX.utils.$(id).innerHTML = ''; });
+    CX.utils.$('lab1-fb').textContent = '';
+    CX.shuffle(cCards.slice()).forEach(function (c) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = c.t; d.dataset.t = c.t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+      cPool.appendChild(d);
+    });
+  }
+  buildC();
+  ['slot-iaas', 'slot-paas', 'slot-saas'].forEach(function (id) {
+    var slot = CX.utils.$(id);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = document.querySelector('#c-pool [data-t="' + t + '"], .drag-slot [data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('c-reset').addEventListener('click', buildC);
+  CX.utils.$('c-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    var bad = null;
+    cCards.forEach(function (c) {
+      if (bad) return;
+      var holder = document.querySelector('.drag-slot [data-t="' + c.t + '"]');
+      var want = 'slot-' + c.layer;
+      if (!holder) bad = '还有服务卡没归层（「' + c.t + '」）。';
+      else if (holder.parentElement.id !== want) bad = '❌「' + c.t + '」归层错了——' + c.why;
+    });
+    if (bad) { fb.textContent = bad; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '✅ 全部归层正确！口诀：租资源=IaaS，托管平台=PaaS，成品软件=SaaS。'; fb.className = 'lab-feedback ok'; }
+  });
+
+  /* ---- 实验二：资源账单 ---- */
+  var isSlider = CX.utils.$('ins-slider');
+  function insCalc() {
+    var n = +isSlider.value;
+    CX.utils.$('ins-out').textContent = n;
+    var appGB = 0.5;
+    var vmMem = n * (appGB + 2);
+    var ctMem = n * (appGB + 0.05);
+    var vmBoot = 60, ctBoot = 3;
+    CX.utils.$('ins-calc').textContent = '内存：VM 方案 ' + vmMem.toFixed(1) + 'GB vs 容器方案 ' + ctMem.toFixed(1) + 'GB（省 ' + (vmMem - ctMem).toFixed(1) + 'GB）；扩容到 ' + n + ' 实例：VM 约 ' + (vmBoot / 60).toFixed(1) + ' 分钟级 vs 容器约 ' + ctBoot + ' 秒级';
+    var fb = CX.utils.$('lab2-fb');
+    if (n >= 30) {
+      fb.textContent = '规模到 ' + n + ' 实例，VM 方案多出的全是 Guest OS 开销（' + (n * 2) + 'GB），且分钟级扩容跟不上脉冲流量——这就是云原生选容器的经济账。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      fb.textContent = '小规模下差距尚可接受——但别忘了：容器隔离弱于 VM，安全敏感租户需叠加隔离手段。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  insCalc();
+  isSlider.addEventListener('input', insCalc);
+
+  /* ---- 实验三：K8s 模拟台 ---- */
+  var pods = { healthy: 3, version: 'v1', expect: 3 };
+  function k8sDraw(msg, cls) {
+    var parts = [];
+    for (var i = 0; i < pods.expect; i++) {
+      parts.push(i < pods.healthy ? '● v' + pods.version : '○(重建中)');
+    }
+    CX.utils.$('k8s-status').textContent = '期望 ' + pods.expect + ' 个副本 ｜ 实际：' + parts.join('  ');
+    var fb = CX.utils.$('lab3-fb');
+    fb.textContent = msg;
+    fb.className = 'lab-feedback ' + (cls || '');
+  }
+  k8sDraw('期望状态：3 个健康副本，运行 v1。控制器持续对齐期望。', '');
+  CX.utils.$$('#lab3 .btn[data-k]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.dataset.k;
+      if (k === 'kill') {
+        if (pods.healthy > 0) {
+          pods.healthy--;
+          k8sDraw('💥 一个 Pod 挂了！控制器发现实际( ' + pods.healthy + ' )≠期望( ' + pods.expect + ' )，立刻重建——几秒后自愈为 ' + pods.expect + ' 个健康副本（自愈）。', 'bad');
+          setTimeout(function () { pods.healthy = pods.expect; k8sDraw('✅ 自愈完成：副本数回到期望值 ' + pods.expect + '。声明式编排的日常：你声明想要的，控制器负责兑现。', 'ok'); }, 1200);
+        } else k8sDraw('没有在运行的 Pod 可杀（刚重置过）。', '');
+      } else if (k === 'deploy') {
+        pods.version = pods.version === 'v1' ? 'v2' : 'v3';
+        k8sDraw('🚀 滚动发布 ' + pods.version + '：先起新副本→就绪后逐个替换旧副本→异常自动回滚，全程服务不中断（滚动发布）。', 'ok');
+      } else if (k === 'scale') {
+        pods.expect = 5;
+        pods.healthy = Math.max(pods.healthy, 3);
+        k8sDraw('📈 期望副本升到 5：控制器补齐差额——这就是手动扩容；接入 HPA 后这一步会按流量自动发生（弹性伸缩）。', 'ok');
+      } else {
+        pods = { healthy: 3, version: 'v1', expect: 3 };
+        k8sDraw('已重置：期望 3 个副本，运行 v1。', '');
+      }
+    });
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

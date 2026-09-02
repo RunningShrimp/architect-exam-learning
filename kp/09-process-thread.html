@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · 进程、线程与调度 · 架构师学堂</title>
+<meta name="description" content="进程是独立办事的市民，线程是他手里的待办，调度员按算法叫号。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">操作系统 · 🏛️ 市政厅</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <h1>09 · 进程、线程与调度</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">进程是独立办事的市民，线程是他手里的待办，调度员按算法叫号。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某上线三年的网关服务，大促期间 4 核机器 CPU 长期 98%，QPS 反而比平时低一半。监控显示：该进程起了 300 个线程，其中 280 个处于 WAITING（等待）状态。团队吵成一团：有人说加机器，有人说重启了事。问题：用「进程 / 线程 / 调度」的语言，病灶到底在哪一环？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>280 个线程在等下游 I/O，是 <b>阻塞态</b>；剩下几十个线程在 CPU 上被高频来回切换（运行↔就绪），<b>上下文切换</b>的开销吃掉了算力——CPU 忙的不是「干活」而是「换人」。加机器治标，重启只清现场。正确方向是改线程模型（池化、I/O 多路复用），学完本页你就能把「CPU 高但吞吐低」翻译成状态转换的语言。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本页是操作系统域的第一站（kp-index 中无硬依赖），但它是站在 <b>07 · 中断、DMA与总线</b> 的肩膀上的——中断是进程从阻塞回到就绪的硬件触发器，先把它捡起来：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><b>进程（Process）</b>是程序的一次执行过程，是系统进行<b>资源分配的基本单位</b>——就像市民去市政厅办事，先领一张登记卡。这张卡就是 <b>PCB（进程控制块）</b>：记录进程 ID、状态、现场信息（寄存器快照）和资源清单，进程的一切管理信息都在它身上。<b>线程（Thread）</b>是进程内的一条执行流，是<b>调度执行的基本单位</b>——同一市民手里的多张待办单。</p>
+      <h3>解决什么问题</h3>
+      <p>内存里同时驻留多道程序（多道程序设计），让「一个程序在等 I/O 时 CPU 去跑别的程序」，把 CPU、外设都用起来。进程给并发提供隔离（各有各的地址空间），线程在同一进程内提供更轻的并发（切换不用换地址空间）。</p>
+      <h3>核心机制：三态模型</h3>
+      <p>一个进程任一时刻只处于三种基本状态之一：<b>就绪</b>（万事俱备，只欠 CPU，坐着等叫号）、<b>运行</b>（正占用 CPU 干活）、<b>阻塞</b>（在等某个事件——读盘、等锁、等网络，等到了也上不了 CPU，必须先回就绪排队）。三条状态转换的触发条件必须逐条背下来：</p>
+      <table class="tbl">
+        <tr><th>转换</th><th>触发事件</th><th>谁触发</th></tr>
+        <tr><td>就绪 → 运行</td><td>被调度程序选中（获得 CPU）</td><td>内核调度程序</td></tr>
+        <tr><td>运行 → 就绪</td><td>时间片用完，或被更高优先级抢占</td><td>时钟中断 / 抢占</td></tr>
+        <tr><td>运行 → 阻塞</td><td>主动等待资源或事件（I/O、锁、P 操作失败等）</td><td>进程自己</td></tr>
+        <tr><td>阻塞 → 就绪</td><td>等待的事件发生（如 I/O 完成中断）</td><td>中断处理程序</td></tr>
+      </table>
+      <p>五态模型在此基础上加「<b>新建</b>」（PCB 正在建立，还没进就绪队列）与「<b>终止</b>」（运行结束，回收资源中）。更细的还有引入挂起态的七态模型，考试以三态/五态为主。</p>
+      <h3>核心机制：调度算法</h3>
+      <p>就绪队列里一堆市民，叫号器（调度程序）按什么规则叫？常用算法对比：</p>
+      <table class="tbl">
+        <tr><th>算法</th><th>规则</th><th>优点</th><th>缺点</th></tr>
+        <tr><td>FCFS 先来先服务</td><td>按到达顺序</td><td>公平、简单</td><td>短作业被长作业拖住（护航效应）</td></tr>
+        <tr><td>SJF 短作业优先</td><td>选预计服务时间最短的</td><td>平均周转时间最优</td><td>长作业可能饥饿；需预知时长</td></tr>
+        <tr><td>RR 时间片轮转</td><td>轮流上一个时间片，片满回队尾</td><td>响应快、公平</td><td>片太小切换开销大；太大退化为 FCFS</td></tr>
+        <tr><td>优先级调度</td><td>高优先级先</td><td>可区分紧急程度</td><td>低优先级会饥饿（可用「老化」缓解）</td></tr>
+        <tr><td>多级反馈队列</td><td>多队列 + 用满时间片就降到下一级</td><td>兼顾响应与吞吐，不需预知时长</td><td>实现复杂、参数敏感</td></tr>
+      </table>
+      <h3>关键细节：公式与线程资源归属</h3>
+      <p><b>周转时间 = 完成时间 − 到达时间</b>；<b>带权周转时间 = 周转时间 ÷ 服务时间</b>（恒 ≥ 1，越接近 1 越好）。平均带权周转时间是计算题常客。</p>
+      <table class="tbl">
+        <tr><th>归属</th><th>内容</th></tr>
+        <tr><td>同进程线程<b>共享</b></td><td>地址空间（代码段、数据段、堆）、全局变量、打开的文件、信号量等进程级资源</td></tr>
+        <tr><td>线程<b>独有</b></td><td>线程栈、寄存器组（含程序计数器 PC）、线程 ID 与状态等调度信息</td></tr>
+      </table>
+      <h3>专业英语小贴士</h3>
+      <p>Process（进程）、Thread（线程）、Context Switch（上下文切换：保存旧现场、恢复新现场的动作，同进程内的线程切换不动地址空间，因此比进程切换轻）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>
+        ① <b>「就绪→阻塞」不存在</b>：还没上过 CPU，谈不上等事件；<b>「阻塞→运行」也不存在</b>：必须先回就绪排队。<br>
+        ② 线程不是「什么都不私有」：栈、寄存器、PC 是线程私有的，别把「共享地址空间」绝对化。<br>
+        ③ 时间片到是「运行→<b>就绪</b>」，不是阻塞——它没在等任何事件。<br>
+        ④ 算周转时间别忘了减到达时间；带权周转=周转÷服务，恒 ≥ 1，算出小于 1 一定是错的。
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🏛️ 市政厅办事大厅：<b>市民（进程）</b>到大厅办事，先领一张登记卡（<b>PCB</b>），卡上写着他的状态与所需资源。一个市民可以同时推进多张<b>待办单（线程）</b>——待办单用市民名下的资源（同一张桌子、同一份材料），但各有各的草稿纸（栈）和各自记到第几行（程序计数器）。<b>叫号器（调度程序）</b>按规则叫号；办到一半缺材料（等 I/O）就先离柜回家（阻塞），材料寄到（中断）再回来重新排队（就绪）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>市民</td><td>进程</td><td>成立</td></tr>
+      <tr><td>办事登记卡</td><td>PCB（进程控制块）</td><td>成立</td></tr>
+      <tr><td>手里的一叠待办单</td><td>线程</td><td>成立：待办单不单独领桌子，用市民名下的资源</td></tr>
+      <tr><td>叫号器</td><td>调度程序</td><td>成立</td></tr>
+      <tr><td>各自的草稿纸与进度行号</td><td>线程栈与程序计数器</td><td>成立</td></tr>
+      <tr><td>「市民自己决定何时上窗口」</td><td>（错误类比）</td><td><b>失效边界</b>：进程不能自己挑上 CPU 的时机，调度是内核行为；类比在这里断掉</td></tr>
+    </table>
+    <div class="rhyme">进程市民来报到，线程待办一张票；<br>就绪坐着等叫号，运行上窗不动摇；<br>缺了材料先睡觉，材料到了再排号；<br>短活先办效率高，片满回尾再来跑。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画跟踪市民 A 的一天：排队 → 上窗 → 缺材料回家 → 材料寄到 → 再排队 → 再上窗 → 时间片到回队尾，把三条状态转换边逐帧点亮。拖动滑块改变大厅里的市民总数，观察就绪队列的长度。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>并发进程数 N <input type="range" id="demo1-n" min="2" max="6" step="1" value="3"> <span id="demo1-n-out">3</span></label>
+      <span class="kf-caption" id="demo1-note">滑块调的是「就绪队列里一起排队的市民数」</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：触发事件 ↔ 状态转换</h4>
+      <p class="foreshadow">先点左列一个触发事件，再点右列它引起的状态转换：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="m-left"></div>
+        <div id="m-right"></div>
+      </div>
+      <button class="btn" id="m-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（逐步排程）：你来当 SJF 调度员</h4>
+      <p class="foreshadow">作业 A（0 到达，服务 4）· B（1 到达，服务 3）· C（2 到达，服务 1）· D（3 到达，服务 2），单 CPU、非抢占。按 SJF 规则逐个点击「下一个上 CPU 的作业」，每步都会立即判分并指出错在哪：</p>
+      <p>当前时刻：<b id="sjf-clock">0</b> · 已完成：<span id="sjf-done">无</span></p>
+      <div id="sjf-btns"></div>
+      <button class="btn" id="sjf-reset">重做</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>07 · 中断与DMA：中断让「阻塞→就绪」有了硬件触发器，DMA 让进程等待 I/O 的时间更短——没有中断，三态模型里阻塞进程永远没人唤醒。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>10 · PV操作：P 操作会把进程从运行直接打进阻塞态——本页的三态图是它的骨架；</li>
+      <li>11 · 死锁：一组进程永远停在阻塞态、等一个永远不会来的事件，就是死锁；</li>
+      <li>12 · 虚拟内存：进程切换要换页表基址，快表（TLB）必须冲刷——地址翻译也有「切换代价」。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>进程</th><th>线程</th></tr>
+      <tr><td>差异点</td><td>资源分配的基本单位，有独立地址空间</td><td>调度执行的基本单位，共享所属进程的资源</td></tr>
+      <tr><td>易错点</td><td>切换要换地址空间，开销大</td><td>也有私有财产：栈、寄存器组、PC，不是什么都不私有</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">进程是「户口」，线程是这个户口下正在跑腿办事的人。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——市政厅办事大厅里，每个来办事的人是一张工单……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3">
+      <li>① 进程=资源分配单位（市民+PCB），线程=调度执行单位（待办单）；线程私有栈与寄存器、共享地址空间，所以线程切换比进程切换轻。</li>
+      <li>② 三态循环只有四条边：调度选中、时间片到、等事件、事件完成；就绪不会直接变阻塞，阻塞也不会直接上 CPU。</li>
+      <li>③ 调度算法没有全能冠军：SJF 平均周转最优但会饿死长作业，RR 响应好但切换开销大，多级反馈队列靠「用满就降级」折中。</li>
+    </ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '09', domain: 'os', loc: 'govhall', root: '..',
+  title: '进程、线程与调度',
+  prev: '08-embedded-realtime.html', prevTitle: '08 · 嵌入式与实时系统',
+  next: '10-pv-semaphore.html', nextTitle: '10 · 同步互斥与PV操作',
+  keywords: ['进程', '线程', '就绪', '阻塞', '时间片', '调度', '周转时间', '上下文切换']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---------- 回忆题（无硬依赖，取关联前置点 07 中断） ---------- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·07】外设（如磁盘）完成一次数据传输后，通知 CPU「该来处理了」靠的是什么机制？',
+    opts: [
+      { t: 'CPU 不断查询设备状态寄存器直到完成', why: '这是程序查询（轮询）方式，CPU 会被拖住，早已被中断机制取代为主流。' },
+      { t: '设备发出中断请求，CPU 暂停当前流程转去执行中断处理程序', why: '对：中断是外设「反客为主」叫醒 CPU 的机制，也是本页「阻塞→就绪」的硬件触发器。' },
+      { t: '内存主动把数据推给 CPU', why: '内存是被动的，不会主动通知。' }
+    ],
+    ans: 1, tag: '回忆:07', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---------- 随堂 5 题 ---------- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '在进程三态模型中，下列哪种状态转换不可能发生？',
+      opts: [
+        { t: '运行 → 就绪：时间片用完', why: '会发生：片满回队尾，是最常见的转换之一。' },
+        { t: '运行 → 阻塞：进程等待磁盘读取完成', why: '会发生：进程主动让出 CPU 等事件。' },
+        { t: '阻塞 → 就绪：等待的 I/O 完成中断到达', why: '会发生：事件到了先回就绪排队。' },
+        { t: '就绪 → 阻塞：就绪队列太长，进程去等待', why: '对（本题选它）：就绪进程还没上过 CPU，谈不上「等待事件」；阻塞必须由运行态主动发起。' }
+      ],
+      ans: 3, tag: '概念', src: '仿真题' },
+    { q: '三道作业同时到达（0 时刻），依次需运行 10、6、2 分钟，单 CPU、按 FCFS（按题给顺序执行）。它们的平均周转时间是？',
+      opts: [
+        { t: '约 14.7 分钟', why: '对：完成时间为 10、16、18，周转同为 10、16、18，平均 (10+16+18)/3 = 44/3 ≈ 14.7 分钟。' },
+        { t: '6 分钟', why: '这是平均服务时间，不是周转时间——周转要从到达时刻算到完成时刻。' },
+        { t: '18 分钟', why: '这是最后一个作业的周转时间，别忘了求平均。' },
+        { t: '12 分钟', why: '漏算了某道作业或把服务时间当成周转。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '同一进程内的多个线程，下列哪项资源是线程【私有】而不是共享的？',
+      opts: [
+        { t: '堆上的全局数据区', why: '共享：同进程线程共用地址空间里的数据段与堆。' },
+        { t: '已打开文件的描述表', why: '共享：打开文件是进程级资源，线程共用。' },
+        { t: '各自的栈与寄存器组（含程序计数器）', why: '对：栈和寄存器现场是线程私有的，这正是「切换线程要保存/恢复现场」的原因。' },
+        { t: '代码段（程序指令）', why: '共享：执行的还是同一份代码。' }
+      ],
+      ans: 2, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·07】某进程因等待磁盘读取而处于阻塞态，此刻磁盘完成并发出中断。该进程接下来会？',
+      opts: [
+        { t: '立即重新获得 CPU 继续运行', why: '错：唤醒≠上 CPU，中间还隔着一个调度程序。' },
+        { t: '从阻塞转为就绪，进入就绪队列等待调度', why: '对：中断处理程序把它唤醒入队，能否运行由调度程序决定——「事件完成」和「被叫号」是两回事。' },
+        { t: '从就绪转为阻塞，继续等待', why: '方向反了：事件已经完成，不需要再等。' },
+        { t: '被内核直接终止', why: '中断只是事件通知，与终止无关。' }
+      ],
+      ans: 1, tag: '交错复习:07', src: '仿真题' },
+    { q: '【交错复习·04】流水线与进程调度都体现「系统吞吐受制于瓶颈」的思想。指令流水线在理想情况下的最大吞吐率取决于？',
+      opts: [
+        { t: '流水线级数越多吞吐率一定越高', why: '级数多未必快：瓶颈段不缩短，吞吐率就不会提升，还有切换与冒险代价。' },
+        { t: '最快那一段的执行时间', why: '反了：流水线节奏由最慢段决定，快段只能空等。' },
+        { t: '最慢那一段的执行时间（瓶颈段），最大吞吐率 = 1/瓶颈段周期', why: '对：装配线上最慢的工位决定出件节奏，与调度里「CPU 是单瓶颈资源」同构。' },
+        { t: '第一条指令的执行时间', why: '第一条只是流水「充满」的过程，稳态吞吐由瓶颈段决定。' }
+      ],
+      ans: 2, tag: '交错复习:04', src: '仿真题' }
+  ], { kpId: '09', mode: 'test' });
+
+  /* ---------- 案例分析 ---------- */
+  CX.renderCase('#case1', {
+    stem: '某网关服务采用「每个请求新建一个线程」的模型。大促峰值 800 个并发请求，800 个线程同时存活：内核上下文切换开销占 CPU 的 40%，每线程默认栈 1MB 又占去 800MB 内存，P99 延迟从 50ms 劣化到 2s。',
+    q: '(1) 用进程/线程/调度的术语指出两个性能病灶；(2) 给出两种改造方案，并说明各自削掉了哪块开销；(3) 线程池的「任务队列长度」与「拒绝策略」分别影响什么？',
+    ref: '(1) 病灶一：线程过多导致上下文切换频繁——运行↔就绪高速轮转，保存/恢复现场与缓存污染吃掉 40% CPU；病灶二：大多数线程处于阻塞态等下游 I/O，CPU 时间花在「换人」而非「干活」，800 份线程栈还占着内存。(2) 方案一：线程池（固定线程数+任务队列），把建/删线程和切换开销压到常数；方案二：I/O 多路复用/异步化（事件循环），让少量线程用「就绪通知」代替「阻塞等待」，阻塞态线程数量骤减。(3) 队列长度决定系统可缓存的突发量：太长推高排队延迟，太短则过早触发拒绝；拒绝策略决定过载时「丢谁、怎么丢」（快速失败/降级/限流），必须显式设计。',
+    points: ['能定位主病灶「线程过多→上下文切换开销」并结合题干数据（40%）', '指出阻塞态线程与每线程栈的内存代价，不只谈 CPU', '两种措施与病灶一一对应（池化对切换、多路复用对阻塞等待）', '第 (3) 问能说出队列/拒绝策略的副作用，而非只报名词'],
+    frame: '答题框架：术语定位（状态转换与开销类型）→ 用题干数据佐证 → 措施逐条对应病灶 → 收尾谈新引入的问题（队列、拒绝、监控指标）。',
+    kpId: '09'
+  });
+  CX.renderCase('#case2', {
+    stem: '某单 CPU 批处理系统、非抢占调度。四道作业：A 在 0 时刻到达需 4 分钟，B 在 1 时刻到达需 3 分钟，C 在 2 时刻到达需 1 分钟，D 在 3 时刻到达需 2 分钟。',
+    q: '(1) 按短作业优先 SJF（非抢占）给出执行顺序并说明每步依据；(2) 计算各作业周转时间与平均周转时间；(3) 若改用时间片轮转 RR（q=1），定性说明 B、C 的「体验」会发生什么变化。',
+    ref: '(1) 0 时刻只有 A 已到达，只能先跑 A（0~4）；4 时刻 B、C、D 均已到达，选服务最短的 C（4~5）；再比较 B(3) 与 D(2)，选 D（5~7）；最后 B（7~10）。顺序：A→C→D→B。(2) 周转时间 = 完成−到达：A=4−0=4；C=5−2=3；D=7−3=4；B=10−1=9；平均 = (4+3+4+9)/4 = 5.0 分钟。(3) RR(q=1) 下 B 从第 1 分钟起每轮都能上 CPU，首响应时间大大提前，C 完成时间不会晚于 SJF 太多；代价是切换次数增多、整体周转通常变长——RR 用周转换响应，适合交互式系统，批处理更看重 SJF 的低平均周转。',
+    points: ['理解非抢占 SJF 的「到达限制」：0 时刻只能选 A，而不是全局最短的 C', '每个作业的完成时间与周转时间计算正确（B 的周转 9 是关键检验点）', '平均周转 5.0 分钟正确', '第 (3) 问能说出 RR「响应提前、周转变长」的权衡而非只说「更公平」'],
+    frame: '答题框架：列时刻表（到达/服务）→ 逐步选作业（每步写清候选集合与挑选依据）→ 套公式算周转与平均 → 一句话对比算法适用场景收尾。',
+    kpId: '09'
+  });
+
+  /* ---------- 变式迁移 ---------- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某医院门诊实行「预计就诊时间短的病人优先」，这与调度算法中的短作业优先（SJF）同源。该策略最大的副作用是？',
+    opts: [
+      { t: '医生的工作强度上升', why: '与医生强度无关，问题出在排序规则对长任务的歧视。' },
+      { t: '预计耗时长的病人（复杂病例）可能被无限期推后，即「饥饿」', why: '对：这正是 SJF 的经典缺陷——源源不断的短任务会让长任务永远排在队尾，需要「老化」等机制补救。' },
+      { t: '挂号费会上涨', why: '与费用体系无关。' },
+      { t: '病历无法归档', why: '与归档流程无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---------- 概念桥 ---------- */
+  CX.depChain('#bridge-prev', ['07'], 'prev');
+  CX.depChain('#bridge-next', ['10'], 'next');
+
+  /* ---------- 动画：三态转换图 ---------- */
+  var stage = CX.utils.$('demo1-stage');
+  var N = 3; /* 并发进程数滑块 */
+  var NODES = {
+    ready: { x: 168, y: 226, label: '就绪', sub: 'Ready' },
+    run:   { x: 360, y: 76,  label: '运行', sub: 'Running' },
+    block: { x: 552, y: 226, label: '阻塞', sub: 'Blocked' }
+  };
+  var EDGES = {
+    rr: { p0: { x: 196, y: 196 }, p1: { x: 232, y: 112 }, p2: { x: 316, y: 92 },  lab: '调度选中', lx: 218, ly: 148 },
+    rb: { p0: { x: 340, y: 112 }, p1: { x: 296, y: 182 }, p2: { x: 210, y: 206 }, lab: '时间片到', lx: 300, ly: 172 },
+    rw: { p0: { x: 392, y: 104 }, p1: { x: 476, y: 142 }, p2: { x: 530, y: 196 }, lab: '等待事件/I/O', lx: 496, ly: 132 },
+    wr: { p0: { x: 512, y: 258 }, p1: { x: 360, y: 318 }, p2: { x: 208, y: 258 }, lab: '事件完成·中断', lx: 360, ly: 306 }
+  };
+  var FRAMES = [
+    { at: 'ready', cap: '进程 A 创建完成，进入就绪队列排队——万事俱备，只欠 CPU 叫号' },
+    { mv: 'rr', cap: '②调度选中：A 从就绪进入运行，独占 CPU' },
+    { mv: 'rw', cap: '③运行→阻塞：A 要读磁盘，事件没到，主动让出 CPU 去等待' },
+    { at: 'block', other: true, cap: 'A 在阻塞态干等 I/O；CPU 立刻切给进程 B——阻塞态不占用 CPU' },
+    { mv: 'wr', cap: '④事件完成：磁盘中断到达（呼应 07），A 被唤醒回到就绪' },
+    { at: 'ready', cap: 'A 排到队尾：唤醒 ≠ 立刻运行，还得重新等叫号' },
+    { mv: 'rr', cap: '再次被调度：A 回到运行态' },
+    { mv: 'rb', cap: '①运行→就绪：时间片用完回队尾——它没在等任何事件，这不是阻塞' }
+  ];
+  function bez(p0, p1, p2, k) {
+    var a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, c = k * k;
+    return { x: a * p0.x + b * p1.x + c * p2.x, y: a * p0.y + b * p1.y + c * p2.y };
+  }
+  function nodeSvg(key, active) {
+    var n = NODES[key];
+    var s = '<circle cx="' + n.x + '" cy="' + n.y + '" r="34" fill="' + (active ? 'var(--accent-2)' : 'var(--card-2)') + '" stroke="' + (active ? 'var(--accent-2)' : 'var(--line)') + '" stroke-width="2"/>';
+    s += '<text x="' + n.x + '" y="' + (n.y - 2) + '" text-anchor="middle" font-size="16" font-weight="bold" fill="' + (active ? 'var(--bg)' : 'var(--text)') + '">' + n.label + '</text>';
+    s += '<text x="' + n.x + '" y="' + (n.y + 16) + '" text-anchor="middle" font-size="10" fill="' + (active ? 'var(--bg)' : 'var(--text-dim)') + '">' + n.sub + '</text>';
+    return s;
+  }
+  function edgeSvg(key, hot) {
+    var e = EDGES[key];
+    var col = hot ? 'var(--accent-2)' : 'var(--line)';
+    var s = '<path d="M ' + e.p0.x + ' ' + e.p0.y + ' Q ' + e.p1.x + ' ' + e.p1.y + ' ' + e.p2.x + ' ' + e.p2.y + '" fill="none" stroke="' + col + '" stroke-width="' + (hot ? 3 : 1.5) + '" marker-end="url(#arw)"/>';
+    s += '<text x="' + e.lx + '" y="' + e.ly + '" text-anchor="middle" font-size="11" fill="' + (hot ? 'var(--accent-2)' : 'var(--text-dim)') + '">' + e.lab + '</text>';
+    return s;
+  }
+  function draw(t) {
+    var f = Math.min(FRAMES.length - 1, Math.floor(t * FRAMES.length));
+    var k = Math.min(1, t * FRAMES.length - f);
+    var F = FRAMES[f];
+    var pos;
+    if (F.mv) pos = bez(EDGES[F.mv].p0, EDGES[F.mv].p1, EDGES[F.mv].p2, k);
+    else pos = { x: NODES[F.at].x, y: NODES[F.at].y };
+    var runWho = (F.other || f === 5) ? (N >= 2 ? 'B' : '空') : 'A';
+    var s = '<svg viewBox="0 0 720 392" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="进程三态转换动画">';
+    s += '<defs><marker id="arw" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-dim)"/></marker></defs>';
+    s += '<rect width="720" height="392" rx="12" fill="var(--bg-soft)"/>';
+    ['rr', 'rb', 'rw', 'wr'].forEach(function (key) { s += edgeSvg(key, F.mv === key); });
+    ['ready', 'run', 'block'].forEach(function (key) { s += nodeSvg(key, (F.at === key) || (F.mv && pos.x === NODES[key].x)); });
+    if (F.at !== 'run' && !F.mv) { /* 空 circles already drawn */ }
+    s += '<text x="360" y="52" text-anchor="middle" font-size="12" fill="var(--text-dim)">CPU 上当前运行：进程 ' + runWho + '</text>';
+    s += '<circle cx="' + pos.x + '" cy="' + pos.y + '" r="11" fill="var(--accent)"/><text x="' + pos.x + '" y="' + (pos.y + 4) + '" text-anchor="middle" font-size="11" font-weight="bold" fill="var(--bg)">A</text>';
+    s += '<text x="52" y="352" font-size="12" fill="var(--text-dim)">就绪队列（市民 ' + N + ' 人）：</text>';
+    for (var i = 0; i < N; i++) {
+      var cx = 210 + i * 40;
+      var isA = (F.at === 'ready' || (F.mv === 'wr' && k > 0.85));
+      s += '<rect x="' + cx + '" y="338" width="30" height="22" rx="6" fill="' + (isA ? 'var(--accent)' : 'var(--card)') + '" stroke="var(--line)"/>';
+      s += '<text x="' + (cx + 15) + '" y="354" text-anchor="middle" font-size="11" fill="' + (isA ? 'var(--bg)' : 'var(--text-dim)') + '">' + (i === 0 ? 'A' : 'P' + (i + 1)) + '</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + (f + 1) + '/' + FRAMES.length + ' 帧 · ' + F.cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 8, duration: 16, onTick: draw });
+  var nSlider = CX.utils.$('demo1-n');
+  nSlider.addEventListener('input', function () {
+    N = parseInt(nSlider.value, 10);
+    CX.utils.$('demo1-n-out').textContent = N;
+    draw(anim.t);
+  });
+
+  /* ---------- 实验一：连线匹配 ---------- */
+  var pairs = [
+    ['时间片用完', '运行 → 就绪'],
+    ['进程发起读文件，等待磁盘', '运行 → 阻塞'],
+    ['磁盘读取完成，产生中断', '阻塞 → 就绪'],
+    ['调度程序选中该进程', '就绪 → 运行']
+  ];
+  var lBox = CX.utils.$('m-left'), rBox = CX.utils.$('m-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab1-fb').textContent = '已选「' + p[0] + '」，请在右列点它引起的状态转换。';
+        CX.utils.$('lab1-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab1-fb').textContent = '先点左列一个触发事件。'; CX.utils.$('lab1-fb').className = 'lab-feedback'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab1-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab1-fb').textContent = '❌ 「' + selL.dataset.k + '」不是「' + d.textContent + '」。判断口诀：先看进程此刻在不在 CPU 上——不在就不可能「主动去等」，也不可能「被叫号」。';
+          CX.utils.$('lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('m-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab1-fb').textContent = ''; CX.utils.$('lab1-fb').className = 'lab-feedback'; });
+
+  /* ---------- 实验二：SJF 逐步排程 ---------- */
+  var jobs = [
+    { id: 'A', at: 0, st: 4 },
+    { id: 'B', at: 1, st: 3 },
+    { id: 'C', at: 2, st: 1 },
+    { id: 'D', at: 3, st: 2 }
+  ];
+  var sjfClock, sjfFinished, sjfTurn;
+  function sjfReset() {
+    sjfClock = 0; sjfFinished = []; sjfTurn = {};
+    CX.utils.$('sjf-clock').textContent = '0';
+    CX.utils.$('sjf-done').textContent = '无';
+    CX.utils.$('lab2-fb').textContent = '从 0 时刻开始：谁先上 CPU？';
+    CX.utils.$('lab2-fb').className = 'lab-feedback';
+    sjfRender();
+  }
+  function sjfArrived(j) { return j.at <= sjfClock && sjfFinished.indexOf(j.id) < 0; }
+  function sjfRender() {
+    var box = CX.utils.$('sjf-btns');
+    box.innerHTML = '';
+    jobs.forEach(function (j) {
+      if (sjfFinished.indexOf(j.id) >= 0) return;
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = j.id + '（' + j.at + ' 到达，服务 ' + j.st + '）';
+      b.addEventListener('click', function () { sjfPick(j, b); });
+      box.appendChild(b);
+    });
+  }
+  function sjfPick(j, btn) {
+    var fb = CX.utils.$('lab2-fb');
+    var step = sjfFinished.length + 1;
+    if (!sjfArrived(j)) {
+      fb.textContent = '❌ 第 ' + step + ' 步错了：当前时刻 ' + sjfClock + '，作业 ' + j.id + ' 要到 ' + j.at + ' 时刻才到达——非抢占 SJF 只能在【已到达】的作业里挑，不能预知未来。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    var cand = jobs.filter(sjfArrived);
+    var best = cand.slice().sort(function (a, b) { return a.st - b.st || a.at - b.at; })[0];
+    if (j !== best) {
+      fb.textContent = '❌ 第 ' + step + ' 步错了：你选了 ' + j.id + '（服务 ' + j.st + '），但已到达的作业里 ' + best.id + ' 服务时间只有 ' + best.st + '——SJF 每次选【已到达中服务时间最短】的；服务相同才看到达先后。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    btn.disabled = true;
+    sjfClock += j.st;
+    sjfFinished.push(j.id);
+    sjfTurn[j.id] = sjfClock - j.at;
+    CX.utils.$('sjf-clock').textContent = String(sjfClock);
+    CX.utils.$('sjf-done').textContent = sjfFinished.join(' → ');
+    fb.textContent = '✅ 第 ' + step + ' 步正确：' + j.id + ' 运行到 t=' + sjfClock + '，周转时间 = ' + sjfClock + '−' + j.at + ' = ' + sjfTurn[j.id] + ' 分钟。';
+    fb.className = 'lab-feedback ok';
+    if (sjfFinished.length === jobs.length) {
+      var sum = 0, line = [];
+      jobs.forEach(function (x) { sum += sjfTurn[x.id]; line.push(x.id + '=' + sjfTurn[x.id]); });
+      fb.textContent = '🎉 完成顺序 ' + sjfFinished.join('→') + '；周转时间 ' + line.join('，') + '；平均周转 = ' + sum + '/4 = ' + (sum / 4).toFixed(1) + ' 分钟。对照知识卡片公式核一遍吧。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  CX.utils.$('sjf-reset').addEventListener('click', sjfReset);
+  sjfReset();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

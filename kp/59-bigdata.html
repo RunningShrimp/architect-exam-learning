@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>59 · 大数据架构 · 架构师学堂</title>
+<meta name="description" content="Lambda 批流两条腿走路，Kappa 只留流式一条腿，数据湖仓库管水的进与出。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🌆 未来新城</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="19-distributed-db.html">前置 19</a></span>
+    <span class="badge dep"><a href="40-middleware-eda.html">前置 40</a></span>
+    <h1>59 · 大数据架构</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">Lambda 批流两条腿，Kappa 一条腿重放日志。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某视频平台要建「播放日志分析平台」：每天新增 10TB 播放行为日志。运营要求大盘数据<b>分钟级可见</b>（热点内容晚半小时就没意义）；财务要求<b>结算报表精确可审计</b>，差一分钱都要查得清。方案 A：每晚跑一次全量批处理——财务满意，运营骂慢。方案 B：全部改成实时流式计算——运营满意，财务发现流式算出来的数偶尔对不平（乱序、迟到、重复），审计不敢签字。问题：架构上有没有办法让两条需求<b>同时满足</b>？代价是什么？能不能只用一套代码？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>有，这就是 <b>Lambda 架构</b>：同一份数据走两条腿——<b>批处理层</b>每天对全量数据算出<b>精确视图</b>（喂饱财务），<b>加速层</b>对增量数据流实时算出<b>近似视图</b>（喂饱运营），<b>服务层</b>把两个视图合并后统一对外查询。代价：同一业务逻辑要写批、流两遍，改一个口径要改两处代码，维护成本翻倍。如果团队小、想只留一条腿，就是 <b>Kappa 架构</b>：一切皆流，用 Kafka 把全量日志存住，需要精确重算时<b>重放日志</b>从头再算——省掉两套代码，但重放要吃大量算力，且复杂批逻辑在流引擎上不好写。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>19 · 分布式数据库与NoSQL</b> 与 <b>40 · 中间件与事件驱动架构</b>（前者给了 CAP 取舍，后者给了消息队列这块流式管道的基石）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：大数据的 5V 特征</h3>
+      <p>大数据不是「数据多」，而是「多到传统单机数据库在成本与技术上都玩不转」。特征用 <b>5V</b> 概括（不同教材口径略有差异，考试建议把两种口径都点到）：</p>
+      <table class="tbl">
+        <tr><th>V</th><th>含义</th><th>一句话理解</th></tr>
+        <tr><td>Volume 大量</td><td>规模从 TB 到 PB 级</td><td>多到一台机器装不下、算不完</td></tr>
+        <tr><td>Variety 多样</td><td>结构化/半结构化/非结构化</td><td>表格、日志、图片、视频什么都有</td></tr>
+        <tr><td>Velocity 高速</td><td>产生与处理速度快</td><td>数据像洪水一样涌来，边到边算</td></tr>
+        <tr><td>Value 价值密度低</td><td>整体价值大但稀释</td><td>一小时监控里只有几秒有用</td></tr>
+        <tr><td>Veracity 真实性</td><td>质量参差、噪声多</td><td>第 5V 的常见口径；另有口径把 Value 换成 Veracity，答题时注明即可</td></tr>
+      </table>
+      <h3>Hadoop 生态：三驾马车</h3>
+      <p><b>HDFS</b>（分布式文件系统）：把大文件切块分散存在一堆便宜的商用机上，每块默认存 <b>3 个副本</b>容错；设计假设是「<b>一次写入、多次读取</b>」的大文件顺序读，主从结构（NameNode 管目录元数据，DataNode 存数据块）。<b>MapReduce</b>：计算模型，把任务拆成 Map（每台机器各自算自己那块数据——「移动计算不移动数据」）和 Reduce（汇总结果），中间结果写磁盘。<b>YARN</b>：资源调度器，管整个集群的 CPU/内存，谁想跑计算先找它申请资源。三者关系：HDFS 管存、YARN 管资源、MapReduce/Spark 管算。</p>
+      <table class="tbl">
+        <tr><th>维度</th><th>MapReduce</th><th>Spark</th></tr>
+        <tr><td>中间结果</td><td>每步落盘，读写磁盘频繁</td><td>基于内存（RDD 弹性分布式数据集），迭代时不用反复读写磁盘</td></tr>
+        <tr><td>速度</td><td>慢，适合超大规模离线作业</td><td>内存计算，迭代与交互式场景快一个量级（一般认为，视任务而定）</td></tr>
+        <tr><td>代价</td><td>稳、省内存</td><td>吃内存，内存不足会退化甚至失败</td></tr>
+      </table>
+      <p>周边常客：<b>Hive</b> 用 SQL 语法查 HDFS 上的数据（数据仓库工具）、<b>Kafka</b> 分布式消息队列（40 页的「快递中转站」，流式管道的入口与日志底座）。</p>
+      <h3>Lambda 架构：批流两条腿</h3>
+      <p>三层职责必须记牢：<b>批处理层</b>（Batch Layer）持有全量数据集，周期性重算出「准而慢」的批视图；<b>加速层</b>（Speed Layer）只处理最新增量数据，算出「快而不完全准」的实时视图；<b>服务层</b>（Serving Layer）把两路视图<b>合并</b>后统一响应查询。优点：准确性与实时性兼得；缺点：同一逻辑批流各写一遍，口径一改要改两处，测试维护成本翻倍。</p>
+      <h3>Kappa 架构：只留流式一条腿</h3>
+      <p>核心主张：既然流式迟早能算一切，那就<b>只保留流处理</b>。用 Kafka 这类日志系统<b>持久保存全量数据</b>（按主题分区、保留足够长的时间），所有计算都是流式作业；当逻辑变更或历史算错时，启动新版本作业<b>从日志重放（replay）</b>重新计算，算完切换结果。优点：一套代码、一套引擎；缺点：重放历史要吃大量算力与时间，复杂批处理逻辑（如全量机器学习训练、超大规模连接）在流引擎上表达困难，且依赖日志系统能存得下、存得住。</p>
+      <h3>数据湖 vs 数据仓库 vs 湖仓一体</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>数据仓库</th><th>数据湖</th><th>湖仓一体（Lakehouse）</th></tr>
+        <tr><td>建模时机</td><td>先建模后写入（schema-on-write）</td><td>先存原始后定义（schema-on-read）</td><td>湖的存储 + 仓的治理</td></tr>
+        <tr><td>数据类型</td><td>结构化为主</td><td>任意格式原始数据</td><td>一份原始存储，多种访问</td></tr>
+        <tr><td>优势</td><td>质量高、口径统一、BI 快</td><td>便宜、灵活、万物可存</td><td>同时支撑 BI 报表与 AI 训练，避免两套存储互拷</td></tr>
+        <tr><td>短板</td><td>建模周期长、存不了非结构化</td><td>无事务无治理，容易变「数据沼泽」</td><td>需要新的表格式与元数据管理（如支持 ACID 的开放表格式）</td></tr>
+      </table>
+      <h3>CAP 在分布式存储的取舍（呼应 19 页）</h3>
+      <p>数据一旦分散到多台机器，CAP 就躲不开：CAP 即一致性（C）、可用性（A）与分区容忍（P）三者的取舍，网络分区（P）必选，实际是在 <b>CP 与 AP 之间取舍</b>。经验口径：面向日志查询、大盘看板的存储多取 <b>AP + 最终一致</b>（宁可几秒旧值，不能查不动，对应 BASE）；面向结算、审计的链路取 <b>CP</b>（宁可慢、不可错）。Lambda 的「批视图为准」本质上也是拿时间换一致性——批层结果就是最终一致的「正确答案」。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>Lambda Architecture（兰姆达架构，批流混合架构）· Stream Processing（流式计算）· Data Lakehouse（湖仓一体）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① <b>Kappa 不是「Lambda 删掉批层」这么简单</b>：它成立的前提是日志系统能持久保存全量数据并支持重放；② 重放≠免费：把「重新过滤一遍水」当成零成本是典型错误，重放要重吃一遍算力；③ 加速层的数据「快而不完全准」——乱序、迟到、重复要靠批层修正，别把它吹成精确计算；④ HDFS 面向「一次写入多次读取」，拿它频繁随机改小文件是用错了场景（随机更新找 HBase 类系统）；⑤ 5V 的第五个 V 存在口径分歧（Value 或 Veracity），答题写全并注明口径；⑥ 数据湖不等于没治理，「先存了再说」存出来的常是数据沼泽。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>未来新城里，<b>大数据=全城摄像头与水厂</b>：几十万个摄像头日夜产生海量录像（5V 的数据源），这些水最终要供到全城。城市供水系统正好对应数据架构：<b>数据湖=水库</b>——什么水都先蓄起来，生水、雨水、浑水来者不拒（schema-on-read）；<b>数据仓库=自来水厂</b>——按标准工艺过滤消毒，出水干净但建厂慢、只认规定的进水（schema-on-write）；<b>湖仓一体=水库水厂一体化管理</b>——同一池水，既能直接给农田灌溉（AI 训练吃原始数据），又能净化后进管网饮用（BI 报表）。<b>Lambda=双管供水</b>：老管道每天凌晨集中沉淀过滤（批处理层，水最干净但隔天到），快速管道简单过滤直接送（加速层，立刻到但偶尔夹泥沙），两股水在你家水龙头汇合（服务层）。<b>Kappa=只留快速管道</b>，但管道口装了个「可回放的总阀门」——哪段水不干净，把那段重新过滤一遍（重放日志）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>水库什么水都蓄</td><td>数据湖 schema-on-read</td><td>成立</td></tr>
+      <tr><td>水厂按标准工艺出水</td><td>数据仓库 schema-on-write</td><td>成立</td></tr>
+      <tr><td>快速管道+沉淀管道双管供水</td><td>Lambda 批流两路+服务层合并</td><td>成立</td></tr>
+      <tr><td>回放阀门重新过滤零成本</td><td>Kappa 重放日志</td><td><b>失效</b>：重放要重新消耗一遍算力与时间，数据量越大越贵；且复杂批逻辑在流引擎上未必写得出来</td></tr>
+    </table>
+    <div class="rhyme">摄像头日夜忙，五V数据进库房；<br>湖是水库仓是厂，湖仓一体不分家；<br>Lambda 两条腿，批准流快最后汇；<br>Kappa 一条腿，重放日志把账追；<br>HDFS 存大块，YARN 调度算得快。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画让同一股数据流同时走 Lambda 的两条腿：上半条是<b>加速层</b>（逐条即到即算，速率超过处理能力会积压），下半条是<b>批处理层</b>（攒满 20 秒窗口一次性算精确视图）。拖动「数据到达速率」滑块，看实时腿从毫秒级到开始积压的变化，体会「流式也不是万能的」。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>数据到达速率（条/秒） <input type="range" id="rate-slider" min="10" max="100" step="5" value="40"> <span id="rate-out">40</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽归层）：Hadoop 生态组件归位</h4>
+      <p class="foreshadow">把组件卡拖进它负责的那一层（口诀：HDFS 管存、YARN 管资源、计算引擎管算、Kafka 管传）：</p>
+      <div id="h-pool" style="min-height:50px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px"><b>分布式存储</b><div class="drag-slot" id="slot-hdfs" data-layer="hdfs"></div></div>
+        <div style="flex:1;min-width:130px"><b>资源调度</b><div class="drag-slot" id="slot-yarn" data-layer="yarn"></div></div>
+        <div style="flex:1;min-width:130px"><b>计算引擎</b><div class="drag-slot" id="slot-calc" data-layer="calc"></div></div>
+        <div style="flex:1;min-width:130px"><b>消息通道</b><div class="drag-slot" id="slot-msg" data-layer="msg"></div></div>
+      </div>
+      <button class="btn" id="h-check">检查归位</button>
+      <button class="btn" id="h-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：概念 ↔ 一句话本质</h4>
+      <p class="foreshadow">先点左列一个概念，再点右列对应描述：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="m-left"></div>
+        <div id="m-right"></div>
+      </div>
+      <button class="btn" id="m-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：Lambda / Kappa / 纯批 选型决策器</h4>
+      <p class="foreshadow">拖动三个需求强度滑块，看选型建议如何变化（1=完全没要求，5=死命令）：</p>
+      <label>实时性要求 <input type="range" id="s-rt" min="1" max="5" value="4"> <span id="o-rt">4</span></label><br>
+      <label>批逻辑复杂度/精确审计要求 <input type="range" id="s-batch" min="1" max="5" value="4"> <span id="o-batch">4</span></label><br>
+      <label>「只维护一套代码」的执念 <input type="range" id="s-oneset" min="1" max="5" value="2"> <span id="o-oneset">2</span></label>
+      <div class="kf-caption" id="s-calc"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「批流取舍与重放」：</p>
+    <div id="quiz-variant"></div>
+    <h3>📌 论文素材角</h3>
+    <div class="callout"><span class="t">✍️ 论文写作素材，需结合自身项目改写</span>
+      <ul>
+        <li>论点句式：「针对『实时看板分钟级 + 结算报表精确可审计』的双重需求，我采用 Lambda 架构：批处理层基于全量数据生成精确视图，保证结算口径一致、可审计；加速层对增量数据流实时计算，保障看板秒级时效；服务层合并双视图统一响应，对用户屏蔽批流差异。」</li>
+        <li>论点句式：「考虑到团队规模有限、希望只维护一套计算逻辑，我们选择 Kappa 架构：以 Kafka 持久保存全量日志作为唯一事实来源，所有计算统一为流式作业；需修正历史指标时重放指定时间段的日志重算并覆盖结果。」</li>
+        <li>项目情景模板：日志分析平台 / 用户行为埋点分析 / 实时风控特征 + T+1 财务对账。论证主线：背景 → 双时效需求矛盾 → 选型论证（逐条映射需求）→ 分层设计 → 量化收益（时延从 T+1（隔天出数）到秒级、对账差错率下降）→ 遗留问题（两套逻辑维护成本 / 重放算力开销）。</li>
+        <li>论点句式：「原始多源异构数据先统一入湖，保证接入灵活；随后出现找数难、口径乱的问题，我们引入统一元数据中心与支持 ACID 的湖仓表格式，使同一份存储同时支撑 BI 报表与模型训练。」</li>
+        <li>备考提示：Lambda 与湖仓一体均为近年论文考过的方向（据公开考情梳理）。写技术论文务必落到「为什么选它、代价是什么、效果如何验证」，避免堆砌产品名词。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>19 · 分布式数据库与NoSQL</b>：数据分散必遇 CAP——本页的湖与 NoSQL 存储同样在 CP/AP 间取舍，BASE 最终一致是加速层「先给出值、批层后修正」的理论靠山；<b>40 · 中间件与事件驱动架构</b>：Kafka 快递中转站是流式管道的入口，也是 Kappa 架构的「日志底座」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>60 · AI与大模型架构</b>：大模型的训练语料与特征数据就存在数据湖里——没有大数据管道，AI 是无米之炊；</li>
+      <li><b>44 · 架构评估</b>：「实时性 vs 精确性 vs 维护成本」的拉锯，正是一个典型的权衡点，答题时可用评估语言描述。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>Lambda 架构</th><th>Kappa 架构</th></tr>
+      <tr><td>计算腿</td><td>批处理层 + 加速层两条腿，服务层合并</td><td>只留流式一条腿</td></tr>
+      <tr><td>历史重算</td><td>批层天然重算全量</td><td>重放 Kafka 日志重新消费</td></tr>
+      <tr><td>易错点</td><td>以为两套代码是优点（实为最大维护负担）</td><td>以为「删掉批层就省事」——重放算力开销与复杂批逻辑受限是它的隐形成本</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">Lambda 花两套代码买「准与快兼得」，Kappa 花重放算力买「一套代码走天下」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——全城的摄像头每天拍出海量录像，这些水要怎么管……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 大数据 5V（大量/多样/高速/价值密度低/真实性，第五V注意口径）；Hadoop 三驾马车：HDFS 管存、YARN 管资源、MapReduce/Spark 管算，Spark 靠内存计算在迭代场景快。</li><li>② Lambda=批处理层（准而慢）+加速层（快而不完全准）+服务层（合并双视图）；Kappa 只留流式一条腿，靠重放日志重算历史——一套代码换重放算力。</li><li>③ 数据湖存生水（schema-on-read）、数据仓库出净水（schema-on-write）、湖仓一体一份存储同时养 BI 与 AI；分布式存储的取舍仍逃不出 19 页的 CAP。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '59', domain: 'trend', loc: 'newtown', root: '..',
+  title: '大数据架构',
+  prev: '58-ops-research.html', prevTitle: '58 · 管理科学与决策分析',
+  next: '60-ai-arch.html', nextTitle: '60 · AI与大模型架构',
+  keywords: ['大数据', 'HDFS', '批处理', '流式', 'Lambda架构', 'Kappa架构', '数据湖', '湖仓一体']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 19 / 40） ---- */
+  CX.renderQuiz('#quiz-recall', [
+    {
+      q: '【回忆·19】日志查询平台可以容忍读到几秒前的旧值，但绝不能出现查询不可用。按 CAP 口径这属于哪种取舍？',
+      opts: [
+        { t: 'AP：可用性优先，容忍短暂不一致（BASE 最终一致）', why: '对。分区必选，牺牲强一致保可用，正是 BASE 的用武之地。' },
+        { t: 'CP：一致性优先', why: 'CP 宁可拒绝服务也要新旧一致，与「绝不能不可用」相反。' },
+        { t: 'CAP 三者全保', why: '网络分区发生时三者不可兼得，19 页讲过 P 是必选项。' }
+      ],
+      ans: 0, tag: '回忆:19', src: '仿真题'
+    },
+    {
+      q: '【回忆·40】流式计算的入口几乎都挂一个 Kafka，它在这里最主要的角色是？',
+      opts: [
+        { t: '数据库的备份', why: 'Kafka 不是备份工具，它是消息中间件。' },
+        { t: '快递中转站：削峰、解耦，并以持久日志供下游反复消费', why: '对。40 页的比喻：发件方扔下就走，收件方按自己节奏取——Kafka 还是 Kappa 的日志底座。' },
+        { t: '负载均衡器', why: '分流流量是负载均衡的活，Kafka 的核心是消息缓冲与订阅。' }
+      ],
+      ans: 1, tag: '回忆:40', src: '仿真题'
+    }
+  ], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    {
+      q: '某团队把「用户资料」存在 HDFS 上，业务要求频繁随机修改单个用户的单个字段。架构评审最应该给出的意见是？',
+      opts: [
+        { t: '没问题，HDFS 三副本天然支持高频随机更新', why: '三副本是容错手段，不是随机更新能力。' },
+        { t: '选型不当：HDFS 面向一次写入多次读取的大文件顺序访问，随机更新应选 HBase 类系统', why: '对。HDFS 的设计假设决定它不适合低延迟随机读写，这是生态分工。' },
+        { t: '把副本数加到 5 就能解决', why: '副本只提高可靠性，与随机更新能力无关。' },
+        { t: '换更快的磁盘即可', why: '这是访问模型不匹配，不是 IO 快慢问题。' }
+      ],
+      ans: 1, tag: 'HDFS', src: '仿真题'
+    },
+    {
+      q: '机器学习训练任务是典型的迭代计算（同一批数据反复算几百轮）。Spark 比 MapReduce 适合这类任务的根本原因是？',
+      opts: [
+        { t: 'Spark 的编程语言更高级', why: '语言不是本质，引擎与执行模型才是。' },
+        { t: 'Spark 基于内存计算，中间结果驻留内存，避免每轮迭代反复读写磁盘', why: '对。MapReduce 每步落盘，迭代场景磁盘 IO 是主要开销。' },
+        { t: 'Spark 不需要分布式存储', why: 'Spark 通常恰恰跑在 HDFS 等分布式存储之上。' },
+        { t: 'MapReduce 不能做机器学习', why: '能做，只是迭代成本高、慢。' }
+      ],
+      ans: 1, tag: 'Spark对比', src: '仿真题'
+    },
+    {
+      q: 'Lambda 架构中「服务层（Serving Layer）」的职责是？',
+      opts: [
+        { t: '对全量数据做周期性批计算', why: '那是批处理层的活。' },
+        { t: '对最新增量数据做实时计算', why: '那是加速层的活。' },
+        { t: '合并批视图与实时视图，统一响应查询', why: '对。用户只查服务层，批流差异被屏蔽。' },
+        { t: '管理集群计算资源', why: '那是 YARN 这类资源调度器的活。' }
+      ],
+      ans: 2, tag: 'Lambda', src: '仿真题'
+    },
+    {
+      q: '【交错复习·19】大数据平台的「实时大盘」允许展示几秒前的旧值，但要求任何时刻都能查。从 19 页的 CAP/BASE 看，底层存储应如何取舍？',
+      opts: [
+        { t: 'AP + 最终一致（BASE），用批层/重算兜底修正', why: '对。可用性优先、容忍软状态，最终由精确视图收敛——正是 Lambda 的配合思路。' },
+        { t: 'CP，每次查询都等所有副本确认', why: '可用性会被拖垮，与大盘场景需求相反。' },
+        { t: '放弃分区容错换取 CA', why: '分布式下 P 无法放弃，19 页明确过。' }
+      ],
+      ans: 0, tag: '交错复习:19', src: '仿真题'
+    },
+    {
+      q: '【交错复习·40】Kappa 架构「重算历史」之所以可行，依赖的正是 40 页哪项机制？',
+      opts: [
+        { t: '消息队列的持久日志：历史消息按序留存，可被新作业重新消费', why: '对。Kafka 的日志重放是 Kappa 的命根子——删掉批层的前提是日志存得住。' },
+        { t: '点对点消息一旦消费即删除', why: '消费即删就没法重放了，Kafka 恰恰不是这样。' },
+        { t: '消息队列的限流功能', why: '限流是削峰手段，与重算无关。' }
+      ],
+      ans: 0, tag: '交错复习:40', src: '仿真题'
+    }
+  ], { kpId: '59', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某出行平台改造日志分析平台：每天新增 20TB 行程与驾驶行为日志。需求：① 运营大盘要分钟级可见；② 监管结算报表要精确到分且可审计，历史口径偶尔需要追溯重算；③ 算法团队每月要用全量历史数据重训模型；④ 数据团队仅 12 人，强烈希望只维护一套计算逻辑。',
+    q: '(1) 你推荐 Lambda 还是 Kappa？请逐条对照四个需求论证；(2) 描述所选架构的分层与数据流；(3) 指出所选方案的代价与缓解措施；(4) 说明什么情况下应换成另一种架构。',
+    ref: '(1) 推荐口径：Kappa（亦可答 Lambda，关键在论证自洽）。对照需求：①分钟级大盘——流式作业天然满足；②精确可审计——以 Kafka 全量日志为唯一事实来源，报表指标可重放重算、结果可复现，满足审计要求；③月度全量重训——直接重放/批量读取日志供训练，不需要常驻批层；④一套逻辑——Kappa 核心优势。(2) 数据流：端上日志采集 → Kafka 分主题分区持久保存（保留足够时长）→ 流式作业（清洗、聚合、指标计算）→ 结果写入服务库/OLAP 引擎（联机分析处理，面向分析查询）对外查询；口径变更或差错时启动新版作业重放指定时间段，算完切换结果并回刷。(3) 代价与缓解：重放历史吃算力——限制重放时间窗、错峰执行、结果分片回刷；复杂批逻辑（如全量训练）在流引擎表达困难——训练任务单独走批读日志，与指标链路解耦；日志存储成本——分层存储（热/冷）、按合规要求设定保留期。(4) 换 Lambda 的时机：出现流引擎难以表达的复杂批逻辑（超大规模连接/全量特征工程常态化）、审计要求「批层固定口径报表」、或团队扩编能承担两套逻辑的维护成本。',
+    points: ['结论明确且逐条映射四个需求论证（不是罗列概念）', '分层与数据流完整：采集→日志底座→流式计算→服务查询，含重放回路', '代价与缓解成对出现（重放算力/复杂批逻辑/存储成本）', '能反向说明另一方案的适用边界，体现权衡而非站队'],
+    frame: '答题框架：结论先行 → 需求逐条对照论证 → 分层数据流描述 → 代价与缓解 → 反向边界（何时选另一个）。案例题采分点在「论证链」而非名词。',
+    kpId: '59'
+  });
+  CX.renderCase('#case2', {
+    stem: '某零售集团原有数据仓库支撑 BI 报表。近年接入小程序埋点、客服录音、商品图片等新数据后，另建了数据湖。一年后数据湖被投诉「数据沼泽」：找数靠吼、同一指标三个口径、下游跑批经常因上游改数据而算错。',
+    q: '(1) 从 schema-on-read 的特性出发，指出数据沼泽的三个成因；(2) 给出湖仓一体的改造要点；(3) 说明配套的数据治理措施。',
+    ref: '(1) 成因：①只存不管——schema-on-read 先存后定义，无统一建模与标准，格式口径随写入者随意；②缺乏元数据管理——没有数据目录与血缘，找数靠人问；③缺乏事务与版本——上游直接覆盖改数，下游读到写一半或已变化的脏数据。(2) 湖仓改造要点：在湖存储之上引入支持 ACID 事务的开放表格式，为数据加事务、版本与回滚能力；建统一元数据中心（数据目录、血缘、口径定义），湖仓同一份存储、同一套元数据服务 BI 与 AI；分层建模（ODS/DWD/DWS），原始层保灵活、上层建口径。(3) 治理措施：数据标准与指标口径统一管理（一处定义多处引用）；数据质量监控（完整性/准确性/及时性规则化校验，不合格不入池）；权限与安全分级（行/列级权限、脱敏）；生命周期与成本管理（冷热分层、过期清理）。',
+    points: ['三个成因与 schema-on-read 特性对应（无建模约束/无元数据/无事务）', '湖仓一体要点说到 ACID 事务、统一元数据、一份存储两用', '治理措施覆盖口径标准、质量监控、权限安全至少三类'],
+    frame: '答题框架：现象归因（机制层面）→ 改造要点（存储+元数据+事务）→ 治理配套（标准/质量/权限）收尾，体现「技术+治理」两条腿。',
+    kpId: '59'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '电商大促：大屏实时 GMV 与财务对账发现大屏多算了一笔（重复消息）。要求不停服修正大屏数字。批流思想下的最优做法是？',
+      opts: [
+        { t: '让运营手工记下差额，以后每次都人工扣', why: '打补丁不可持续，且没解决「修正历史」的机制问题。' },
+        { t: '按 Kappa 思路：从日志重放该时间段，去重后重算该指标并覆盖大屏结果', why: '对。重放日志重算历史正是 Kappa 的核心机制，批流同源让修正与计算用同一套逻辑。' },
+        { t: '关掉大屏等第二天批处理跑完再开', why: '违背「不停服修正」的要求，也不必如此。' }
+      ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '59', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['19', '40'], 'prev');
+  CX.depChain('#bridge-next', ['60'], 'next');
+
+  /* ---- 动画：批流两条腿时延对比 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var RATE = 40;            /* 到达速率 条/s */
+  var CAPS = 50;            /* 加速层处理能力 条/s */
+  var WIN = 20, BATCH = 4;  /* 批窗口 20s，批作业耗时 4s */
+  function draw(t) {
+    var T = t * 60;
+    var x0 = 70, x1 = 690;
+    function X(sec) { return x0 + (sec / 60) * (x1 - x0); }
+    var s = '<svg viewBox="0 0 760 356" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="356" rx="12" fill="var(--bg-soft)"/>';
+    /* 数据到达行 */
+    s += '<text x="40" y="42" font-size="12" fill="var(--text)" font-weight="bold">数据到达 ' + RATE + ' 条/s</text>';
+    var total = Math.floor(RATE * T);
+    var dots = Math.min(44, total);
+    var i, sec;
+    for (i = 0; i < dots; i++) {
+      sec = (i + 1) * (T / (dots + 1)) + Math.sin(i * 7.3) * 1.4;
+      if (sec < 0) sec = 0;
+      s += '<circle cx="' + X(sec).toFixed(1) + '" cy="56" r="3" fill="var(--accent)" opacity=".85"/>';
+    }
+    s += '<text x="620" y="60" font-size="11" fill="var(--text-dim)">累计 ' + total + ' 条</text>';
+    /* 加速层 */
+    s += '<rect x="30" y="74" width="700" height="64" rx="8" fill="var(--card)" opacity=".5"/>';
+    s += '<text x="42" y="92" font-size="12" fill="var(--accent-2)" font-weight="bold">加速层（流式：一条条立即算）</text>';
+    var backlog = Math.max(0, (RATE - CAPS) * T);
+    var speedLat = backlog / CAPS;
+    if (RATE > CAPS) {
+      var qw = Math.min(430, backlog / 6);
+      s += '<rect x="70" y="106" width="' + qw.toFixed(0) + '" height="16" rx="8" fill="var(--bad)" opacity=".7"/>';
+      s += '<text x="' + (80 + qw).toFixed(0) + '" y="119" font-size="11" fill="var(--bad)">积压 ' + Math.floor(backlog) + ' 条 · 排队时延 ' + speedLat.toFixed(1) + 's</text>';
+    } else {
+      s += '<text x="70" y="119" font-size="11" fill="var(--ok)">即到即算，端到端时延毫秒级（未超处理能力 ' + CAPS + ' 条/s）</text>';
+    }
+    /* 批处理层 */
+    s += '<rect x="30" y="148" width="700" height="64" rx="8" fill="var(--card)" opacity=".5"/>';
+    s += '<text x="42" y="166" font-size="12" fill="var(--accent-2)" font-weight="bold">批处理层（攒 ' + WIN + 's 窗口算精确视图，作业耗时 ' + BATCH + 's）</text>';
+    for (var w = 0; w < 3; w++) {
+      var wx = X(w * WIN), ww = X((w + 1) * WIN) - X(w * WIN);
+      var prog = (T - w * WIN) / WIN;
+      if (T >= w * WIN) {
+        if (T >= (w + 1) * WIN + BATCH) {
+          s += '<rect x="' + wx.toFixed(0) + '" y="178" width="' + ww.toFixed(0) + '" height="20" rx="5" fill="var(--ok)" opacity=".55"/>';
+          s += '<text x="' + (wx + ww / 2).toFixed(0) + '" y="192" text-anchor="middle" font-size="10" fill="var(--text)">批' + (w + 1) + ' 完成(准)</text>';
+        } else {
+          s += '<rect x="' + wx.toFixed(0) + '" y="178" width="' + ww.toFixed(0) + '" height="20" rx="5" fill="none" stroke="var(--line)"/>';
+          var fw = ww * Math.min(1, Math.max(0, prog));
+          s += '<rect x="' + wx.toFixed(0) + '" y="178" width="' + fw.toFixed(0) + '" height="20" rx="5" fill="var(--warn)" opacity=".4"/>';
+          s += '<text x="' + (wx + ww / 2).toFixed(0) + '" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">攒水中…</text>';
+        }
+      } else {
+        s += '<rect x="' + wx.toFixed(0) + '" y="178" width="' + ww.toFixed(0) + '" height="20" rx="5" fill="none" stroke="var(--line)" stroke-dasharray="4 4"/>';
+      }
+    }
+    /* 服务层 */
+    s += '<rect x="30" y="222" width="700" height="58" rx="8" fill="var(--card)" opacity=".5"/>';
+    s += '<text x="42" y="240" font-size="12" fill="var(--accent-2)" font-weight="bold">服务层（合并两路视图，统一对外查询）</text>';
+    s += '<rect x="70" y="248" width="180" height="20" rx="5" fill="var(--accent)" opacity=".45"/>';
+    s += '<text x="160" y="262" text-anchor="middle" font-size="10" fill="var(--text)">实时视图（快，先上）</text>';
+    s += '<rect x="270" y="248" width="180" height="20" rx="5" fill="var(--ok)" opacity=".45"/>';
+    s += '<text x="360" y="262" text-anchor="middle" font-size="10" fill="var(--text)">批视图（准，后到修正）</text>';
+    s += '<text x="480" y="262" font-size="11" fill="var(--text-dim)">→ 用户查到「先快后准」的合并结果</text>';
+    /* 时间轴 */
+    s += '<line x1="' + x0 + '" y1="296" x2="' + x1 + '" y2="296" stroke="var(--line)" stroke-width="2"/>';
+    for (var m2 = 0; m2 <= 60; m2 += 10) {
+      s += '<line x1="' + X(m2).toFixed(0) + '" y1="292" x2="' + X(m2).toFixed(0) + '" y2="300" stroke="var(--line)"/>';
+      s += '<text x="' + X(m2).toFixed(0) + '" y="314" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + m2 + 's</text>';
+    }
+    s += '<text x="38" y="300" font-size="11" fill="var(--text-dim)">时间→</text>';
+    /* 底部读数 */
+    var speedTxt = RATE > CAPS ? speedLat.toFixed(1) + 's（积压！）' : '≈0.01s';
+    s += '<text x="380" y="342" text-anchor="middle" font-size="13" fill="var(--text)">实时腿时延 ' + speedTxt + ' ｜ 批腿平均时延 ≈ ' + (WIN / 2 + BATCH) + 's（' + (WIN / 2) + ' 等窗 + ' + BATCH + ' 作业）</text>';
+    s += '</svg>';
+    var cap;
+    if (t < 0.18) cap = '数据源源不断到达（当前 ' + RATE + ' 条/s），同时流向两条腿——这是 Lambda 的前提：同一份数据，两种算法。';
+    else if (t < 0.5) cap = (RATE > CAPS ? '注意！到达速率超过加速层处理能力，队列开始积压——流式也不是万能的，容量规划照样要做。' : '加速层逐条即到即算，时延毫秒级——这是运营大盘「分钟级可见」的来源。');
+    else if (t < 0.82) cap = '批处理层在攒 ' + WIN + ' 秒的窗口：数据先等齐再一次性算精确视图——等待窗口正是批腿慢的原因。';
+    else cap = '服务层合并两路视图：实时值先上线，批视图到达后修正历史——「先快后准」就是 Lambda 给用户的体验。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var rs = CX.utils.$('#rate-slider');
+  rs.addEventListener('input', function () {
+    RATE = +rs.value;
+    CX.utils.$('#rate-out').textContent = RATE;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：组件归位 ---- */
+  var hCards = [
+    { t: 'HDFS', layer: 'hdfs', why: 'HDFS 是分布式文件系统，管存储。' },
+    { t: 'HBase（LSM 存储）', layer: 'hdfs', why: 'HBase 构建在 HDFS 之上，归类存储层。' },
+    { t: 'YARN', layer: 'yarn', why: 'YARN 是资源调度器，管 CPU/内存分配。' },
+    { t: 'MapReduce', layer: 'calc', why: 'MapReduce 是批处理计算模型。' },
+    { t: 'Spark', layer: 'calc', why: 'Spark 是基于内存的计算引擎。' },
+    { t: 'Kafka', layer: 'msg', why: 'Kafka 是分布式消息队列，流式管道的入口与日志底座。' }
+  ];
+  var hPool = CX.utils.$('#h-pool');
+  function buildH() {
+    hPool.innerHTML = '';
+    ['slot-hdfs', 'slot-yarn', 'slot-calc', 'slot-msg'].forEach(function (id) { CX.utils.$('#' + id).innerHTML = ''; });
+    CX.utils.$('#lab1-fb').textContent = '';
+    CX.shuffle(hCards.slice()).forEach(function (c) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = c.t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+      hPool.appendChild(d);
+    });
+  }
+  buildH();
+  ['slot-hdfs', 'slot-yarn', 'slot-calc', 'slot-msg'].forEach(function (id) {
+    var slot = CX.utils.$('#' + id);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = null;
+      var all = document.querySelectorAll('.drag-item');
+      for (var k = 0; k < all.length; k++) { if (all[k].textContent === t) { src = all[k]; break; } }
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('#h-reset').addEventListener('click', buildH);
+  CX.utils.$('#h-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab1-fb');
+    var bad = null;
+    hCards.forEach(function (c) {
+      if (bad) return;
+      var located = null;
+      var slots = document.querySelectorAll('.drag-slot');
+      slots.forEach(function (sl) {
+        Array.prototype.forEach.call(sl.children, function (ch) {
+          if (ch.textContent === c.t) located = sl;
+        });
+      });
+      if (!located) bad = '还有组件没归位（「' + c.t + '」）。';
+      else if (located.id !== 'slot-' + c.layer) bad = '❌「' + c.t + '」放错了——' + c.why;
+    });
+    if (bad) { fb.textContent = bad; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '✅ 全部归位正确！口诀：HDFS 管存、YARN 管资源、计算引擎管算、Kafka 管传。'; fb.className = 'lab-feedback ok'; }
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['Lambda 架构', '批流两条腿，服务层合并'],
+    ['Kappa 架构', '只留流式一条腿，重放日志重算'],
+    ['数据湖', '水库：生水先存，读时定格式'],
+    ['数据仓库', '水厂：先建模后写入，出净水'],
+    ['湖仓一体', '一份存储同时养 BI 与 AI']
+  ];
+  var lBox = CX.utils.$('#m-left'), rBox = CX.utils.$('#m-right');
+  var selL = null, doneN = 0;
+  function buildM() {
+    selL = null; doneN = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('#lab2-fb').textContent = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的本质。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        var fb = CX.utils.$('#lab2-fb');
+        if (!selL) { fb.textContent = '先点左列一个概念。'; fb.className = 'lab-feedback'; return; }
+        if (selL.textContent === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; doneN++;
+          fb.textContent = '✅ 配对成功 ' + doneN + '/5'; fb.className = 'lab-feedback ok';
+        } else {
+          fb.textContent = '❌「' + selL.textContent + '」不对应「' + d.textContent + '」——重读知识卡片里各自的一句话本质。';
+          fb.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildM();
+  CX.utils.$('#m-reset').addEventListener('click', buildM);
+
+  /* ---- 实验三：选型决策器 ---- */
+  var sRt = CX.utils.$('#s-rt'), sBatch = CX.utils.$('#s-batch'), sOne = CX.utils.$('#s-oneset');
+  function decide() {
+    var rt = +sRt.value, bt = +sBatch.value, one = +sOne.value;
+    CX.utils.$('#o-rt').textContent = rt;
+    CX.utils.$('#o-batch').textContent = bt;
+    CX.utils.$('#o-oneset').textContent = one;
+    var rec, fb, msg;
+    if (rt <= 2) {
+      rec = '纯批处理（T+1）';
+      msg = '实时性要求不高，就不必养流式这条腿：每晚全量批处理最简单、最省心、最准。';
+    } else if (one >= 4 && bt <= 3) {
+      rec = 'Kappa 架构';
+      msg = '既要实时又想只维护一套代码：把所有计算统一为流式作业，用日志重放承担历史重算——前提是日志存得住、重放算力扛得起。';
+    } else {
+      rec = 'Lambda 架构';
+      msg = '实时 + 复杂批逻辑/强审计并存：批层兜住精确与复杂逻辑，加速层兜住时效，服务层合并——代价是同一逻辑写两遍。';
+    }
+    if (one >= 4 && bt >= 4) {
+      msg = '⚠️ 「复杂批逻辑」与「只要一套代码」同时拉满，这是一个权衡点（呼应 44 页）：Kappa 的流引擎写复杂批逻辑吃力，Lambda 的两套代码违背一套代码诉求——必须和需求方谈判降低一头，并在论文里把这次权衡写清楚。';
+    }
+    CX.utils.$('#s-calc').textContent = '需求画像：实时性 ' + rt + ' ｜ 批逻辑/审计 ' + bt + ' ｜ 一套代码执念 ' + one;
+    fb = CX.utils.$('#lab3-fb');
+    fb.textContent = '推荐：' + rec + '。' + msg;
+    fb.className = 'lab-feedback ' + (one >= 4 && bt >= 4 ? 'bad' : 'ok');
+  }
+  decide();
+  [sRt, sBatch, sOne].forEach(function (sl) { sl.addEventListener('input', decide); });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

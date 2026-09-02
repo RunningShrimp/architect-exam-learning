@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>参考页 · 十段结构活模板 · 架构师学堂</title>
+<meta name="description" content="内部参考实现，不进入学习路径">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">内部参考</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="../index.html">本页不进入学习路径</a></span>
+    <h1>参考页：十段结构活模板</h1>
+    <p class="foreshadow">本页演示全部交互接线方式（判题/动画四控/拖拽/配对/费曼）。生成子代理请参考本页的 KP_BOOT 写法，但内容、题目、动画都要按各自知识点原创。</p>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">缓存是社区便利店：近处命中快，未命中才去远处超市。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某电商首页高峰期响应从 80ms 涨到 2s，DB 的 CPU 100%。团队争论：加机器？换 SSD？你还是架构师，先问自己：数据被读了几次、写了几次？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>读多写少的热点数据反复穿透到数据库，这是典型的「缓存缺失」问题。给热点数据加一层便利店（缓存），让 95% 的读请求不必进城（查库），DB 压力立刻下降。加机器只是把超市扩容，购物的人还是每次都要走那么远。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>05 · 存储层次与Cache</b>（示例接线：kpId 指向真实前置点）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>缓存（Cache）是把<strong>热点数据的副本</strong>放在更靠近使用者的高速存储层。CPU 有 Cache，浏览器有缓存，应用服务器前有 Redis——它们是同一思想在不同层级的重复应用。</p>
+      <h3>解决什么问题</h3>
+      <p>存储越快越贵、越贵越小。如果没有缓存，每次读取都要走完全程（去最远的超市），慢且贵；缓存让「大多数请求」在半路就完成。</p>
+      <h3>核心机制</h3>
+      <p>平均访问时间 <code>T = h×t快 + (1-h)×t慢</code>，h 是<strong>命中率</strong>。h=0.95、便利店 10ms、超市 200ms 时：T = 0.95×10 + 0.05×200 = 19.5ms。命中率每提高一点，平均时间都在向「快的那一项」倾斜。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>概念</th><th>城市比喻</th><th>要点</th></tr>
+        <tr><td>命中 Hit</td><td>便利店有货</td><td>直接取走，全程最短</td></tr>
+        <tr><td>缺失 Miss</td><td>便利店缺货</td><td>去超市，再顺路补货（回填）</td></tr>
+        <tr><td>淘汰策略</td><td>货架有限</td><td>LRU=最久没人买的先下架</td></tr>
+        <tr><td>一致性</td><td>超市改了价签</td><td>便利店价签必须跟着改（失效/更新）</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>公式里 h 与 (1-h) 的对象是<strong>同一时间口径</strong>的两级访问；考试常给「同时访问」与「先缓存后主存」两种口径，后者要把两级时间<strong>相加</strong>而不是取其一。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把缓存想象成你小区楼下的<strong>便利店</strong>：大多日用品楼下就能买（命中）；买不到才去 3 公里外的批发超市（缺失），回来时顺手多买几份存着（回填）。货架就那么大，<strong>最久没人买的先下架</strong>（LRU）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>便利店有货直接买</td><td>缓存命中</td><td>成立</td></tr>
+      <tr><td>缺货去超市顺路补货</td><td>缺失后回填</td><td>成立</td></tr>
+      <tr><td>货架最久未动先下架</td><td>LRU 淘汰</td><td>成立</td></tr>
+      <tr><td>超市改价便利店立刻知道</td><td>缓存一致性</td><td><b>失效</b>：现实便利店不会自动同步，缓存必须靠失效机制</td></tr>
+    </table>
+    <div class="rhyme">缓存便利店，命中走路近；<br>缺货去超市，回来货摆齐；<br>货架常清理，最旧先腾地；<br>价签要同步，别让客吃亏。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>拖动「命中率」滑块看顾客平均路程变化；播放看顾客连续购物的路线（命中=楼下，缺失=进城）。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>命中率 h <input type="range" id="h-slider" min="0" max="100" value="80"> <span id="h-out">80%</span></label>
+      <span class="kf-caption" id="h-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把取货流程按正确顺序排好</h4>
+      <p class="foreshadow">拖动下方卡片，从「顾客发起购买」开始排序：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：概念 ↔ 城市比喻</h4>
+      <p class="foreshadow">先点左列一个概念，再点右列对应比喻：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4 题为交错复习示例）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>同一思想换个场景：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>存储层次（05）给出了「两级速度差」的物理基础；本页把它推广到应用层。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「价签同步」问题在 <b>19 · 分布式数据库</b> 变成 CAP 取舍；</li><li>「便利店太多」的问题在 <b>39 · 云原生</b> 变成多级缓存与服务网格。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>缓存（Cache）</th><th>缓冲（Buffer）</th></tr>
+      <tr><td>差异点</td><td>为「快」：存热点副本</td><td>为「稳」：吸收速度差的蓄水池</td></tr>
+      <tr><td>易错点</td><td>强调命中与否</td><td>强调流量削峰，不关心重复</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">便利店是为了少跑腿，仓库中转区是为了让卡车不用等装卸。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——学校小卖部……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 缓存=热点副本，T = h·t快 + (1-h)·t慢，命中率的威力是非线性的。</li><li>② 缓存引出两件事：淘汰（LRU 等）与一致性（失效/更新）。</li><li>③ 便利店的比喻记住「命中、回填、淘汰、同步」四个词就够。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 内部参考页，不进入学习路径</footer>
+<script>
+window.KP_CONF = {
+  id: null, root: '..',
+  title: '参考页'
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（指向真实前置点的示例） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·05】Cache 存储层次之所以有效，依据的是程序的什么性质？',
+    opts: [
+      { t: '程序的指令都很短', why: '与指令长短无关。' },
+      { t: '局部性原理（时间与空间局部性）', why: '刚用过的会再用（时间）、用过其邻居也会被用（空间），所以小缓存能挡住大流量。' },
+      { t: '内存比硬盘便宜', why: '恰恰相反，快的更贵。' }
+    ],
+    ans: 1, tag: '回忆:05', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某系统 Cache 速率为主存的 5 倍，命中率为 80%，则平均存取周期约为主存的多少倍？（同时访问口径）',
+      opts: [
+        { t: '0.36 倍', why: '这是按「主存时间」归一化的算法结果，方向反了：问的是约为主存的多少倍应为 0.36 的倒数口径混乱，注意题目口径：1/(0.8×5+0.2×1)=0.36 表示主存是它的 2.8 倍，容易选错。' },
+        { t: '2.8 倍', why: '错了：这是「主存是系统的几倍」，题目问系统约为主存的多少倍，答案是 0.36 倍——本题考口径翻转的审题。' },
+        { t: '0.36 倍（即约 1/2.8）', why: '对。设主存 1，Cache 1/5；T=0.8×(1/5)+0.2×1=0.36。系统速度约为主存的 2.8 倍。' },
+        { t: '0.8 倍', why: '把命中率直接当时间加权，混淆了概念。' }
+      ],
+      ans: 2, tag: '计算', src: '仿真题' },
+    { q: '缓存「回填（write-back）」策略最主要的风险是什么？',
+      opts: [
+        { t: '命中率下降', why: '回填与命中率无关。' },
+        { t: '宕机时未写回的数据丢失', why: '对：脏数据还在缓存里没落盘，掉电即丢，所以要有写穿/日志等补救。' },
+        { t: '缓存空间不够', why: '与写策略无直接关系。' },
+        { t: 'CPU 利用率降低', why: '不是主要风险。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '以下哪项不是缓存一致性的解决思路？',
+      opts: [
+        { t: '写穿：写缓存同时写后端', why: '是，牺牲写速度换一致性。' },
+        { t: '失效：改后端后让旧副本失效', why: '是，Redis 常配「先更库再删缓存」。' },
+        { t: '给缓存加大一倍容量', why: '对，容量大≠一致，本项不是一致性思路。' },
+        { t: '版本号/过期时间', why: '是，TTL 就是简化的一致性手段。' }
+      ],
+      ans: 2, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·20】把「IP 地址找到某台主机」类比为城市系统中的哪一项？',
+      opts: [
+        { t: '门牌号定位到具体住户', why: '对：IP 定位主机，端口再定位到进程（具体房间）。' },
+        { t: '邮差走哪条路', why: '那是路由选择（路径），不是地址本身。' },
+        { t: '小区名字', why: '小区名更像域名/子网。' }
+      ],
+      ans: 0, tag: '交错复习:20', src: '仿真题' },
+    { q: '读多写少的场景，最应优先考虑的架构手段是？',
+      opts: [
+        { t: '数据库加索引', why: '有帮助但只优化单表查询，挡不住热点读总量。' },
+        { t: '加缓存层', why: '对：读多写少正是缓存的适用前提。' },
+        { t: '数据库分库分表', why: '写瓶颈时才优先考虑，且代价高。' },
+        { t: '换成 NoSQL', why: '不是万金油，先想缓存。' }
+      ],
+      ans: 1, tag: '决策', src: '仿真题' }
+  ], { mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某资讯网站首页高峰期平均响应时间从 100ms 劣化到 1.8s，数据库 CPU 95%，其中 90% 的 SQL 是同一批热点文章的 SELECT。',
+    q: '(1) 指出性能瓶颈并给出依据；(2) 给出两条架构层改进措施并说明理由；(3) 说明引入缓存后需要新引入的管理问题。',
+    ref: '(1) 瓶颈在数据库读压力：热点重复 SELECT 占 90%，重复计算大量浪费；(2) 措施一：为热点文章加应用级缓存（Redis），命中率预期 >90%，DB 压力降一个量级；措施二：静态化首页/列表页（CDN+页面缓存），把动态渲染变静态分发；(3) 新问题：缓存一致性（更新后失效策略）、淘汰策略与容量规划、缓存故障时的降级路径。',
+    points: ['能定位瓶颈并给出数据依据（重复读占比）', '措施与瓶颈一一对应且有理由', '主动说出缓存的一致性/淘汰/降级三大管理问题'],
+    frame: '答题框架：定位（数据）→ 归因（读放大）→ 措施（分层：接入层/应用层/数据层）→ 新引入的问题与对策。',
+    kpId: null
+  });
+  CX.renderCase('#case2', {
+    stem: '团队 A 用「先更新数据库，再更新缓存」保证一致性，上线后偶发读到旧值。',
+    q: '分析该方案为何出现旧值，并给出两种更稳妥的替代方案。',
+    ref: '并发下「更新库→更新缓存」两步之间可能交叉（AB 两个写者顺序颠倒），缓存留下旧值。替代一：先更新库，再删除缓存（Cache Aside），下次读时回填最新值；替代二：给缓存设 TTL + 延迟双删，容忍短暂不一致但保证最终一致。',
+    points: ['说出并发交叉导致旧值', 'Cache Aside 删除而非更新', '延迟双删或 TTL 最终一致'],
+    frame: '答题框架：现象→时序图推演反例→给出方案→说明各方案的一致性强弱与代价。',
+    kpId: null
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: 'CDN 把视频文件放到离用户最近的边缘节点，这与本页核心思想的关系是？',
+    opts: [
+      { t: '完全不同的机制', why: '同一思想：把副本放到靠近使用者的位置。' },
+      { t: '同一思想：把副本放到靠近使用者的位置', why: '对。CDN 是缓存思想在互联网尺度（便利店开到你家门口）的应用。' },
+      { t: '只是压缩技术', why: '与压缩无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['05'], 'prev');
+  CX.depChain('#bridge-next', ['19', '39'], 'next');
+
+  /* ---- 动画：顾客购物路线 + 命中率滑块 ---- */
+  var h = 0.8;
+  var stage = CX.utils.$('demo1-stage');
+  function draw(t) {
+    /* t∈[0,1] 控制顾客位置；每次行程 0.25 段，共 4 次购物 */
+    var trips = [0.9, 0.5, 0.85, 0.4]; /* 每次购物是否命中(>h即缺失) */
+    var seg = t * 4, idx = Math.min(3, Math.floor(seg)), frac = seg - idx;
+    var hit = trips[idx] <= h;
+    var xHome = 60, xShop = hit ? 250 : 640, y = 150;
+    var x = xHome + (xShop - xHome) * frac;
+    var s = '<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="260" rx="12" fill="var(--bg-soft)"/>';
+    s += '<line x1="30" y1="175" x2="670" y2="175" stroke="var(--line)" stroke-width="6"/>';
+    s += '<rect x="30" y="120" width="70" height="55" rx="6" fill="var(--card-2)" stroke="var(--line)"/><text x="65" y="112" text-anchor="middle" font-size="13" fill="var(--text-dim)">家(应用)</text>';
+    s += '<rect x="215" y="120" width="70" height="55" rx="6" fill="var(--ok)" opacity=".25" stroke="var(--ok)"/><text x="250" y="112" text-anchor="middle" font-size="13" fill="var(--ok)">便利店(Cache)</text>';
+    s += '<rect x="605" y="120" width="70" height="55" rx="6" fill="var(--bad)" opacity=".2" stroke="var(--bad)"/><text x="640" y="112" text-anchor="middle" font-size="13" fill="var(--bad)">超市(DB)</text>';
+    s += '<circle cx="' + x + '" cy="172" r="11" fill="var(--accent-2)"/><text x="' + x + '" y="177" text-anchor="middle" font-size="11" font-weight="bold" fill="var(--bg)">客' + (idx + 1) + '</text>';
+    var tAvg = (h * 10 + (1 - h) * 200).toFixed(1);
+    s += '<text x="350" y="235" text-anchor="middle" font-size="14" fill="var(--text-dim)">平均访问时间 T = ' + h.toFixed(2) + '×10 + ' + (1 - h).toFixed(2) + '×200 = ' + tAvg + ' ms</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '顾客' + (idx + 1) + (hit ? '：便利店有货（命中），10ms 完成' : '：便利店缺货（缺失），进城去超市 200ms，回来补货'));
+  }
+  CX.makeAnim('#demo1-ctl', { steps: 16, duration: 10, onTick: draw });
+  var slider = CX.utils.$('h-slider');
+  slider.addEventListener('input', function () {
+    h = slider.value / 100;
+    CX.utils.$('h-out').textContent = slider.value + '%';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var order = ['拿到购物清单(发起请求)', '先去便利店找(Cache查询)', '有货直接买(命中返回)', '缺货去超市(回源)', '回来补货上架(回填)'];
+  var items = CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; }));
+  items.forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    var expect = ['拿到购物清单(发起请求)', '先去便利店找(Cache查询)', '有货直接买(命中返回)', '缺货去超市(回源)', '回来补货上架(回填)'];
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== expect[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：先有请求，才谈命中；命中就结束，未命中才回源。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 顺序正确：请求 → 查缓存 → 命中返回 / 未命中回源并回填。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [['缓存命中', '便利店有货'], ['回填', '缺货后顺路补货'], ['LRU', '最久没人买的下架'], ['一致性', '价签跟着超市改']];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的比喻。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个概念。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + selL.dataset.k + '」不对应「' + d.textContent + '」——重读一遍类比的对应关系再试。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

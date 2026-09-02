@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20 · OSI与TCP/IP分层 · 架构师学堂</title>
+<meta name="description" content="网络分层像邮政体系：写内容、装信封、写地址、运输，各层只管自己那道工序。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机网络</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <h1>20 · OSI与TCP/IP分层</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">网络分层像邮政体系：写内容、装信封、写地址、运输，各层只管自己那道工序。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>凌晨两点，值班工程师小林收到告警：「用户反馈 App 图片加载不出来」。他 ping 服务器通了，telnet 443 端口也通，可图片 URL 返回的是 404。开发说「网络没问题」，网管说「服务器没问题」，僵持两小时。队长只问一句：「这个故障发生在第几层？」——你会怎么答？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>先把线索按层放好：ping 通 = 网络层可达；443 能建立连接 = 传输层正常；返回 404 = 应用层（HTTP）的明确响应——网络其实是通的，是「资源不存在」。故障最可能落在应用层（路径改了、存储挂了、网关转发规则错了）。分层模型的价值就在这里：把「网络不通」这种模糊抱怨，切成逐层可验证的子问题，每层有自己的判据，定位到层就能明确谁负责。学完本页，你要能对任何网络问题先问一句：「这是第几层的事？」</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>进入🚦道路邮政区之前，先回忆前一站 <b>19 · 分布式数据库与NoSQL</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>网络分层，是把「把数据从一台机器送到另一台机器」这件复杂的事，拆成若干道独立工序，每道工序就是一层。国际上形成了两套著名口径：<span class="term-tip" title="Open Systems Interconnection，国际标准化组织 ISO 提出的七层理论参考模型">OSI 七层参考模型</span>（ISO 国际标准，先有模型后有协议）和 <span class="term-tip" title="Transmission Control Protocol / Internet Protocol，互联网事实标准体系结构，共四层">TCP/IP 四层体系结构</span>（工程事实标准，先有协议后有模型）。每层只对上层提供服务、只调用下层的服务，同层之间靠「协议」（事先约定的对话规则）对话——这就是对等通信。</p>
+      <h3>解决什么问题</h3>
+      <p>不同厂商、不同技术的设备要互联互通。若没有统一分层，每家做一套私有做法，谁也联不上谁；分层之后，层与层之间的接口标准化，某一层的内部技术升级（双绞线换光纤、集线器换交换机）不影响上下层——写信人完全不用关心邮车换了型号。</p>
+      <h3>核心机制：封装与解封装</h3>
+      <p>发送方自上而下逐层「<strong>封装</strong>」：应用产生数据，传输层加头部变成段，网络层加 IP 头变成分组（包），数据链路层加帧头帧尾变成帧，物理层变成比特流发送。接收方自下而上逐层「<strong>解封装</strong>」：拆帧头、拆包头、拆段头，最后把原始数据交给应用进程。每一层的头部只有「同一层」的对等实体读得懂——就像信封上的地址只有邮递员看，信纸内容只有收信人看。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>OSI 七层</th><th>TCP/IP 四层</th><th>本层职责</th><th>典型协议 / 设备</th><th>数据单元 PDU</th></tr>
+        <tr><td>7 应用层</td><td rowspan="3">应用层</td><td>直接为用户应用提供服务</td><td>HTTP、FTP、SMTP、DNS、DHCP、Telnet、SNMP、POP3</td><td>报文 / 消息</td></tr>
+        <tr><td>6 表示层</td><td>编码转换、加解密、压缩</td><td>TLS/SSL（功能上归属应用层处理）</td><td>数据</td></tr>
+        <tr><td>5 会话层</td><td>建立、管理、终止会话</td><td>（功能并入应用协议内部）</td><td>数据</td></tr>
+        <tr><td>4 传输层</td><td>传输层</td><td>端到端、按端口找到进程、可靠/高效传输</td><td>TCP、UDP</td><td>报文段(TCP) / 用户数据报(UDP)</td></tr>
+        <tr><td>3 网络层</td><td>网络层（互联网层）</td><td>IP 寻址、路由选择、把包跨网送达</td><td>IP、ICMP、ARP、IGMP；路由器</td><td>分组 / 包</td></tr>
+        <tr><td>2 数据链路层</td><td rowspan="2">网络接口层</td><td>相邻节点成帧、MAC 寻址、差错检测</td><td>以太网、PPP；交换机、网桥</td><td>帧</td></tr>
+        <tr><td>1 物理层</td><td>比特流在介质上传输</td><td>RJ45、双绞线/光纤规范；集线器、中继器</td><td>比特</td></tr>
+      </table>
+      <p>速查口令：<strong>集线器看不懂地址（物理层）、交换机看懂 MAC（链路层）、路由器看懂 IP（网络层）</strong>。这是综合知识题出现频率最高的设备归属结论。</p>
+      <table class="tbl">
+        <tr><th colspan="2">专业英语小贴士（综合知识英语题固定 5 分）</th></tr>
+        <tr><td>layering / encapsulation</td><td>分层 / 封装——「each layer adds its own header（每层加自己的头）」</td></tr>
+        <tr><td>peer communication</td><td>对等通信——同层实体按协议对话，不对下层细节感知</td></tr>
+        <tr><td>PDU (Protocol Data Unit)</td><td>协议数据单元——比特 bit → 帧 frame → 分组 packet → 段 segment</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 设备归属：集线器（物理层）≠ 交换机（数据链路层）≠ 路由器（网络层）；网关在概念上对应高层。② ARP 按主流教材口径归<strong>网络层</strong>（个别教材归链路层，答题注明口径）。③ TCP/IP 只有四层，没有独立的会话层和表示层，其功能并入应用层——别答成「被取消了」。④ 封装方向：发送端自上而下加头，接收端自下而上拆头，考试常把顺序倒过来当干扰项。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>本域统一比喻：<strong>分层 = 邮政体系</strong>。你写信（应用层内容），邮局把信装进标准信封（封装），分拣员按城市和门牌分拣（网络层按 IP 寻址），运输公司承运并要求签收（传输层），最后由卡车沿着道路把信送到（物理层与链路层）。</p>
+    <table class="tbl">
+      <tr><th>类比项（邮政体系）</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>你写的信纸内容</td><td>应用层报文</td><td>成立</td></tr>
+      <tr><td>信封套信封，每层信封写各自地址</td><td>逐层封装加头部</td><td>成立</td></tr>
+      <tr><td>分拣员按「城市+街区」分拣</td><td>网络层按 IP 寻址与路由</td><td>成立</td></tr>
+      <tr><td>挂号签收、丢失补寄</td><td>传输层 TCP 可靠机制（23 页展开）</td><td>成立</td></tr>
+      <tr><td>信封逐层拆开时，信纸也会被重新排版</td><td>解封装只拆头不改内容</td><td><b>失效</b>：解封装只剥离各层头部，数据本体原样上交</td></tr>
+    </table>
+    <p class="foreshadow">类比失效边界一句话：邮政体系「套信封」只是形象说法——网络封装时每层头都携带寻址/校验信息，且接收端是按头里的地址逐层上交，不是随便拆。</p>
+    <div class="rhyme">物理线上跑比特，链路成帧差错察；<br>网络寻址选路径，传输端口把户查；<br>会话搭台管对话，表示翻译编码加；<br>应用直面众用户，逐层封装不乱差。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示一份数据从主机 A 应用层逐层封装下行、过线传输、再在对端逐层解封装上行的完整旅程；拖动「聚焦层」滑块可以单独查看每一层的职责、PDU 与代表协议/设备。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>聚焦层 <input type="range" id="focus-slider" min="1" max="7" step="1" value="4"> <span id="focus-out">4</span></label>
+      <span class="kf-caption" id="focus-info"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：协议 / 设备 ↔ 所属层次</h4>
+      <p class="foreshadow">先点左列一个条目，再点右列它所属的层次。配错会告诉你错在哪一步的判断依据。</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：把「发送封装」的工序排成正确顺序</h4>
+      <p class="foreshadow">把卡片从上方拖进下方槽位，按数据自上而下的封装顺序排列：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>本页是🚦道路邮政区的第一站，不设硬依赖；但 03 页的校验码（CRC 将出现在链路层帧校验 FCS 中）、05 页的层次思想（存储层次→网络层次）都曾埋下伏笔。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>数据链路层这「一道工序」在 <b>21 · 局域网与以太网</b> 展开成 CSMA/CD 与 VLAN；</li>
+      <li>网络层在 <b>22 · IP地址、子网与路由</b> 展开成掩码、子网与路由协议；</li>
+      <li>传输层在 <b>23 · TCP与UDP</b> 展开成握手、窗口与拥塞控制；</li>
+      <li>应用层与安全设备的配合在 <b>24 · 应用层协议与安全设备</b> 展开，并给 51 · 网络安全防护体系埋下伏笔。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>OSI 七层参考模型</th><th>TCP/IP 四层体系结构</th></tr>
+      <tr><td>差异点</td><td>ISO 理论标准，先有模型后有协议，教科书用于教学与故障定位</td><td>工程事实标准，先有协议后有模型，互联网真实在用</td></tr>
+      <tr><td>易错点</td><td>把 TCP/IP 说成七层；忘了会话/表示层并入应用层</td><td>把 TCP/IP 说成五层（中庸画法存在，但考试默认四层口径）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">OSI 是理论教科书，TCP/IP 是工程现实；题目问「参考模型」答七层，问「体系结构」答四层。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——寄快递时你只管把东西装箱写地址，快递员只管按地址开车送……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 分层 = 把「可靠送到」拆成各管一段的工序：物理传比特、链路发帧、网络找路、传输找进程、应用办业务。</li><li>② 发送端逐层封装加头、接收端逐层解封装拆头，同层只读自己的头（对等通信）。</li><li>③ 必背归属：集线器=物理层、交换机=数据链路层、路由器=网络层；OSI 七层 vs TCP/IP 四层的对应关系。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '20', domain: 'net', loc: 'roads', root: '..',
+  title: 'OSI与TCP/IP分层', prev: '19-distributed-db.html', prevTitle: '19 · 分布式数据库与NoSQL',
+  next: '21-lan-vlan.html', nextTitle: '21 · 局域网与以太网',
+  keywords: ['分层', '封装', '解封装', '协议', 'OSI 七层', 'TCP/IP', '对等通信']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 19 · 分布式数据库与NoSQL） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·19】把一张大表按行拆开、分别存到多台机器上，每台机器只负责其中一部分数据，这种技术在分布式数据库中叫？',
+    opts: [
+      { t: '分片（Sharding，水平拆分）', why: '对。数据分片是「放多处」的性能选择，正是它让数据散落多台主机——数据如何在这些主机间可靠传输，就是本页网络分层的任务。' },
+      { t: '建立索引', why: '索引是加速查询的目录册，不改变数据存放位置。' },
+      { t: '反规范化', why: '反规范化是合并表、加冗余，用一致性换速度，与拆分存储是两件事。' }
+    ],
+    ans: 0, tag: '回忆:19', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '集线器、以太网交换机、路由器按工作层次从低到高排列，对应的 OSI 层次是？',
+      opts: [
+        { t: '物理层、数据链路层、网络层', why: '对。集线器只复制放大信号；交换机按 MAC 帧转发；路由器按 IP 选路——「能看懂哪层地址，就工作在哪层」。' },
+        { t: '数据链路层、网络层、传输层', why: '把集线器高估了：它连帧都看不懂，只会转发比特，是最底层的物理层设备。' },
+        { t: '物理层、网络层、数据链路层', why: '交换机与路由器次序颠倒：看 MAC 的交换机（链路层）低于看 IP 的路由器（网络层）。' },
+        { t: '物理层、物理层、数据链路层', why: '路由器被低估：它读取 IP 头做选路决策，工作在网络层。' }
+      ],
+      ans: 0, tag: '设备归属', src: '仿真题' },
+    { q: 'TCP/IP 体系结构只有四层，OSI 参考模型中的会话层和表示层，其功能在 TCP/IP 中去了哪里？',
+      opts: [
+        { t: '被彻底取消，没有任何机制承担', why: '功能没有消失：加密、压缩、会话保持由应用协议自己实现，如 HTTPS 的加密属于应用层事务。' },
+        { t: '并入网络接口层', why: '网络接口层对应 OSI 物理层 + 数据链路层，管的是比特和帧，与编码转换无关。' },
+        { t: '并入传输层', why: '传输层只管端到端进程通信（端口、可靠传输），不管数据如何编码表示。' },
+        { t: '并入应用层', why: '对。TCP/IP 应用层 = OSI 的会话 + 表示 + 应用三层，这是对照题的标准答案。' }
+      ],
+      ans: 3, tag: '体系结构', src: '仿真题' },
+    { q: '主机 A 的浏览器向服务器发送一个网页请求，封装的先后顺序是？',
+      opts: [
+        { t: '数据 → 加 TCP 头成段 → 加 IP 头成分组 → 加帧头帧尾成帧 → 变比特流', why: '对。自上而下逐层加头：传输层段 → 网络层包 → 链路层帧 → 物理层比特；接收端反序拆头。' },
+        { t: '数据 → 加 IP 头 → 加 TCP 头 → 成帧 → 变比特流', why: '层次加反了：IP 头包裹在 TCP 头外面（网络层在传输层之下），先 TCP 后 IP。' },
+        { t: '数据 → 加帧头 → 加 IP 头 → 加 TCP 头 → 变比特流', why: '这是解封装（接收端拆头）的顺序，发送封装方向正好相反。' },
+        { t: '数据 → 加 TCP 头成段 → 加帧头 → 加 IP 头 → 变比特流', why: '帧在网络接口层，位于网络层之下：应先加 IP 头（分组）再加帧头帧尾。' }
+      ],
+      ans: 0, tag: '封装', src: '仿真题' },
+    { q: '以太网帧尾部的 FCS 字段用于检测链路传输差错，它采用的技术与知识点 03 中哪种校验同源？',
+      opts: [
+        { t: '奇偶校验', why: '奇偶校验只加一位，只能发现奇数个位错，对成帧数据的检错能力远远不够。' },
+        { t: '海明码纠错', why: '海明码能纠错但冗余位开销大；链路层只需「检错 + 丢弃 + 重传」，不必纠错。' },
+        { t: '循环冗余校验（CRC）', why: '对。FCS 就是 CRC 运算结果：把帧数据当多项式除以约定生成多项式取余数，检错强、硬件实现快——03 页的CRC在链路层的落地。' },
+        { t: '字节累加校验和', why: '累加校验和常见于 IP/TCP/UDP 头部；链路层帧校验的标准技术是 CRC。' }
+      ],
+      ans: 2, tag: '交错复习:03', src: '仿真题' },
+    { q: '分布式数据库把数据分片存在 3 台机器上（知识点 19），应用服务器发起查询时，请求报文能准确到达目标机器，首先依赖的是？',
+      opts: [
+        { t: '应用层 DNS 解析用户名', why: 'DNS 解析的是域名，机器之间的按址送包靠 IP 编址与路由。' },
+        { t: '网络层：按目的 IP 寻址、路由器逐跳转发', why: '对。「分片在哪台机器」=「哪个 IP」；包先靠网络层到达主机，再由端口和传输层接力——这正是分层分工。' },
+        { t: '数据链路层 MAC 广播找目标', why: 'MAC 只在本广播域内有效，跨网段必须靠 IP 路由，广播也出不了本地网段。' },
+        { t: '传输层 TCP 重传机制', why: '重传解决「不丢」，不解决「找到」；寻路是网络层的职责。' }
+      ],
+      ans: 1, tag: '交错复习:19', src: '仿真题' }
+  ], { kpId: '20', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '上线当晚告警：用户反馈 App 图片偶发加载失败。值班工程师 ping 服务器通、telnet 443 通，但图片 URL 返回 404；开发坚称「网络没问题」，网管坚称「服务器没问题」，僵持两小时。',
+    q: '(1) 用分层模型判断故障最可能发生在哪一层并给出依据；(2) 说明「分层排查」比双方互相推诿高效的至少两条理由；(3) 指出分层模型的局限（层间问题会伪装）并举例。',
+    ref: '(1) ping 通=网络层可达，443 可建立连接=传输层正常，404 是 HTTP 应用层状态码：网络是通的，故障最可能在应用层（资源路径变更、对象存储故障、网关转发规则错误）。(2) 理由一：分层把模糊问题切成逐层可验证的子问题，每层有明确判据（链路看错包、网络看 ping 与路由、传输看端口与重传、应用看状态码与日志）；理由二：定位到层即明确责任人，避免跨队扯皮，缩短 MTTR。(3) 局限：底层故障会以高层症状出现——链路丢包（物理/链路层）在应用层表现为「偶发超时卡顿」，只在应用层改代码永远修不好，必须跨层联查。',
+    points: ['能依据「ping/telnet 通 + 404」把故障定位于应用层而非网络层', '分层排查给出两条以上理由（逐层判据、责任边界/MTTR）', '说出分层局限：底层故障在高层伪装，需要跨层联查'],
+    frame: '答题框架：分层列证据（每层一个可观测指标）→ 判定最可能的层 → 给出层间伪装的反例 → 落到协作机制（各层责任人）。排查题一律先「证据」后「结论」。',
+    kpId: '20'
+  });
+  CX.renderCase('#case2', {
+    stem: '新办公室 60 人装修布线，供应商送来三种盒子：A 只会复制放大信号；B 有 24 个网口且机身标着 MAC 地址表；C 有 WAN/LAN 口、能配置路由表。',
+    q: '(1) 指出 A/B/C 分别是什么设备、工作在 OSI 哪一层；(2) 说明终端接入、楼层汇聚、公司出口分别该用哪类设备及理由；(3) 从冲突域角度说明为什么 A 不能用于接入层。',
+    ref: '(1) A=集线器（物理层）、B=以太网交换机（数据链路层）、C=路由器（网络层）。(2) 终端接入用交换机：每端口一个独立冲突域、按 MAC 精准转发；楼层汇聚用交换机/三层交换机（大容量 MAC 表、必要时跨 VLAN 路由）；公司出口接运营商必须用路由器：跨网段按目的 IP 选路并做 NAT。(3) 集线器所有端口同属一个冲突域且广播式转发：60 人同时收发时冲突与退避重传（CSMA/CD）使有效带宽骤降；且每个端口的信号被复制到所有端口，既慢又容易被抓包。',
+    points: ['三设备与三层次一一对应且依据正确（看懂什么地址=什么层）', '接入/汇聚/出口选型与理由正确（交换机接入、路由器出口+NAT）', '从冲突域+监听安全两个角度否定集线器'],
+    frame: '答题框架：认设备（层次）→ 定位置（接入/汇聚/出口）→ 讲理由（冲突域、广播域、寻址依据）→ 反面论证（用错会怎样）。',
+    kpId: '20'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '铁路提速十倍后，写信人和收信人的写信格式完全不用变。把这一性质平移到软件架构，下面哪个决策与之同源？',
+    opts: [
+      { t: '换数据库时，把所有业务代码同步大改一遍', why: '恰恰相反：那说明层间没有隔离，下层实现变化泄漏到了上层——分层要防的就是这个。' },
+      { t: '层间只通过稳定接口交互，存储层从 MySQL 换成 PostgreSQL，业务层代码不动', why: '对。分层的本质是「接口稳定、实现自由」，正如网络分层让链路技术升级不影响应用——邮车换了，写信格式不变。' },
+      { t: '所有模块直接调用对方内部函数，效率最高', why: '紧耦合破坏隔离性，任何一层改动都会波及全系统，违背分层初衷。' },
+      { t: '取消分层，把收发逻辑全部写进一个函数', why: '巨型单函数正是分层要治理的对象，与分层思想背道而驰。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '20', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', [], 'prev');
+  CX.depChain('#bridge-next', ['21', '22', '23', '24'], 'next');
+
+  /* ---- 动画：封装/解封装之旅 + 聚焦层滑块 ---- */
+  var LAYERS = [
+    { name: '应用层', pdu: '报文 / 消息', dev: '应用进程、应用网关', duty: '直接为应用提供服务（HTTP、DNS、SMTP…）' },
+    { name: '表示层', pdu: '数据', dev: '（功能并入 TCP/IP 应用层）', duty: '编码转换、加解密、压缩' },
+    { name: '会话层', pdu: '数据', dev: '（功能并入 TCP/IP 应用层）', duty: '建立、管理、终止会话' },
+    { name: '传输层', pdu: '段 / 用户数据报', dev: 'TCP、UDP 协议栈', duty: '端到端，按端口找到进程' },
+    { name: '网络层', pdu: '分组 / 包', dev: 'IP、ICMP；路由器', duty: 'IP 寻址与路由选择' },
+    { name: '数据链路层', pdu: '帧', dev: '以太网；交换机、网桥', duty: '成帧、MAC 寻址、差错检测' },
+    { name: '物理层', pdu: '比特', dev: '集线器、中继器、传输介质', duty: '比特流在介质上传输' }
+  ];
+  var stage = document.getElementById('demo1-stage');
+  var curT = 0, focus = 4;
+  function draw(t) {
+    curT = t;
+    var rowH = 27, xL = 60, xR = 640, wStack = 120;
+    var yTop = 16, yWire = 232, yA = 246;
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="分层封装之旅">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    for (var i = 0; i < 7; i++) {
+      var y = yTop + i * rowH;
+      var on = (7 - i) === focus;
+      s += '<rect x="' + xL + '" y="' + y + '" width="' + wStack + '" height="' + (rowH - 4) + '" rx="5" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>';
+      s += '<text x="' + (xL + wStack / 2) + '" y="' + (y + 17) + '" text-anchor="middle" font-size="12" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + (7 - i) + '·' + LAYERS[i].name + '</text>';
+      s += '<rect x="' + xR + '" y="' + y + '" width="' + wStack + '" height="' + (rowH - 4) + '" rx="5" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>';
+      s += '<text x="' + (xR + wStack / 2) + '" y="' + (y + 17) + '" text-anchor="middle" font-size="12" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + (7 - i) + '·' + LAYERS[i].name + '</text>';
+    }
+    s += '<text x="' + (xL + wStack / 2) + '" y="' + (yTop + 7 * rowH + 12) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">主机 A（发送）</text>';
+    s += '<text x="' + (xR + wStack / 2) + '" y="' + (yTop + 7 * rowH + 12) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">主机 B（接收）</text>';
+    s += '<line x1="40" y1="' + yWire + '" x2="680" y2="' + yWire + '" stroke="var(--line)" stroke-width="6"/>';
+    s += '<text x="360" y="' + (yWire - 10) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">物理介质（网线 / 光纤）：比特流</text>';
+    var y7 = yTop + 0.5 * rowH, x, y, seg;
+    var ph;
+    if (t < 0.3) { ph = 'down'; y = y7 + (yWire - y7) * (t / 0.3); x = xL + wStack / 2; }
+    else if (t < 0.55) { ph = 'wire'; y = yWire; x = xL + wStack / 2 + (xR + wStack / 2 - xL - wStack / 2) * ((t - 0.3) / 0.25); }
+    else { ph = 'up'; y = yWire + (y7 - yWire) * ((t - 0.55) / 0.45); x = xR + wStack / 2; }
+    if (ph === 'down') {
+      seg = Math.min(3, Math.floor(t / 0.3 * 3.999));
+      var labels = ['数据', '+段头(TCP)', '+段头+IP头', '+段头+IP头+帧头尾'];
+      s += '<rect x="' + (x - 78) + '" y="' + (y - 12) + '" width="156" height="22" rx="6" fill="var(--accent)" opacity=".9"/>';
+      s += '<text x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">' + labels[seg] + '</text>';
+    } else if (ph === 'wire') {
+      s += '<rect x="' + (x - 62) + '" y="' + (y - 12) + '" width="124" height="22" rx="6" fill="var(--warn)" opacity=".9"/>';
+      s += '<text x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">比特流 0110…</text>';
+    } else {
+      seg = Math.min(3, Math.floor((t - 0.55) / 0.45 * 3.999));
+      var labels2 = ['剥帧头帧尾', '再剥IP头', '再剥段头', '原始数据'];
+      s += '<rect x="' + (x - 78) + '" y="' + (y - 12) + '" width="156" height="22" rx="6" fill="var(--ok)" opacity=".9"/>';
+      s += '<text x="' + x + '" y="' + (y + 3) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">' + labels2[seg] + '</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (ph === 'down') {
+      cap = ['应用层：进程写出报文（数据）', '传输层：加 TCP/UDP 头，数据变成「段」，并写上端口号', '网络层：加 IP 头（源/目的 IP），变成「分组」，路由器只看这一层', '数据链路层：加帧头帧尾（MAC 地址 + FCS 校验），变成「帧」'][seg];
+    } else if (ph === 'wire') {
+      cap = '物理层：比特流沿线传输；途中交换机拆到「帧」看 MAC，路由器拆到「包」看 IP，再重新封装继续走';
+    } else {
+      cap = ['数据链路层：用 FCS 校验无误后剥掉帧头帧尾', '网络层：核对目的 IP 是本机，剥掉 IP 头', '传输层：按端口号把数据交给对应进程，剥掉段头', '应用层：进程收到原始数据——每一层只读得懂「自己那层」的头'][seg];
+    }
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 14, onTick: draw });
+  function focusInfo() {
+    var L = LAYERS[7 - focus];
+    document.getElementById('focus-info').textContent = '第' + focus + '层 ' + L.name + ' ｜ PDU：' + L.pdu + ' ｜ 代表：' + L.dev + ' ｜ 职责：' + L.duty;
+  }
+  var fslider = document.getElementById('focus-slider');
+  fslider.addEventListener('input', function () {
+    focus = parseInt(fslider.value, 10);
+    document.getElementById('focus-out').textContent = String(focus);
+    focusInfo();
+    draw(curT);
+  });
+  focusInfo();
+  draw(0);
+
+  /* ---- 实验一：连线匹配 ---- */
+  var pairs = [
+    ['HTTP / DNS / SMTP', '应用层'],
+    ['TCP / UDP', '传输层'],
+    ['IP / ICMP / ARP', '网络层'],
+    ['MAC 帧 / 交换机', '数据链路层'],
+    ['比特流 / 集线器', '物理层']
+  ];
+  var whyMap = {
+    '应用层': '层次判断依据：它直接为用户应用提供服务。',
+    '传输层': '层次判断依据：它管端到端、按端口找进程。',
+    '网络层': '层次判断依据：它按 IP 跨网寻址选路。',
+    '数据链路层': '层次判断依据：它按 MAC 在相邻节点间传帧。',
+    '物理层': '层次判断依据：它只管比特和信号，不懂任何地址。'
+  };
+  var lBox = document.getElementById('match-left'), rBox = document.getElementById('match-right');
+  var selL = null, donePairs = 0, fb1 = document.getElementById('lab1-fb');
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        var all = lBox.querySelectorAll('.match-opt');
+        for (var i = 0; i < all.length; i++) all[i].classList.remove('sel');
+        d.classList.add('sel'); selL = d;
+        fb1.textContent = '已选「' + p[0] + '」，请在右列点它所属的层次。';
+        fb1.className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { fb1.textContent = '先点左列一个协议/设备。'; fb1.className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          fb1.textContent = '✅ 配对成功 ' + donePairs + '/5。' + whyMap[d.textContent];
+          fb1.className = 'lab-feedback ok';
+        } else {
+          fb1.textContent = '❌ 「' + selL.dataset.k + '」不属于「' + d.textContent + '」。判断口令：能看懂哪一层的地址，就工作在哪一层。';
+          fb1.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  document.getElementById('match-reset').addEventListener('click', function () { buildMatch(); fb1.textContent = ''; fb1.className = 'lab-feedback'; });
+
+  /* ---- 实验二：拖拽排序（封装顺序） ---- */
+  var expect = ['应用进程写出数据(报文)', '传输层加TCP/UDP头(段)', '网络层加IP头(分组/包)', '数据链路层加帧头帧尾(帧)', '物理层变比特流发送'];
+  var hintStep = ['一切从应用数据开始——没有应用哪来的网络流量。', '传输层先加头：先有端口和可靠传输，才轮到寻址。', '网络层第二：给段套上 IP 信封才能跨网。', '链路层第三：帧头帧尾负责相邻一跳与校验。', '物理层最后：比特上线，封装到此结束。'];
+  var pool = document.getElementById('drag-pool'), slot = document.getElementById('drag-slot');
+  var fb2 = document.getElementById('lab2-fb');
+  CX.shuffle(expect.map(function (t) { return t; })).forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  document.getElementById('drag-check').addEventListener('click', function () {
+    var got = [];
+    for (var i = 0; i < slot.children.length; i++) got.push(slot.children[i].dataset.t);
+    if (got.length < 5) { fb2.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb2.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== expect[i]) {
+        fb2.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：' + hintStep[i];
+        fb2.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb2.textContent = '✅ 封装顺序正确：报文 → 段 → 分组 → 帧 → 比特。接收端按反序解封装。';
+    fb2.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

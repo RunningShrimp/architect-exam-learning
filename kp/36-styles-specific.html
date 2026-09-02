@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>36 · 架构风格：MVC、微内核与SOA · 架构师学堂</title>
+<meta name="description" content="MVC 分工界面数据控制，微内核留最小核心装插件，DSSA 分垂直域水平域——给场景选风格是每年必考。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="35-styles-indep-vm.html">前置 35</a></span>
+    <h1>36 · 架构风格：MVC、微内核与SOA</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">MVC 分工界面数据控制，微内核最小核心装插件，按场景选风格。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某团队做运营后台：同一份商品数据要有「表格视图」「卡片视图」「大屏视图」三种展示，还要出手机版。最初代码把查询数据库、计算折扣、渲染 HTML 写在同一个 JSP 文件里。结果是：改一个折扣规则要改三个页面；美工改样式经常弄坏业务逻辑。应该怎么拆？拆完之后，用户的一次点击在这几块之间是怎么传递的？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>典型的「界面与数据纠缠」。用 <b>MVC</b> 拆开：<b>Model</b> 管商品数据与折扣规则（厨师做菜）、<b>View</b> 管三种展示（菜单摆盘）、<b>Controller</b> 接收请求并调度（服务员接单）。一个 Model 配多个 View，改规则只动 Model，改样式只动 View。用户点击的流向：Controller 接收→调 Model 更新→View 观察 Model 变化刷新（观察机制，正是 35 页隐式调用的应用）。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>35 · 独立构件与虚拟机</b>（MVC 的 View-Model 联动、微内核插件通信都用了事件思想）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：MVC 与它的两次进化</h3>
+      <p><b>MVC（Model-View-Controller）</b>是交互式应用最常用的特定领域风格。餐厅比喻：<b>Model=厨师</b>（管数据与业务规则，不理谁在吃）、<b>View=菜单摆盘</b>（管展示，可多套摆法对应同一锅菜）、<b>Controller=服务员</b>（接单、协调厨房与餐台）。交互主线：用户→Controller→Model→（Model 状态变化）→View 观察刷新→用户看到。<b>一个 Model 可对应多个 View</b>，界面与逻辑互不拖累。</p>
+      <table class="tbl">
+        <tr><th>变体</th><th>关键变化</th><th>代价/收益</th></tr>
+        <tr><td><b>MVP</b></td><td>View 完全被动，Presenter 居中全权中介，View 与 Model 不再直接往来</td><td>交互逻辑集中、View 好做单元测试；代价是 Presenter 变「胖」</td></tr>
+        <tr><td><b>MVVM</b></td><td>ViewModel + <b>数据绑定</b>：View 与 ViewModel 状态自动双向同步</td><td>前端框架主流（界面自动跟数据走，手写同步代码消失）；代价：绑定调试不直观、大项目绑定关系复杂</td></tr>
+      </table>
+      <h3>微内核（Microkernel）：最小核心 + 插件</h3>
+      <p><b>微内核</b>只把<b>最核心、最稳定</b>的功能放进内核（如操作系统的进程调度、内存管理、进程间通信），其余功能做成<b>插件（plug-in）</b>，通过内核提供的<b>扩展点注册接入、经内核消息通信</b>。典型：微内核操作系统、浏览器插件、IDE（Eclipse 式插件体系）、规则引擎容器。</p>
+      <ul>
+        <li><b>优点</b>：核心小而稳定；扩展灵活（加功能=加插件）；插件故障可被隔离，不至于拖垮核心；便于第三方开发扩展。</li>
+        <li><b>缺点</b>：插件间/插件与核心的通信都要经核心转发，<b>性能有开销</b>；「什么放核心」的边界设计最难。</li>
+      </ul>
+      <h3>DSSA：垂直域 vs 水平域</h3>
+      <p><b>DSSA（特定领域软件体系结构）</b>：在一 个特定应用领域内，以「领域分析→领域设计→领域实现」为基本活动，产出一套可复用的参考架构。<b>垂直域</b>=同一行业的端到端完整应用域（如电信 BOSS、银行核心系统）；<b>水平域</b>=跨行业通用的功能域（如工作流引擎、报表、消息中间件）。考试给一段「行业专用平台」选垂直域、给「通用组件平台」选水平域。</p>
+      <h3>风格对比选择表（综合知识每年必考）</h3>
+      <table class="tbl">
+        <tr><th>场景信号</th><th>推荐风格</th><th>出处</th></tr>
+        <tr><td>数据多站加工、流式线性处理</td><td>管道-过滤器</td><td>34 页</td></tr>
+        <tr><td>定期整批处理、无人工交互</td><td>批处理序列</td><td>34 页</td></tr>
+        <tr><td>层层委托、关注点分离（OSI 类）</td><td>分层</td><td>34 页</td></tr>
+        <tr><td>多专家协作、求解路径不确定（语音识别）</td><td>黑板</td><td>34 页</td></tr>
+        <tr><td>规则频繁变化、需解释执行</td><td>解释器 / 基于规则</td><td>35 页</td></tr>
+        <tr><td>松耦合的一对多通知</td><td>事件驱动 / 隐式调用</td><td>35 页</td></tr>
+        <tr><td>同一数据多种界面、界面常变</td><td>MVC / MVVM</td><td>本页</td></tr>
+        <tr><td>核心稳定 + 外围多变、第三方扩展</td><td>微内核</td><td>本页</td></tr>
+        <tr><td>企业异构系统集成、服务复用</td><td>SOA（38 页详解）</td><td>本页/38页</td></tr>
+      </table>
+      <div class="callout"><span class="t">🔤 专业英语</span>Model-View-Controller（模型-视图-控制器）· microkernel（微内核）· plug-in（插件）· data binding（数据绑定）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① MVC 里 <b>View 不是自己拉数据刷新</b>，而是观察 Model 的变化（通知机制）；② MVP 与 MVC 的分界：<b>View 与 Model 是否还有直接联系</b>——MVP 彻底断开；③ MVVM 的「VM」是 ViewModel 不是 View-Model 混写；④ 微内核的插件<b>不能互相直接调用</b>，通信经核心转发（性能缺点来源）；⑤ DSSA 垂直域≠大系统、水平域≠小系统——区别在「单一行业纵深」还是「跨行业通用」。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>MVC=一家餐厅</b>：你（用户）点菜从来不进厨房，服务员（Controller）把单子递给后厨，厨师（Model）做好菜不亲自端，摆盘上桌（View）你才看见；菜单换了样式不影响菜谱，菜谱改了口味不用重印菜单。<b>微内核=精简市政厅+专业外包</b>：市政厅只保留户口、审批两件核心事，绿化、停车、垃圾清运全外包给专业公司（插件），哪家外包倒闭了市政厅照常运转，换一家重新签（插件热插拔）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>服务员接单传菜</td><td>Controller 接收请求并调度</td><td>成立</td></tr>
+      <tr><td>厨师不管谁来吃</td><td>Model 不依赖具体视图</td><td>成立</td></tr>
+      <tr><td>一桌菜多种摆盘</td><td>一个 Model 多个 View</td><td>成立</td></tr>
+      <tr><td>服务员知道菜的具体做法</td><td>Controller 掌握业务规则</td><td><b>失效</b>：业务规则归 Model，Controller 只做接收与调度，混了职责就成「胖控制器」反模式</td></tr>
+      <tr><td>市政厅只留核心、其余外包</td><td>微内核：最小核心+插件</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">MVC 餐厅三分手：厨师模型菜是数据；<br>服务员接单控制器，摆盘视图给客看；<br>MVP 断开模与视，MVVM 绑定自动换；<br>微内核里留核心，插件来了随便换；<br>垂直域里一条龙，水平域里通用件。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画对比 MVC / MVP / MVVM 三种变体中，用户一次点击的消息流向。拖动「变体」滑块切换模式，播放看消息逐站传递。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>变体 <input type="range" id="mode-slider" min="0" max="2" step="1" value="0"> <span id="mode-out">MVC</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：场景 → 风格（每年必考型）</h4>
+      <p class="foreshadow">先点左列场景，再点右列风格。错了会指出你该看的「信号词」：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（交互实验）：微内核插件实验台</h4>
+      <p class="foreshadow">核心（调度 + 内存管理 + 消息通信）永远运行。点按钮装卸插件，再模拟一次插件崩溃，观察故障隔离：</p>
+      <div id="mk-status" class="kf-caption">核心运行中 ●</div>
+      <div>
+        <button class="btn" data-mk="net">装卸插件：网络驱动</button>
+        <button class="btn" data-mk="fs">装卸插件：文件系统</button>
+        <button class="btn" data-mk="gui">装卸插件：图形界面</button>
+        <button class="btn" data-mk="av">装卸插件：安全扫描</button>
+        <button class="btn primary" data-mk="crash">⚡ 模拟崩溃一个已加载插件</button>
+      </div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：把 MVC 的一次请求按正确顺序排好</h4>
+      <p class="foreshadow">从「用户提交请求」开始，把流程卡片拖进下方槽位：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「场景选风格」：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>35 · 独立构件与虚拟机</b>给了事件与隐式调用——MVC 的 View-Model 联动、微内核的插件消息通信都是它的应用；<b>29 · 面向对象基础</b>给了封装与多态——MVC 三件套本质是三个职责清晰的类族。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>37 · C/S、B/S与多层</b>：MVC 管「一个应用内部」的分工，多层管「部署拓扑」的分工，两者常被混为一谈；</li>
+      <li><b>38 · SOA与微服务</b>：本页 SOA 只露了一面（异构集成、标准契约），38 页把它与微服务掰开对比；</li>
+      <li><b>46 · 设计原则与GoF总览</b>：MVC 的 View-Model 联动就是观察者模式——风格与模式同源不同层。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>MVC</th><th>多层架构（三层）</th></tr>
+      <tr><td>关注什么</td><td>一个应用<b>内部</b>的职责分工：界面/数据/控制</td><td><b>部署拓扑</b>上的分层：表现层/业务层/数据层（37 页）</td></tr>
+      <tr><td>解决的问题</td><td>界面多变、数据复用、交互解耦</td><td>客户端与服务器职责划分、集中管理业务</td></tr>
+      <tr><td>易错点</td><td>以为 MVC=三层——MVC 三件可以全跑在同一台服务器上</td><td>以为分了层就等于用了 MVC——两套坐标不同，可独立也可组合</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">MVC 是厨房里的分工（谁做菜谁摆盘），三层是楼里的分工（几楼点菜几楼炒菜）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——餐厅里你点菜，服务员下单，厨师做菜，摆盘上桌……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① MVC：Model 管数据规则、View 管展示（观察刷新）、Controller 管接收调度；MVP 断开 View-Model，MVVM 用数据绑定自动同步。</li><li>② 微内核=最小核心+插件：核心稳定、扩展灵活、故障可隔离，代价是通信经核心转发的性能开销。</li><li>③ DSSA 垂直域是行业纵深、水平域是跨行业通用；「给场景选风格」背熟本页信号词表。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '36', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '架构风格：MVC、微内核与SOA',
+  prev: '35-styles-indep-vm.html', prevTitle: '35 · 架构风格：独立构件与虚拟机',
+  next: '37-csbs-tiers.html', nextTitle: '37 · C/S、B/S与多层架构',
+  keywords: ['MVC','微内核','插件','DSSA','垂直域','水平域','MVVM','数据绑定']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 35） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·35】MVC 中「View 观察 Model 的变化自动刷新」，按 35 页口径用的是哪种机制的思想？',
+    opts: [
+      { t: '隐式调用（发布-订阅）', why: '对。Model 状态变化=事件，View 订阅它自动刷新——这正是观察者思想的架构级应用。' },
+      { t: '解释器', why: '解释器是虚拟机风格，与视图刷新无关。' },
+      { t: '批处理', why: '批处理是整批数据流，不是状态通知。' }
+    ],
+    ans: 0, tag: '回忆:35', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '关于 MVC，下列说法正确的是？',
+      opts: [
+        { t: 'Controller 负责业务规则计算与数据持久化', why: '业务规则归 Model；Controller 只做接收请求与调度，包揽业务就是「胖控制器」反模式。' },
+        { t: 'Model 负责数据与业务规则，View 观察其变化刷新，Controller 接收并调度用户输入', why: '对。三职责一句到位，且「观察刷新」点出了 View-Model 的通知关系。' },
+        { t: '一个 Model 只能对应一个 View', why: '恰恰相反：一个 Model 可对应多个 View（表格/卡片/大屏）。' },
+        { t: 'View 必须直接读写数据库', why: 'View 只管展示，数据访问在 Model（数据层）。' }
+      ],
+      ans: 1, tag: 'MVC', src: '仿真题' },
+    { q: 'MVVM 相比 MVP 最本质的改进是？',
+      opts: [
+        { t: '用双向数据绑定让 View 与 ViewModel 状态自动同步，免手写刷新代码', why: '对。绑定是 MVVM 的灵魂：数据变了界面自动变，界面改了数据自动跟。' },
+        { t: '让 View 重新与 Model 直接通信', why: '反了：MVVM 中 View 仍不直接碰 Model。' },
+        { t: '把业务逻辑从 Model 挪进 View', why: '业务逻辑永远在 Model/服务层。' },
+        { t: '取消了 Controller/Presenter 这类中介角色', why: '没有取消，只是换成了 ViewModel + 绑定机制。' }
+      ],
+      ans: 0, tag: 'MVVM', src: '仿真题' },
+    { q: '微内核风格的主要缺点是？',
+      opts: [
+        { t: '核心体积庞大、难以维护', why: '反了：核心「最小化」正是它的设计目标。' },
+        { t: '插件与核心的通信都要经核心转发，带来性能开销；且「什么放核心」最难界定', why: '对。转发开销+内核边界设计难，是教材口径的标准缺点。' },
+        { t: '不允许任何形式的扩展', why: '扩展（插件）正是它的存在意义。' },
+        { t: '插件崩溃必然拖垮整个系统', why: '故障隔离恰是它的优点（配合进程级隔离更好）。' }
+      ],
+      ans: 1, tag: '微内核', src: '仿真题' },
+    { q: '某软件公司为「电信行业」打造覆盖计费、客服、网管的整套参考架构，同时另一团队做「跨行业通用」的工作流引擎产品。两团队分别对应 DSSA 的？',
+      opts: [
+        { t: '垂直域、水平域', why: '对。单一行业端到端纵深=垂直域；跨行业通用功能域=水平域。' },
+        { t: '水平域、垂直域', why: '方向反了。' },
+        { t: '都是垂直域，只是规模不同', why: '判据是「行业纵深 vs 跨行业通用」，不是规模。' }
+      ],
+      ans: 0, tag: 'DSSA', src: '仿真题' },
+    { q: '【交错复习·35】某 IDE 中，源代码一被修改，语法高亮、大纲视图、错误提示自动跟着更新——这些组件之间并不互相调用。按 35 页口径，这属于？',
+      opts: [
+        { t: '隐式调用（事件机制）：编辑器发布「代码变更」事件，各视图订阅响应', why: '对。发布者（编辑器）不知道谁在听，订阅者各自刷新——同时也解释了微内核/IDE 插件的联动方式。' },
+        { t: '显式调用：编辑器逐个调用每个视图的刷新方法', why: '那样每加一个视图都要改编辑器，与「组件互不认识」矛盾。' },
+        { t: '批处理：全部视图等代码保存后整批刷新', why: '场景是实时联动，不是整批处理。' }
+      ],
+      ans: 0, tag: '交错复习:35', src: '仿真题' }
+  ], { kpId: '36', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某公司开发「智慧园区综合管理平台」，需求要点：① 门禁、能耗、停车等子系统由不同厂商提供、协议各异，需统一接入与组合；② 运营报表界面多变，同一份楼宇数据要在 PC、大屏、手机三种端展示；③ 计费规则随政策频繁调整，须业务人员可维护；④ 每日凌晨对全园区数据做固定的清洗汇总批处理。',
+    q: '(1) 为需求①②③④各选择合适的架构风格并说明理由；(2) 说明这些风格在一个系统中如何组织共存；(3) 指出多风格并存需要防范的一个整体风险。',
+    ref: '(1) ①SOA（或微服务）：异构系统集成、服务复用、标准化契约——厂商各异正需要标准接口+企业服务总线/网关统一接入；②MVC/MVVM：同一 Model 配多端 View、界面常变，MVVM 数据绑定让多端自动同步；③基于规则的系统（规则引擎）：规则外置+推理引擎解释执行，业务人员可维护（35 页同款论证）；④批处理序列：凌晨整批、无交互、固定流程，整批传送即可。(2) 以分层为总体骨架（接入层/服务层/应用层/数据层），各风格作为「局部方案」嵌入：服务接入用 SOA、报表端用 MVC、计费用规则引擎、夜跑任务用批处理——风格是可组合的套路，按「问题-信号词」逐块匹配。(3) 风险：集成与治理复杂度陡增——多种风格意味着多种构件模型与通信方式，需要统一的集成框架、接口规范与配置管理，否则系统退化为「风格拼盘」，一次跨风格调用要穿多层协议，故障定位困难。',
+    points: ['四条需求与四种风格一一对应且理由引用「场景信号」（异构集成/界面多变/规则常变/整批无交互）', '说出「风格可组合、分层做骨架、局部匹配」的组织思想', '整体风险落在集成/治理复杂度或一致性上，并给出防范方向'],
+    frame: '答题框架：逐条「需求→信号词→风格→理由」列表作答 → 骨架+插件的组合论述 → 收尾谈集成治理风险，体现全局观。',
+    kpId: '36'
+  });
+  CX.renderCase('#case2', {
+    stem: '某团队开发工业组态软件：要求核心运行引擎长期稳定；第三方厂商可开发新设备驱动与新图元插件接入；实验性插件崩溃不能影响主程序运行；未来还要支持热更新插件。',
+    q: '(1) 推荐架构风格并说明理由；(2) 描述系统的组成与扩展接入方式；(3) 说明「插件崩溃隔离」与「通信性能」这对矛盾的取舍。',
+    ref: '(1) 微内核风格：核心（调度、数据总线、插件管理、消息通信）最小且稳定，功能以插件形式接入——正对应「核心稳定+第三方扩展+可热插拔」三条要求。(2) 组成：微内核（扩展点定义、插件生命周期管理、注册表、消息路由）+插件（设备驱动插件、图元插件、协议转换插件），插件启动时向内核注册能力描述，经内核提供的接口与总线通信；第三方按扩展点 SDK 开发、签名后发布。(3) 取舍：若所有插件共处一进程，通信快（函数级）但一个插件崩溃会拖垮核心；若插件跑在独立进程/受控沙箱，崩溃可隔离、可热重启，但通信要经核心/IPC 转发，性能下降。工程折中：核心高频路径（数据总线）共进程+防御式编程，第三方与实验性插件进程隔离；对确定性实时路径减少消息转发层数。',
+    points: ['风格选微内核且三条要求逐一对上（稳定核心/第三方扩展/隔离热插拔）', '说清扩展点、注册、消息通信的接入机制', '隔离与性能矛盾能两头讲清并给出工程折中'],
+    frame: '答题框架：选型+定义 → 画组成（核心/插件/扩展点）→ 矛盾辩证（共进程 vs 隔离进程）→ 折中方案收尾。',
+    kpId: '36'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某车载信息娱乐系统要求：系统底座（启动、调度、通信）绝对稳定，导航、音乐、空调控制等应用由不同供应商提供且可随车型增减。最合适的风格是？',
+    opts: [
+      { t: '批处理序列', why: '应用是常驻交互的，不是整批数据流。' },
+      { t: '微内核：最小底座+按车型装卸的应用插件', why: '对。核心稳定+插件化增减+供应商隔离，全是微内核信号词。' },
+      { t: '管道-过滤器', why: '没有线性数据加工流程。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '36', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['35', '29'], 'prev');
+  CX.depChain('#bridge-next', ['37', '38', '46'], 'next');
+
+  /* ---- 动画：MVC/MVP/MVVM 消息流 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var M = 0;
+  var modeNames = ['MVC', 'MVP', 'MVVM'];
+  var roleNames = ['Controller', 'Presenter', 'ViewModel'];
+  var arrows = [
+    [[0, 1, '请求'], [1, 2, '调用'], [2, 3, '状态变化(View观察)'], [3, 0, '呈现']],
+    [[0, 3, '操作'], [3, 1, '委托'], [1, 2, '调用'], [1, 3, '更新']],
+    [[0, 3, '操作'], [3, 1, '双向绑定 ⇄'], [1, 2, '调用'], [1, 3, '绑定刷新']]
+  ];
+  var caps = [
+    ['MVC·1 用户提交请求到 Controller（服务员接单）', 'MVC·2 Controller 调用 Model（下厨房）', 'MVC·3 Model 处理业务并更新状态；View 观察 Model 自动刷新', 'MVC·4 View 把新界面呈现给用户'],
+    ['MVP·1 用户操作 View（View 不再碰 Model）', 'MVP·2 View 把事件全权委托给 Presenter', 'MVP·3 Presenter 调用 Model 取数/更新', 'MVP·4 Presenter 拿到结果主动更新 View'],
+    ['MVVM·1 用户操作 View', 'MVVM·2 数据绑定：View 与 ViewModel 状态自动双向同步', 'MVVM·3 ViewModel 调用 Model', 'MVVM·4 Model 变化经 ViewModel 的绑定自动刷新 View——手写同步代码消失']
+  ];
+  var pos = [[36, 140], [216, 140], [406, 140], [566, 140]];
+  var w = [120, 130, 110, 130], h = 64;
+  function draw(t) {
+    var step = Math.min(3, Math.floor(t * 4));
+    var frac = Math.min(1, Math.max(0, t * 4 - step));
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    var names = ['用户', roleNames[M], 'Model', 'View'];
+    var cols = ['var(--line)', 'var(--accent)', 'var(--ok)', 'var(--accent-2)'];
+    var i;
+    for (i = 0; i < 4; i++) {
+      s += '<rect x="' + pos[i][0] + '" y="' + pos[i][1] + '" width="' + w[i] + '" height="' + h + '" rx="10" fill="var(--card)" stroke="' + cols[i] + '" stroke-width="2"/>';
+      s += '<text x="' + (pos[i][0] + w[i] / 2) + '" y="' + (pos[i][1] + h / 2 + 6) + '" text-anchor="middle" font-size="14" fill="var(--text)">' + names[i] + '</text>';
+    }
+    var arr = arrows[M];
+    for (i = 0; i < 4; i++) {
+      var a = arr[i], active = i === step;
+      var x1 = pos[a[0]][0] + w[a[0]], y1 = pos[a[0]][1] + h / 2;
+      var x2 = pos[a[1]][0], y2 = pos[a[1]][1] + h / 2;
+      var back = x2 < x1;
+      if (back) { x1 = pos[a[0]][0]; x2 = pos[a[1]][0] + w[a[1]]; }
+      var yy = back ? pos[a[0]][1] + h + 14 : pos[a[0]][1] - 14;
+      s += '<line x1="' + x1 + '" y1="' + yy + '" x2="' + x2 + '" y2="' + yy + '" stroke="' + (active ? 'var(--accent-2)' : 'var(--line)') + '" stroke-width="' + (active ? 3 : 1.5) + '"' + (a[2].indexOf('⇄') >= 0 ? ' stroke-dasharray="7 5"' : '') + '/>';
+      s += '<text x="' + ((x1 + x2) / 2) + '" y="' + (yy - 5) + '" text-anchor="middle" font-size="11" fill="' + (active ? 'var(--accent-2)' : 'var(--text-dim)') + '">' + a[2] + '</text>';
+      if (active) {
+        var cxp = x1 + (x2 - x1) * frac;
+        s += '<circle cx="' + cxp + '" cy="' + yy + '" r="8" fill="var(--accent-2)"/>';
+        s += '<text x="' + cxp + '" y="' + (yy + 4) + '" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--bg)">消息</text>';
+      }
+    }
+    s += '<text x="360" y="272" text-anchor="middle" font-size="12" fill="var(--text-dim)">当前变体：' + modeNames[M] + '（注意 View 与 Model 之间隔了几层）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', caps[M][step]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 10, onTick: draw });
+  var ms = CX.utils.$('mode-slider');
+  ms.addEventListener('input', function () {
+    M = Math.max(0, Math.min(2, +ms.value || 0));
+    CX.utils.$('mode-out').textContent = modeNames[M];
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：场景→风格匹配 ---- */
+  var pairs = [
+    ['报表数据要在 PC、大屏、手机三端展示且界面常改', 'MVC / MVVM'],
+    ['浏览器功能不够，装个翻译扩展就好', '微内核'],
+    ['保险计费规则每月随政策调整，业务要能自己改', '基于规则的系统'],
+    ['多传感器数据融合判定目标，求解路径不确定', '黑板系统'],
+    ['企业十几个异构老系统要统一接入、服务复用', 'SOA'],
+    ['每夜固定跑一次全量对账，无人交互', '批处理序列']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab1-fb').textContent = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab1-fb').textContent = '已选场景，请在右列点它的风格。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab1-fb').textContent = '先点左列一个场景。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab1-fb').textContent = '✅ 配对成功 ' + donePairs + '/6';
+          CX.utils.$('lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab1-fb').textContent = '❌ 「' + d.textContent + '」不对——回看信号词：界面多变=multi-View 的 MVC；核心稳定装扩展=微内核；规则常变=规则系统；路径不确定=黑板；异构集成=SOA；整批无人值守=批处理。';
+          CX.utils.$('lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', buildMatch);
+
+  /* ---- 实验二：微内核插件台 ---- */
+  var mk = { net: false, fs: false, gui: false, av: false };
+  var mkNames = { net: '网络驱动', fs: '文件系统', gui: '图形界面', av: '安全扫描' };
+  function mkStatus() {
+    var loaded = [];
+    Object.keys(mk).forEach(function (k) { if (mk[k]) loaded.push(mkNames[k]); });
+    CX.utils.$('mk-status').textContent = '核心运行中 ● ｜ 已加载插件：' + (loaded.length ? loaded.join('、') : '（无）');
+  }
+  mkStatus();
+  CX.utils.$$('#lab2 .btn[data-mk]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.dataset.mk, fb = CX.utils.$('lab2-fb');
+      if (k === 'crash') {
+        var loaded = Object.keys(mk).filter(function (x) { return mk[x]; });
+        if (!loaded.length) { fb.textContent = '没有已加载的插件可崩溃——先装卸一个插件。'; fb.className = 'lab-feedback bad'; return; }
+        var victim = loaded[Math.floor(Math.random() * loaded.length)];
+        mk[victim] = false;
+        fb.textContent = '⚡ 插件「' + mkNames[victim] + '」崩溃并已被卸载——核心（调度/内存/通信）不受影响继续运行，其他插件正常，' + mkNames[victim] + ' 可重新加载（故障隔离 + 热插拔）。注意代价：插件与核心的每次通信都要经核心转发，这是微内核的性能税。';
+        fb.className = 'lab-feedback ok';
+      } else {
+        mk[k] = !mk[k];
+        fb.textContent = (mk[k] ? '✅「' : '🞄「') + mkNames[k] + (mk[k] ? '」已向内核注册（通过扩展点接入，经内核消息通信）。核心代码零改动——这就是微内核的扩展方式。' : '」已卸载，核心照常运行。');
+        fb.className = 'lab-feedback';
+      }
+      mkStatus();
+    });
+  });
+
+  /* ---- 实验三：MVC 顺序拖拽 ---- */
+  var expect = ['用户提交请求到 Controller', 'Controller 调用 Model', 'Model 处理业务并更新数据', 'View 观察 Model 变化并刷新', 'View 把结果呈现给用户'];
+  var pool = CX.utils.$('drag-pool'), slot = CX.utils.$('drag-slot');
+  var items = CX.shuffle(expect.map(function (t, i) { return { t: t, i: i }; }));
+  items.forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab3-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== expect[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：先有请求，才有调度；View 是最后呈现的，而它刷新的依据是观察 Model。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 顺序正确：请求 → Controller 调度 → Model 更新 → View 观察刷新 → 呈现。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

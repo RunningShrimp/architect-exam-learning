@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>18 · 事务与并发控制 · 架构师学堂</title>
+<meta name="description" content="事务要么全做要么不做，隔离级别定并发干扰上限，两段锁换串行化。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">数据库</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="16-sql-relalg.html">前置 16</a></span>
+    <h1>18 · 事务与并发控制</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">事务要么全做要么不做，隔离级别定并发干扰上限。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>档案馆财务室同时办两笔业务：A 给 B 转账 100 元（先扣 A 后加 B），出纳恰好此刻做「全馆资金汇总」。汇总员读到「A 已扣 100、B 还没加」的中间状态，汇总结果凭空少了 100 元。更糟的是转账中途停电。三个问题：中间状态被读走了算谁的？停电了扣掉的钱找谁要？同一时刻几十个转账怎么不打架？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这三问正好对应数据库的三大机制：<strong>事务</strong>把「扣 A、加 B」捆成一个不可分割的单元——要么全做（提交）、要么全不做（回滚）；<strong>日志</strong>负责兜底——undo 日志回滚没做完的、redo 日志重做已提交但没落盘的；<strong>并发控制（锁）</strong>负责排队——像档案馆的<strong>借阅登记</strong>，写的人登记后别人不能动。隔离级别则规定「排队排到什么程度」：从允许读中间状态，到完全串行。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>16 · SQL与关系代数</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>事务</strong>（Transaction）是数据库的最小工作单元，由一组操作组成，必须<strong>要么全做、要么全不做</strong>（转账必须两清）。它有四个性质 <strong>ACID</strong>：原子性（Atomicity）、一致性（Consistency）、隔离性（Isolation）、持久性（Durability）。<strong>并发控制</strong>解决多个事务同时执行时的互相干扰问题，主要武器是锁协议与隔离级别。</p>
+      <h3>解决什么问题</h3>
+      <p>两类故障会破坏数据：一是<strong>事务内部故障</strong>（执行到一半崩溃），二是<strong>并发干扰</strong>（多事务交错执行读到中间状态）。前者靠日志恢复（undo/redo），后者靠锁与隔离级别。ACID 各自的保证机制是高频考点。</p>
+      <h3>核心机制一：ACID 靠什么保证</h3>
+      <table class="tbl">
+        <tr><th>性质</th><th>含义</th><th>保证机制</th></tr>
+        <tr><td>原子性 A</td><td>全做或全不做</td><td><b>undo 日志</b>：失败时反向操作回滚到起点</td></tr>
+        <tr><td>持久性 D</td><td>提交了的修改永久生效</td><td><b>redo 日志</b>（先写日志后写库/WAL）：宕机后重做已提交事务</td></tr>
+        <tr><td>隔离性 I</td><td>并发事务互不干扰</td><td><b>锁协议 / MVCC 多版本</b>：排队或各看各的版本</td></tr>
+        <tr><td>一致性 C</td><td>从一个一致状态到另一个一致状态</td><td>是 A、I、D 三者 + 完整性约束<b>共同的结果</b>（不是独立机制）</td></tr>
+      </table>
+      <h3>核心机制二：隔离级别与三类读问题</h3>
+      <p>三类读问题口诀：<b>脏听听反悔，重复值会变，幻影数会多</b>——脏读读到别人没提交、可能反悔（回滚）的数据；不可重复读是同一行两次读值变了；幻读是同样条件两次读，行数变多了。</p>
+      <table class="tbl">
+        <tr><th>隔离级别</th><th>脏读</th><th>不可重复读</th><th>幻读</th></tr>
+        <tr><td>读未提交 Read Uncommitted</td><td>可能</td><td>可能</td><td>可能</td></tr>
+        <tr><td>读已提交 Read Committed</td><td>避免</td><td>可能</td><td>可能</td></tr>
+        <tr><td>可重复读 Repeatable Read</td><td>避免</td><td>避免</td><td>可能（教材口径）</td></tr>
+        <tr><td>可串行化 Serializable</td><td>避免</td><td>避免</td><td>避免</td></tr>
+      </table>
+      <h3>核心机制三：两段锁协议与死锁</h3>
+      <p><strong>两段锁协议（2PL）</strong>：事务分两段——<strong>扩展段</strong>只加锁不放锁，<strong>收缩段</strong>只放锁不加锁，两段之间有一条不可跨越的分界线。遵守 2PL 的并发调度<b>一定可串行化</b>（结果等价于某个串行执行），但<b>不能避免死锁</strong>。死锁的处理与操作系统同源（见 11 页）：预防（一次性申请全部锁、按序加锁）、检测（等待图找环）、解除（选牺牲事务回滚）；数据库还常用「超时放弃」这种简单实用的变体。锁的相容性：共享锁 S（读锁，可多个共存）与排他锁 X（写锁，独占）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 一致性没有「专属机制」，它是其余三性加约束的结果——选项写「一致性由 undo 保证」必错。② 2PL 保证可串行化<b>不保证不死锁</b>，两句话常被拼成一句考你。③ 不可重复读针对「同一行的值」，幻读针对「满足条件的行数」——UPDATE 造成前者，INSERT 造成后者。④ 「避免脏读」的最低隔离级别是读已提交，不是可重复读。</div>
+      <div class="callout"><span class="t">🇬🇧 专业英语小贴士</span>transaction（事务）、isolation level（隔离级别）、dirty read（脏读）、serializable（可串行化）、deadlock（死锁）。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在 <b>📚 中央档案馆</b>：事务就是「<strong>转账必须两清</strong>」——从 A 架取钱记到 B 架，两笔都落账才算办成，差一笔整单作废。<strong>锁是借阅登记</strong>：想改档案（写）的人登记后档案收走，别人碰不得（排他锁 X）；只想看（读）的人可以同时多人阅览（共享锁 S），但只要有人登记了要改，阅览就得等。登记簿收收放放的规矩，就是锁协议。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>转账两清，差一笔整单作废</td><td>原子性 + undo 回滚</td><td>成立</td></tr>
+      <tr><td>落账后进保险柜，水火不侵</td><td>持久性 + redo 日志</td><td>成立</td></tr>
+      <tr><td>阅览可多人、改档必须独占</td><td>S 锁共享 / X 锁排他</td><td>成立</td></tr>
+      <tr><td>「先登记完所有要动的档案，中途绝不新增登记」</td><td>两段锁协议</td><td>成立；<b>失效边界</b>：就算人人守规矩，两个人互相盯着对方手里的档案，照样可能僵住——2PL 不防死锁</td></tr>
+    </table>
+    <div class="rhyme">转账两清才叫完，undo 回滚 redo 安；<br>借阅登记就是锁，读共享来写独占。<br>脏听听反悔，重复值会变，幻影数会多；<br>级别调高全挡住，两段加锁串行妥。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+  <p>动画演示 T1（A 给 B 转账 100）与 T2（汇总）交错执行的时间轴。拖动「隔离级别」滑块，看 T2 各时刻读到的数字如何变化、脏读在哪一步发生：</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>隔离级别 <input type="range" id="sk-iso" min="0" max="3" step="1" value="0"> <span id="sk-iso-out">读未提交</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：ACID 四性 ↔ 保证机制</h4>
+      <p class="foreshadow">先点左列性质，再点右列机制：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（调度手术）：重排语句序列，消除脏读</h4>
+      <p class="foreshadow">T1 转账（A→B 100 元），T2 汇总。把语句拖成「不会发生脏读」的合法调度（T1 内部顺序不可拆、T2 内部顺序不可拆，只能整体交换两个事务的语句块顺序）：</p>
+      <div id="sch-pool" style="min-height:40px"></div>
+      <div class="drag-slot" id="sch-slot"></div>
+      <button class="btn" id="sch-check">检查调度</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（读问题会诊）：现象 → 诊断</h4>
+      <p class="foreshadow">对每个现象选择诊断，依据口诀「脏听听反悔，重复值会变，幻影数会多」：</p>
+      <p><b>病例1</b>：T2 读到 T1 刚写入的余额，随后 T1 回滚，T2 用这个「不存在的数」做了报表。
+        <label><input type="radio" name="dg1" value="dirty"> 脏读</label>
+        <label><input type="radio" name="dg1" value="re"> 不可重复读</label>
+        <label><input type="radio" name="dg1" value="ghost"> 幻读</label></p>
+      <p><b>病例2</b>：T2 前后两次读同一账户余额，中间 T1 改了并提交，两次结果不同。
+        <label><input type="radio" name="dg2" value="dirty"> 脏读</label>
+        <label><input type="radio" name="dg2" value="re"> 不可重复读</label>
+        <label><input type="radio" name="dg2" value="ghost"> 幻读</label></p>
+      <p><b>病例3</b>：T2 按同一条件统计「余额超万的账户」，两次统计行数从 5 变成 6。
+        <label><input type="radio" name="dg3" value="dirty"> 脏读</label>
+        <label><input type="radio" name="dg3" value="re"> 不可重复读</label>
+        <label><input type="radio" name="dg3" value="ghost"> 幻读</label></p>
+      <button class="btn" id="dg-check">提交诊断</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>16 页的关系代数管「怎么查」，本页管「查的时候别人能不能改」：只读操作（σπ⋈ 组合）之间相容，所以共享锁可以多份；读写相争才需要排队。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>单机事务升级到跨机器就是<b>分布式事务</b>：两阶段提交（2PC）在 <b>19 · 分布式数据库</b> 里出场，可靠性问题也更棘手；</li><li>2PL 的「先扩张后收缩」与操作系统资源调度的思想同源，死锁四条件在 11 页已打基础。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>不可重复读</th><th>幻读</th></tr>
+      <tr><td>变化对象</td><td>同一行的<b>值</b>变了（UPDATE）</td><td>满足条件的<b>行数</b>变了（INSERT/DELETE）</td></tr>
+      <tr><td>口诀对应</td><td>重复值会变</td><td>幻影数会多</td></tr>
+      <tr><td>易错点</td><td>当成幻读</td><td>当成不可重复读</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">盯着一格看它变了是「不可重复读」；数行数越数越多是「幻读」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——转账就像搬砖，搬一半停电了得把砖搬回原处……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① ACID 的机制对应：原子性=undo、持久性=redo、隔离性=锁/MVCC、一致性=前三性加约束的共同结果。</li><li>② 隔离级别从低到高逐个消灭读问题，口诀「脏听听反悔，重复值会变，幻影数会多」。</li><li>③ 两段锁协议保证可串行化但不防死锁；死锁要靠预防（一次性/按序）、检测（等待图）与超时回滚。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '18', domain: 'db', loc: 'archive', root: '..',
+  title: '事务与并发控制',
+  prev: '17-normalization.html', prevTitle: '17 · 规范化理论',
+  next: '19-distributed-db.html', nextTitle: '19 · 分布式数据库与NoSQL',
+  keywords: ['事务', 'ACID', '隔离级别', '脏读', '不可重复读', '幻读', '两段锁协议', '死锁']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置点：16 SQL与关系代数） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·16】只含 σ、π、⋈ 的只读查询语句之间，彼此会互相「改坏」对方的结果吗？',
+    opts: [
+      { t: '会，任何查询都要排队', why: '只读操作彼此不改数据，天然相容。' },
+      { t: '不会：只读操作互不修改数据，可以并发进行', why: '对：这正是共享锁（S 锁）可多份共存的依据——冲突只发生在读写、写写之间。' },
+      { t: '只读事务根本不允许并发', why: '恰恰相反，只读事务是并发性的最大受益者。' }
+    ],
+    ans: 1, tag: '回忆:16', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '事务执行到一半系统崩溃，重启后把未完成事务的全部修改撤销。这依靠什么机制保证的是 ACID 中的哪一性？',
+      opts: [
+        { t: 'redo 日志，保证持久性', why: 'redo 是重做「已提交但未落盘」，方向反了。' },
+        { t: 'undo 日志，保证原子性', why: '对：undo 反向回滚未完成事务，保证「要么全做要么全不做」的原子性。' },
+        { t: '共享锁，保证隔离性', why: '锁管并发干扰，管不了崩溃恢复。' },
+        { t: '触发器，保证一致性', why: '触发器做约束检查，不是崩溃恢复机制。' }
+      ],
+      ans: 1, tag: 'ACID机制', src: '仿真题' },
+    { q: '某事务隔离级别能避免脏读，但仍可能出现不可重复读。它是？',
+      opts: [
+        { t: '读未提交', why: '读未提交连脏读都防不住，三个问题全占。' },
+        { t: '读已提交', why: '对：读已提交只许读已提交数据（免脏读），但不锁定重读，两次读值可能不同。' },
+        { t: '可重复读', why: '可重复读的定义就是避免前两类问题。' },
+        { t: '可串行化', why: '最高级别，三类问题全避免。' }
+      ],
+      ans: 1, tag: '隔离级别', src: '仿真题' },
+    { q: '「同一条件前后两次统计，行数从 5 变成 6」，按口诀这属于哪类读问题，最低在哪一级被避免？',
+      opts: [
+        { t: '脏读；读未提交', why: '脏读是读到未提交值，与行数变化无关。' },
+        { t: '不可重复读；读已提交', why: '不可重复读盯的是同一行的值，不是行数。' },
+        { t: '幻读；可串行化', why: '对：「幻影数会多」是行数变化（幻读），按教材口径只有可串行化级别能避免它。' },
+        { t: '丢失修改；读已提交', why: '丢失修改是写覆盖问题，不在这三类读问题之列。' }
+      ],
+      ans: 2, tag: '读问题', src: '仿真题' },
+    { q: '【交错复习:10】10 页讲过计数信号量允许多个进程同时进入；数据库的共享锁（S 锁）与它最像的地方是？',
+      opts: [
+        { t: '都只允许一个使用者独占资源', why: '那是互斥/排他锁的特点，恰是两者都「不像」的地方。' },
+        { t: '都用「计数/共享」思想：多个读操作可同时持有，提高并发', why: '对：S 锁可多个事务共存（对应信号量初值大于 0），冲突只发生在与写（X 锁）之间。' },
+        { t: '都会必然导致死锁', why: '两者都可能牵涉死锁，但不是「必然」。' }
+      ],
+      ans: 1, tag: '交错复习:10', src: '仿真题' },
+    { q: '【交错复习:11】两个事务各持有一个行锁、互等对方的锁。11 页 OS 死锁的处理策略中，数据库最常用的「轻量」手段是？',
+      opts: [
+        { t: '鸵鸟策略：假装死锁不存在', why: 'OS 可以鸵鸟，数据库高频交易场景不能装死。' },
+        { t: '超时放弃：等待超时的事务主动回滚释放锁', why: '对：设置锁等待超时，超时者回滚，简单有效，是数据库最常用的轻量手段；严格的等待图检测+选牺牲者是更精细的补充。' },
+        { t: '银行家算法预先分配', why: '需要预知最大资源需求，数据库行锁场景做不到。' }
+      ],
+      ans: 1, tag: '交错复习:11', src: '仿真题' }
+  ], { kpId: '18', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '账户表初始 A=1000、B=800。T1（转账：A 减 100，B 加 100）与 T2（汇总 A+B）并发，某 DBMS 采用读未提交级别，实际调度如下：t1 T1 写 A=900（未提交）；t2 T2 读 A=900、读 B=800，汇总得 1700；t3 T1 因余额校验失败回滚，A 恢复 1000。',
+    q: '(1) 指出 t2 时刻 T2 发生的读问题，并说明 t3 之后 100 元差额去哪了；(2) 给出能避免该问题的最低隔离级别并解释原因；(3) 用两段锁协议思想写出一种保证汇总正确的调度，并指出 2PL 防不了什么。',
+    ref: '(1) t2 时 T2 读到 T1 未提交的 A=900，是「脏读」（口诀：脏听听反悔——T1 在 t3 反悔回滚）。t3 后 A 恢复 1000，而 T2 的报表已经用 1700 出账，「消失的 100 元」是被污染的中间结果。(2) 最低为「读已提交」：该级别只允许读已提交数据，未提交的 900 对 T2 不可见，T2 读到 A=1000、B=800，汇总 1800 正确。(3) 2PL 调度：T1 先对 A、B 加 X 锁并完成两笔修改直至提交（扩展段结束）后才放锁；T2 在 T1 提交后再申请 A、B 的 S 锁读数汇总——等价于「T1 串行在 T2 前」。注意 2PL 只保证可串行化，不保证不死锁：若 T1 持 A 锁等 B 锁、T2 持 B 锁等 A 锁，仍会僵持，需要超时或等待图检测兜底。',
+    points: ['准确指认脏读并结合口诀解释「反悔」造成的数据污染', '最低隔离级别答「读已提交」且给出理由', '2PL 调度描述含「扩展段先加满、提交后才收缩」要点', '主动指出 2PL 不能防止死锁'],
+    frame: '答题框架：标注时刻线逐点定性（哪步脏读）→ 选最低够用的隔离级别并说理 → 给 2PL 调度（先加满后释放）→ 补充 2PL 的能力边界（不防死锁）。',
+    kpId: '18'
+  });
+  CX.renderCase('#case2', {
+    stem: '票务系统：T1 与 T2 同时为同一场次扣减最后一张票，各自执行「读余票=1 → 判断大于 0 → 写余票=0 → 出票」。上线后出现两张出票凭证对应同一张票。DBA 建议改进：方案甲给「读余票」加共享锁 S；方案乙把整个流程包进事务并对余票行加排他锁 X 直到提交；方案丙不做锁，改用数据库原子更新「UPDATE 场次 SET 余票=余票-1 WHERE 余票大于0」。',
+    q: '(1) 指出并发缺陷的名称与成因；(2) 分析为什么方案甲无效而方案乙有效；(3) 说明方案丙为何也能解决，并比较乙、丙的并发性能。',
+    ref: '(1) 这是「丢失修改」（写写冲突）：两个事务都基于「余票=1」的旧值做判断与写回，后写覆盖先写，一张票出了两张凭证。(2) 甲无效：S 锁相容，两个事务可同时持有同一行的 S 锁读到相同旧值，之后申请 X 锁互相等待或升级失败，判断依据没有被隔离开。乙有效：整个「读-判-写」在一个事务里对行持 X 锁直到提交，第二个事务被阻塞到第一个提交后，看到的是新值（余票=0），判断不通过。(3) 丙把「判断+扣减」压进一条原子语句，由数据库在行级锁保护下完成条件更新，等价于自动化的方案乙且锁持有时间更短；高并发下丙的吞吐通常优于乙（显式事务锁持有期长、易拥堵），但业务复杂时乙更灵活——这是性能与表达力的权衡。',
+    points: ['定性为丢失修改（写写冲突）并解释「读旧值-后覆盖」成因', '解释 S 锁相容导致甲失效、X 锁独占使乙有效', '说清丙的原子条件更新等价性', '比较乙、丙锁粒度/持有时间的并发差异'],
+    frame: '答题框架：现象定性 → 按锁相容矩阵逐方案推演（谁阻塞谁） → 原子语句等价性 → 锁持有时间与吞吐的权衡结论。',
+    kpId: '18'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '电商秒杀：1000 人抢 1 件库存，系统逐个执行「读库存=1？是→写库存=0→下单」。不发锁但把扣减改成单条原子 SQL「UPDATE stock SET n=n-1 WHERE id=1 AND n大于0」。这说明？',
+      opts: [
+      { t: '把「读-判断-写」压成一条原子语句，可等价于持 X 锁完成，避免丢失修改', why: '对：与票务案例同一思想——原子条件更新让判断与修改不可分割，换的是秒杀场景。' },
+      { t: '并发问题靠增加机器解决', why: '写写冲突与机器数量无关，逻辑上就会超卖。' },
+      { t: '该写法仍会超卖，因为没显式 BEGIN', why: '单条 UPDATE 本身就是原子的事务，条件 n大于0 在行锁保护下判断。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['16', '10', '11'], 'prev');
+  CX.depChain('#bridge-next', ['19'], 'next');
+
+  /* ---- 动画：转账并发时间轴 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var sIso = CX.utils.$('#sk-iso');
+  var isoNames = ['读未提交', '读已提交', '可重复读', '可串行化'];
+  sIso.addEventListener('input', function () {
+    CX.utils.$('#sk-iso-out').textContent = isoNames[sIso.value];
+    draw(anim && anim.t || 0);
+  });
+  /* 时间轴事件：每个事件 {at: 0~1, who, text} */
+  var EV = [
+    { at: 0.08, who: 1, txt: 'T1: BEGIN; 写 A=900' },
+    { at: 0.30, who: 2, txt: 'T2: 读 A' },
+    { at: 0.50, who: 2, txt: 'T2: 读 B=800, 汇总' },
+    { at: 0.68, who: 1, txt: 'T1: 校验失败 → ROLLBACK' },
+    { at: 0.88, who: 2, txt: 'T2: 出报表' }
+  ];
+  function draw(t) {
+    var iso = parseInt(sIso.value, 10);
+    var s = '<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="320" rx="12" fill="var(--bg-soft)"/>';
+    /* 两条时间轴 */
+    s += '<text x="70" y="60" font-size="13" fill="var(--accent-2)">T1 转账</text>';
+    s += '<text x="70" y="200" font-size="13" fill="var(--accent)">T2 汇总</text>';
+    s += '<line x1="40" y1="80" x2="660" y2="80" stroke="var(--line)" stroke-width="3"/>';
+    s += '<line x1="40" y1="220" x2="660" y2="220" stroke="var(--line)" stroke-width="3"/>';
+    /* 阴影串行区间（可串行化级别） */
+    if (iso === 3) {
+      s += '<rect x="40" y="40" width="' + (620 * Math.min(1, t * 1.6)) + '" height="220" fill="var(--ok)" opacity=".08"/>';
+    }
+    /* 事件节点 */
+    EV.forEach(function (e, i) {
+      if (e.at > t) return;
+      var y = e.who === 1 ? 80 : 220;
+      var x = 60 + e.at * 600;
+      var color = e.who === 1 ? 'var(--accent-2)' : 'var(--accent)';
+      s += '<circle cx="' + x + '" cy="' + y + '" r="7" fill="' + color + '"/>';
+      var above = e.who === 1;
+      s += '<text x="' + x + '" y="' + (above ? y - 14 : y + 22) + '" text-anchor="middle" font-size="11" fill="var(--text)">' + e.txt + '</text>';
+      /* T2 读到的值 */
+      if (e.txt.indexOf('读 A') === 0) {
+        var canSee900 = iso === 0;
+        s += '<text x="' + x + '" y="' + (above ? y + 26 : y - 12) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="' + (canSee900 ? 'var(--bad)' : 'var(--ok)') + '">读到 ' + (canSee900 ? '900（未提交!）' : '1000（只许见已提交）') + '</text>';
+      }
+    });
+    /* 回滚波及提示 */
+    if (t >= 0.68 && iso === 0) {
+      s += '<line x1="' + (60 + 0.30 * 600) + '" y1="226" x2="' + (60 + 0.68 * 600) + '" y2="80" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4"/>';
+      s += '<text x="' + (60 + 0.49 * 600) + '" y="150" text-anchor="middle" font-size="11.5" fill="var(--bad)">T2 读到的 900 被 T1 反悔抹掉 → 脏读</text>';
+    }
+    /* 底部结论 */
+    var verdict;
+    if (iso === 0) verdict = '读未提交：脏读发生（T2 读到回滚前的 900），汇总 1700 错误。';
+    else if (iso === 1) verdict = '读已提交：T2 读到已提交的 1000，脏读被挡住；但值仍可能中途变化（不可重复读风险）。';
+    else if (iso === 2) verdict = '可重复读：T2 两次读同一行值一致，脏读、不可重复读都被挡住；行数变化（幻读）按教材口径仍可能。';
+    else verdict = '可串行化：T2 被排到 T1 完全结束后执行（绿色区间），等价于串行，三类问题全避免——代价是并发度最低。';
+    s += '<text x="350" y="290" text-anchor="middle" font-size="12.5" fill="' + (iso === 0 ? 'var(--bad)' : 'var(--ok)') + '">' + verdict + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '当前级别：' + isoNames[iso] + '——拖到 t=0.3 看脏读是否发生，拖到 t=0.68 看反悔的后果。');
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+
+  /* ---- 实验一：ACID 连线 ---- */
+  var pairs = [
+    ['原子性 A', 'undo 日志：失败时反向回滚，保证全做或全不做'],
+    ['持久性 D', 'redo 日志：先写日志后落盘，宕机重做已提交事务'],
+    ['隔离性 I', '锁协议 / MVCC：并发事务排队或各看版本'],
+    ['一致性 C', '无专属机制：由 A、I、D 加完整性约束共同达成']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab1-fb').textContent = '已选「' + p[0] + '」，请在右列点保证机制。';
+        CX.utils.$('#lab1-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab1-fb').textContent = '先点左列一个性质。'; CX.utils.$('#lab1-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab1-fb').textContent = '配对成功 ' + donePairs + '/4';
+          CX.utils.$('#lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('#lab1-fb').textContent = '「' + selL.dataset.k + '」不对应这条——记忆钩子：undo 往回抹、redo 往前补、锁管排队，一致性是「结果」不是「机制」。';
+          CX.utils.$('#lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab1-fb').textContent = ''; });
+
+  /* ---- 实验二：调度手术 ---- */
+  var blocks = [
+    { t: '块A：T1 写 A=900（未提交）', good: 0 },
+    { t: '块B：T1 写 B=900→即 B 加 100，提交', good: 1 },
+    { t: '块C：T2 读 A、读 B，汇总', good: 2 }
+  ];
+  var expect = [blocks[0], blocks[1], blocks[2]];
+  var pool2 = CX.utils.$('#sch-pool');
+  var slot2 = CX.utils.$('#sch-slot');
+  CX.shuffle(blocks.map(function (b, i) { return { t: b.t, i: i }; })).forEach(function (b) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = b.t; d.dataset.i = b.i; d.dataset.t = b.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', b.t); });
+    pool2.appendChild(d);
+  });
+  slot2.addEventListener('dragover', function (e) { e.preventDefault(); slot2.classList.add('hot'); });
+  slot2.addEventListener('dragleave', function () { slot2.classList.remove('hot'); });
+  slot2.addEventListener('drop', function (e) {
+    e.preventDefault(); slot2.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = document.querySelector('.drag-item[data-t="' + t + '"]');
+    if (src) slot2.appendChild(src);
+  });
+  CX.utils.$('#sch-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab2-fb');
+    var got = Array.prototype.map.call(slot2.children, function (c) { return parseInt(c.dataset.i, 10); });
+    if (got.length < 3) { fb.textContent = '还有 ' + (3 - got.length) + ' 个语句块没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    var sumFirst = (got[0] === 2);
+    if (sumFirst) {
+      fb.textContent = '✅ 正确调度：T1 全部完成并提交（写 A、写 B）之后，T2 才读数汇总——T2 看到的是已提交的一致状态，汇总=1800。这等价于「T1 串行在 T2 前」，正是可串行化调度的样本。';
+      fb.className = 'lab-feedback ok';
+    } else if (got[0] === 0 && got[1] === 2) {
+      fb.textContent = '第 2 步造成了脏读：T2 在「T1 写 A=900 未提交」与「T1 写 B 提交」之间插入读取——读到了未提交的 900。口诀：脏听听反悔，T1 一回滚汇总就错。把 T2 的汇总块挪到 T1 提交块之后。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      fb.textContent = '顺序不对：判断标准是「T2 的读必须发生在 T1 提交之后」。T1 的两个写块必须连在 T2 读块前面（或整个排在 T2 后面）。';
+      fb.className = 'lab-feedback bad';
+    }
+  });
+
+  /* ---- 实验三：读问题会诊 ---- */
+  CX.utils.$('#dg-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab3-fb');
+    var a1 = (document.querySelector('input[name=dg1]:checked') || {}).value;
+    var a2 = (document.querySelector('input[name=dg2]:checked') || {}).value;
+    var a3 = (document.querySelector('input[name=dg3]:checked') || {}).value;
+    if (!a1 || !a2 || !a3) { fb.textContent = '三个病例都要给出诊断。'; fb.className = 'lab-feedback bad'; return; }
+    var ok = a1 === 'dirty' && a2 === 're' && a3 === 'ghost';
+    var msg;
+    if (ok) msg = '三例全部诊断正确。记忆锚：读到了「后来被反悔的值」=脏读；同一格的值变了=不可重复读；行数变多=幻读。口诀：脏听听反悔，重复值会变，幻影数会多。';
+    else {
+      msg = [];
+      if (a1 !== 'dirty') msg.push('病例1 诊错了：关键在「T1 回滚（反悔）」，读到将来不存在的值是脏读。');
+      if (a2 !== 're') msg.push('病例2 诊错了：盯的是「同一行的值前后两次不同」，且 T1 已提交，是不可重复读。');
+      if (a3 !== 'ghost') msg.push('病例3 诊错了：变的是「满足条件的行数」（5→6），是幻读。');
+      msg.push('口诀：脏听听反悔，重复值会变，幻影数会多。');
+      msg = msg.join(' ');
+    }
+    fb.textContent = msg;
+    fb.className = ok ? 'lab-feedback ok' : 'lab-feedback bad';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

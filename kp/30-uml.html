@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>30 · UML建模 · 架构师学堂</title>
+<meta name="description" content="静态图拍骨架照、动态图拍过程录像，用例图讲系统对外承诺。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="29-oo-basics.html">前置 29</a></span>
+    <h1>30 · UML建模</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">静态图拍骨架照、动态图拍过程录像，用例图讲对外承诺。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>工地例会上，业主指着两本图册问：一本是「结构竣工照」——梁柱板墙怎么连接；另一本是「施工过程录像」——先立塔吊、再绑钢筋、后浇筑。总工说：软件建模也一样，UML 的十几种图无非「拍照片」和「拍录像」两大类。那问题来了： ATM 取款必须「先登录」，余额不足时「打印提醒凭条」——这两件事在用例图里该怎么画？箭头各指向谁？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>「先登录」是取款<strong>必然包含</strong>的步骤 → <strong>include</strong>：箭头从基用例「取款」指向被包含用例「登录」。「打印提醒」只在<strong>条件发生</strong>（余额不足）时才执行 → <strong>extend</strong>：箭头从扩展用例「打印提醒」指向基用例「取款」。方向记法：include 箭头离开基用例，extend 箭头指回基用例。这是 UML 一节最高频的考点。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>29 · 面向对象基础</b>（类图六关系就是 is-a 与复用的图形化）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>UML（统一建模语言）是面向对象建模的「制图国标」：工地上的建筑图有统一图例，UML 给软件模型规定了统一图例。图分两大类——<strong>静态图（结构图）拍骨架照</strong>：系统某个时刻长什么样；<strong>动态图（行为图）拍过程录像</strong>：系统随时间怎么运转。</p>
+      <h3>核心机制 1：图的动静归类</h3>
+      <table class="tbl">
+        <tr><th>类别</th><th>图</th><th>记法</th></tr>
+        <tr><td>静态（结构）图</td><td>类图、对象图、构件图、部署图、包图、组合结构图</td><td>「类对构件部署包，组合结构拍骨架」</td></tr>
+        <tr><td>动态（行为）图</td><td>用例图、活动图、状态机图、顺序图、通信图、定时图、交互概览图</td><td>「用例状态加活动，四种交互拍录像」</td></tr>
+      </table>
+      <p>口径说明：顺序图、通信图、定时图、交互概览图合称<strong>交互图</strong>；对用例图的归类教材间有分歧——多数教材按其表达系统外部行为的性质归入「行为（动态）图」，本站采用此口径并在此注明。</p>
+      <h3>核心机制 2：用例图三关系（最高频）</h3>
+      <ul>
+        <li><strong>include 包含</strong>：基用例<strong>必然</strong>执行被包含用例。例：取款 include 登录。箭头：基用例 → 被包含用例（虚线箭头，标 include）。</li>
+        <li><strong>extend 扩展</strong>：扩展用例在<strong>条件满足时可选</strong>执行。例：余额不足时打印提醒凭条。箭头：扩展用例 → 基用例（虚线箭头，标 extend）。</li>
+        <li><strong>generalize 泛化</strong>：一般→特殊，如「取款」与「手机取款」。箭头：子用例 → 父用例（实线三角）。</li>
+      </ul>
+      <h3>核心机制 3：类图六关系强度排序</h3>
+      <table class="tbl">
+        <tr><th>强度（弱→强）</th><th>关系</th><th>含义</th><th>大雁生活例</th></tr>
+        <tr><td>1</td><td>依赖</td><td>临时用一下（方法参数/局部变量）</td><td>大雁迁徙时「借道」某个湖泊</td></tr>
+        <tr><td>2</td><td>关联</td><td>长期知道对方（成员变量）</td><td>大雁与驯养员长期相识</td></tr>
+        <tr><td>3</td><td>聚合</td><td>整体-部分，<strong>可分离</strong>（空心菱形）</td><td>大雁—雁群：散伙各自能活</td></tr>
+        <tr><td>4</td><td>组合</td><td>整体-部分，<strong>同生共死</strong>（实心菱形）</td><td>大雁—翅膀：雁亡翅不存</td></tr>
+        <tr><td>5</td><td>泛化 = 实现</td><td>is-a 继承 / 实现接口（实线/虚线三角）</td><td>大雁是一种鸟；大雁实现「会飞」接口</td></tr>
+      </table>
+      <p>排序：<strong>依赖 &lt; 关联 &lt; 聚合 &lt; 组合 &lt; 泛化 = 实现</strong>。泛化与实现强度视为同级，区别在：泛化继承「类」，实现兑现「接口承诺」。</p>
+      <h3>关键细节：两对「录像」的分工</h3>
+      <ul>
+        <li><strong>顺序图 vs 通信图</strong>：同为交互图，语义等价。顺序图以<strong>生命线+垂直时间轴</strong>突出消息的<strong>时间顺序</strong>；通信图以<strong>对象链接网</strong>突出对象间的<strong>结构组织</strong>（消息用序号编排）。</li>
+        <li><strong>状态机图 vs 活动图</strong>：状态机图描述<strong>单个对象</strong>因事件在状态间变迁（一部电梯的门态）；活动图描述<strong>跨对象的工作流</strong>，像带分叉汇合、泳道的流程图（施工审批流程）。</li>
+      </ul>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①include/extend 的<strong>箭头方向</strong>与「必须/可选」配对是最常见的坑：include 箭头由基指向被包含，extend 箭头由扩展指向基；②聚合与组合只看一句：散了还能活=聚合，一亡俱亡=组合；③部署图、构件图是<strong>静态</strong>图，别被「部署像动作」带偏；④用例图的参与者是人/外系统等<strong>外部角色</strong>，不是系统内部模块。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>use case 用例 · include/extend 包含/扩展 · generalization 泛化 · sequence diagram 顺序图 · state machine diagram 状态机图</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>UML = 工地的<strong>制图国标</strong>：静态图是结构竣工照（梁柱怎么连=类怎么关联），动态图是施工过程录像（先干什么后干什么=消息怎么传）。用例图是给业主看的「服务承诺书」：承诺里必然包含的步骤写进 include，临时加赠的服务写 extend。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>结构竣工照</td><td>类图/对象图/部署图等静态图</td><td>成立</td></tr>
+      <tr><td>施工过程录像</td><td>顺序图/活动图/状态机图等动态图</td><td>成立</td></tr>
+      <tr><td>开工前必办的「动工许可证」</td><td>include（必然包含）</td><td>成立</td></tr>
+      <tr><td>下雨才追加的「防雨棚」</td><td>extend（条件可选）</td><td>成立</td></tr>
+      <tr><td>塔吊与工地：拆了塔吊工地照样是工地</td><td>聚合</td><td>成立</td></tr>
+      <tr><td>录相对拍得清楚，两盘录像带内容必然不同</td><td>顺序图与通信图</td><td><b>失效</b>：二者语义等价，只是呈现重点不同（时间 vs 结构）</td></tr>
+    </table>
+    <div class="rhyme">类构对象部署包，组合结构静态照；<br>用例状态加活动，顺序通信定时交互；<br>包含必走指向被含，扩展可选指回基座；<br>依关聚组泛实现，强度一级一级高。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示 ATM 取款用例的执行流：「登录」是 include 必然被调用，「打印提醒」是 extend 条件触发。拖动「余额不足」滑块切换条件，观察虚线箭头是否被点亮。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>余额不足？ <input type="range" id="ext-slider" min="0" max="1" step="1" value="0"> <span id="ext-out">否（extend 不触发）</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽归类）：静态图还是动态图？</h4>
+      <p class="foreshadow">把 8 张图卡片分别拖进「静态骨架照」和「动态录像」两个槽：</p>
+      <div id="dg-pool" style="min-height:50px"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <div class="drag-slot" id="dg-static" style="min-width:220px;min-height:60px"><b>静态（结构）图</b></div>
+        <div class="drag-slot" id="dg-dyn" style="min-width:220px;min-height:60px"><b>动态（行为）图</b></div>
+      </div>
+      <button class="btn" id="dg-check">检查归类</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：类图六关系按强度从弱到强排好</h4>
+      <p class="foreshadow">口诀「依关聚组泛（实）」：把卡片拖入槽中：</p>
+      <div id="rl-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="rl-slot"></div>
+      <button class="btn" id="rl-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（场景判断）：include、extend 还是泛化？</h4>
+      <p class="foreshadow">逐条判断，判错会指出你错在「必然还是可选」哪一步：</p>
+      <div id="ie-list"></div>
+      <div class="lab-feedback" id="lab3-fb">点击第一条开始。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>29 页的封装/继承/多态给出了「对象怎么相处」，本页给出「把相处关系画成图」的图例与规则。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>类图关系与 GoF 模式结构图完全同语言，见 <b>47/48/49</b> 创建型、结构型、行为型模式；</li><li>用例图是 <b>33 · 软件架构概念与4+1视图</b> 中「场景视图」的核心；</li><li>顺序图的对象交互思想在架构层变成构件间的接口契约（<b>41</b>）。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>聚合 Aggregation</th><th>组合 Composition</th></tr>
+      <tr><td>图示</td><td>空心菱形</td><td>实心菱形</td></tr>
+      <tr><td>生命周期</td><td>部分可独立于整体存在（雁群散了大雁还活着）</td><td>部分随整体生灭（翅膀离不开大雁）</td></tr>
+      <tr><td>易错点</td><td>看到「整体-部分」就选组合</td><td>忽略「能否分离」这一判据</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">散了还能活是聚合（空心），一亡俱亡是组合（实心）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——盖房子有竣工照和施工录像两种图册……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 图分动静：静态六图拍骨架照，动态七图拍录像（用例归行为图，注明口径分歧）。</li><li>② 用例图三关系：include 必然（箭头指向被含）、extend 可选（箭头指向基）、泛化 is-a。</li><li>③ 类图六关系弱→强：依关聚组泛=实现；聚合空心可分离，组合实心同生灭。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '30', domain: 'se', loc: 'construction', root: '..',
+  title: 'UML建模', prev: '29-oo-basics.html', prevTitle: '29 · 面向对象基础',
+  next: '31-testing.html', nextTitle: '31 · 软件测试',
+  keywords: ['用例图','include','extend','泛化','聚合','组合','顺序图','状态图']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·29】「大雁是一种鸟」与「大雁—雁群」，29 页的知识告诉我们它们分别属于哪类关系？',
+    opts: [
+      { t: '都是继承', why: '雁群与大雁不是 is-a，是整体与部分。' },
+      { t: '前者 is-a（泛化方向），后者是整体-部分关系', why: '对。is-a 用继承/泛化表达；整体-部分再按「能否分离」分聚合与组合——本页把它画成类图。' },
+      { t: '前者整体-部分，后者继承', why: '方向反了。' }
+    ],
+    ans: 1, tag: '回忆:29', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '用例图中，「取款」用例到「登录」用例画一条标 include 的虚线箭头，箭头方向与含义是？',
+      opts: [
+        { t: '登录→取款：登录时可选执行取款', why: '方向与语义双重错误：登录不包含取款。' },
+        { t: '取款→登录：取款必然执行登录', why: '对。include 箭头从基用例指向被包含用例，被包含步骤必然发生。' },
+        { t: '取款→登录：登录偶尔可选执行', why: '「可选」是 extend 的语义，不是 include。' },
+        { t: '两个用例之间不画箭头', why: '包含关系必须用带 include 的虚线箭头表达方向。' }
+      ],
+      ans: 1, tag: '用例图', src: '仿真题' },
+    { q: '下列全部属于<strong>静态（结构）图</strong>的一组是？',
+      opts: [
+        { t: '类图、对象图、部署图', why: '对。三张都是「骨架照」：包图、构件图、组合结构图也在静态组。' },
+        { t: '用例图、类图、顺序图', why: '用例图与顺序图是行为（动态）图（用例图按行为图口径）。' },
+        { t: '状态机图、活动图、通信图', why: '三者全是动态图。' },
+        { t: '构件图、活动图、部署图', why: '活动图是动态图，混入了一员。' }
+      ],
+      ans: 0, tag: '动静归类', src: '仿真题' },
+    { q: '「大雁—翅膀」与「大雁—雁群」在类图中应分别建模为？',
+      opts: [
+        { t: '聚合、组合', why: '两者互换了：翅膀不能脱离大雁存活。' },
+        { t: '组合、聚合', why: '对。翅膀随大雁生灭=组合（实心菱形）；雁群散了大雁还能活=聚合（空心菱形）。' },
+        { t: '组合、组合', why: '雁群与成员可分离，不是组合。' },
+        { t: '依赖、泛化', why: '既不是临时使用，也不是 is-a。' }
+      ],
+      ans: 1, tag: '聚合组合', src: '仿真题' },
+    { q: '【交错复习·29】顺序图中对象收到消息后调用自身操作并返回结果，这种「调用方只管发消息、实现方自行决定怎么响应」的运行期机制，29 页称之为？',
+      opts: [
+        { t: '重载（编译期按参数挑选）', why: '重载在编译期解决，且发生在方法签名层面，不是对象多实现的选择。' },
+        { t: '多态（动态绑定）', why: '对。顺序图上「同一消息、不同实现」的背后正是 29 页的重写+动态绑定。' },
+        { t: '封装', why: '封装管藏细节，不决定「调哪个版本」。' }
+      ],
+      ans: 1, tag: '交错复习:29', src: '仿真题' },
+    { q: '关于顺序图与通信图，正确的是？',
+      opts: [
+        { t: '二者语义不同，用途互斥', why: '二者语义等价，可以互相转换，只是强调点不同。' },
+        { t: '顺序图强调消息的时间顺序，通信图强调对象间的结构组织', why: '对。一个竖着看时间（生命线），一张网看链接（序号编排消息）。' },
+        { t: '通信图只能画两个对象', why: '通信图不限制对象数量。' },
+        { t: '顺序图属于静态图', why: '顺序图是交互图，属行为（动态）图。' }
+      ],
+      ans: 1, tag: '交互图', src: '仿真题' }
+  ], { kpId: '30', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '网上书店场景：客户可下多份订单；每份订单包含 1~n 条订单明细，明细只隶属于所属订单（订单取消明细随之消失）；每条明细关联 1 种商品；商品由「商品目录」统一登记管理，商品目录撤销时商品仍可存在。',
+    q: '(1) 识别该场景中的核心类；(2) 为「订单—订单明细」「商品—商品目录」选择类图关系（组合/聚合）并说明理由；(3) 给出订单与订单明细的多重性标注。',
+    ref: '(1) 核心类：客户、订单、订单明细、商品、商品目录。(2) 订单—订单明细：组合（实心菱形）——明细是订单的一部分且同生共死，订单取消明细消失；商品目录—商品：聚合（空心菱形）——目录是「整体」但商品可独立存在，目录撤销商品仍在。(3) 多重性：订单 1 ↔ 订单明细 1..*（一份订单含一到多条明细；一条明细恰好属于一份订单）；可补充客户 1 ↔ 订单 0..*。',
+    points: ['核心类识别完整（五个类）', '组合/聚合选择正确且理由落在「生命周期是否绑定」', '多重性标注正确（1 对 1..*）'],
+    frame: '答题框架：先列名词筛类→逐对关系用「能否分离」判据→补多重性收尾。',
+    kpId: '30'
+  });
+  CX.renderCase('#case2', {
+    stem: 'ATM 取款流程：客户插卡并输入密码；系统验证密码；验证通过后客户输入取款金额；系统检查余额；余额充足则吐钞并打印凭条，余额不足则打印提醒凭条并退卡。整个流程要求客户已完成「身份登录」。',
+    q: '(1) 画出（文字描述）该场景顺序图的对象与主要消息顺序；(2) 说明「登录」「打印提醒」在用例图中分别用什么关系表达、箭头指向谁；(3) 指出该场景若改用状态机图，应以什么为对象、列出至少三个状态。',
+    ref: '(1) 对象：客户（参与者）、ATM 界面、银行系统。消息顺序：①客户→ATM界面：插卡并输入密码；②ATM界面→银行系统：验证请求；③银行系统-->ATM界面：验证结果；④客户→ATM界面：输入取款金额；⑤ATM界面→银行系统：余额检查；⑥银行系统-->ATM界面：余额结果；⑦ATM界面→银行系统：扣款指令（充足时）；⑧银行系统-->ATM界面：扣款成功；⑨ATM界面→客户：吐钞+打印凭条（不足时：打印提醒+退卡）。(2) 登录：include，箭头由「取款」基用例指向「登录」，表示必然执行；打印提醒：extend，箭头由「打印提醒」指向「取款」，在余额不足条件下可选执行。(3) 状态机图以「ATM 会话（或订单式交易）」为对象：状态可列——待机/读卡中、验证中、输入金额中、出钞中、退卡结束；事件如「验证通过」「余额不足」驱动状态迁移。',
+    points: ['顺序图消息顺序完整、方向正确（含返回消息）', 'include/extend 关系选择与箭头方向双正确', '状态机图对象选取合理且状态≥3、事件驱动表述清楚'],
+    frame: '答题框架：顺序图按「参与者→界面→业务系统」三层编消息序号；用例图答「关系+方向+必须/可选」三要素；状态机答「对象+状态集+触发事件」。',
+    kpId: '30'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '电梯系统：一部电梯有「空闲」「上行」「下行」「开门」等状态，事件「到达楼层」使其从上行迁移到开门。应选用哪类图？',
+    opts: [
+      { t: '活动图：画跨部门审批流程', why: '活动图适合跨对象工作流，这里是单个对象的状态变迁。' },
+      { t: '状态机图：单个对象因事件在状态间迁移', why: '对。电梯（对象）+状态集+事件迁移，是状态机图的典型场景。' },
+      { t: '部署图：画硬件布线', why: '部署图画软件构件到硬件的映射，与状态无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['29'], 'prev');
+  CX.depChain('#bridge-next', ['47', '48', '49'], 'next');
+
+  /* ---- 动画：include 必然执行 / extend 条件触发 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var cond = 0;
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="include与extend演示">';
+    s += '<defs><marker id="arwU" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--accent)"/></marker></defs>';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 参与人 */
+    s += '<circle cx="60" cy="130" r="14" fill="none" stroke="var(--text-dim)" stroke-width="2"/><line x1="60" y1="144" x2="60" y2="180" stroke="var(--text-dim)" stroke-width="2"/><line x1="42" y1="158" x2="78" y2="158" stroke="var(--text-dim)" stroke-width="2"/><line x1="60" y1="180" x2="46" y2="205" stroke="var(--text-dim)" stroke-width="2"/><line x1="60" y1="180" x2="74" y2="205" stroke="var(--text-dim)" stroke-width="2"/>';
+    s += '<text x="60" y="224" text-anchor="middle" font-size="12" fill="var(--text-dim)">储户</text>';
+    /* 用例椭圆 */
+    function uc(x, y, label, on, dashed) {
+      return '<ellipse cx="' + x + '" cy="' + y + '" rx="78" ry="30" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" opacity="' + (on ? '.9' : '1') + '" stroke="' + (dashed ? 'var(--bad)' : 'var(--line)') + '" stroke-width="2"' + (dashed ? ' stroke-dasharray="6 4"' : '') + '/>' +
+        '<text x="' + x + '" y="' + (y + 5) + '" text-anchor="middle" font-size="13" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + label + '</text>';
+    }
+    var ph = t * 4;
+    /* 基用例：取款 */
+    s += uc(360, 130, '取款（基用例）', ph > 0.4);
+    /* include：登录 */
+    var incOn = ph > 1.2;
+    s += uc(130, 40, '登录', incOn);
+    if (ph > 1.0) {
+      s += '<line x1="295" y1="112" x2="196" y2="62" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arwU)"/>';
+      s += '<text x="235" y="76" font-size="12" fill="var(--accent)">&lt;&lt;include&gt;&gt; 必然</text>';
+    }
+    /* extend：打印提醒 */
+    var extOn = cond === 1 && ph > 2.6;
+    s += uc(620, 40, '打印提醒', extOn, true);
+    if (ph > 2.2) {
+      s += '<line x1="552" y1="62" x2="426" y2="112" stroke="var(--bad)" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arwU)"/>';
+      s += '<text x="452" y="76" font-size="12" fill="var(--bad)">&lt;&lt;extend&gt;&gt; 可选（条件）</text>';
+    }
+    /* 执行进度点 */
+    var px = 60 + Math.min(ph, 4) / 4 * 300;
+    if (ph < 4) s += '<circle cx="' + px + '" cy="' + (130 + Math.sin(ph * 2) * 10) + '" r="6" fill="var(--accent)"/>';
+    /* 判定文字 */
+    if (ph > 3.4) {
+      s += '<text x="360" y="240" text-anchor="middle" font-size="14" fill="var(--text-dim)">结论：登录=必经工序（include，箭头离开基用例）；打印提醒=雨天防雨棚（extend，箭头指回基用例）</text>';
+      if (cond === 1) s += '<text x="360" y="266" text-anchor="middle" font-size="13" fill="var(--bad)">当前条件「余额不足」成立 → extend 用例本次被执行</text>';
+      else s += '<text x="360" y="266" text-anchor="middle" font-size="13" fill="var(--ok)">当前条件不成立 → extend 用例本次被跳过，不影响基用例</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (ph < 1) cap = '第一步：储户发起基用例「取款」——服务承诺书的主体';
+    else if (ph < 2) cap = '第二步：取款必然先执行「登录」→ include，箭头从基用例指向被包含用例';
+    else if (ph < 2.6) cap = '第三步：「打印提醒」画在旁边，虚线椭圆：它是否执行取决于条件（余额不足）';
+    else cap = cond === 1 ? '余额不足成立：extend 箭头指回基用例，本次提醒被执行' : '余额充足：extend 用例被跳过——「可选」正是它与 include 的分水岭';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 10, onTick: draw });
+  var esl = CX.utils.$('ext-slider');
+  esl.addEventListener('input', function () {
+    cond = +esl.value;
+    CX.utils.$('ext-out').textContent = cond === 1 ? '是（extend 触发）' : '否（extend 不触发）';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：动静图拖拽归类 ---- */
+  (function () {
+    var STATIC = ['类图', '对象图', '构件图', '部署图', '包图', '组合结构图'];
+    var DYN = ['用例图', '活动图', '状态机图', '顺序图', '通信图', '定时图'];
+    var pool = CX.utils.$('dg-pool');
+    CX.shuffle(STATIC.concat(DYN)).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.style.display = 'inline-block'; d.style.margin = '3px';
+      d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    function wire(slotId, kind) {
+      var slot = CX.utils.$(slotId);
+      slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+      slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+      slot.addEventListener('drop', function (e) {
+        e.preventDefault(); slot.classList.remove('hot');
+        var t = e.dataTransfer.getData('text');
+        var src = pool.querySelector('[data-t="' + t + '"]') || CX.utils.$('#dg-static [data-t="' + t + '"]') || CX.utils.$('#dg-dyn [data-t="' + t + '"]');
+        if (src) slot.appendChild(src);
+      });
+    }
+    wire('dg-static', 's'); wire('dg-dyn', 'd');
+    CX.utils.$('dg-check').addEventListener('click', function () {
+      var inSt = Array.prototype.map.call(CX.utils.$$('#dg-static .drag-item'), function (c) { return c.dataset.t; });
+      var inDy = Array.prototype.map.call(CX.utils.$$('#dg-dyn .drag-item'), function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab1-fb');
+      if (inSt.length + inDy.length < 12) { fb.textContent = '还有 ' + (12 - inSt.length - inDy.length) + ' 张卡片没归类。'; fb.className = 'lab-feedback bad'; return; }
+      for (var i = 0; i < inSt.length; i++) {
+        if (STATIC.indexOf(inSt[i]) < 0) {
+          fb.textContent = '「' + inSt[i] + '」放错槽了：它是动态图。判据：它拍的会不会随时间变化？会拍出「过程」的就是录像（动态）。';
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      for (var j = 0; j < inDy.length; j++) {
+        if (DYN.indexOf(inDy[j]) < 0) {
+          fb.textContent = '「' + inDy[j] + '」放错槽了：它是静态图。判据：部署图/构件图再像「动作」，画的都是某一时刻的结构。';
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 归类全部正确：静态六图拍骨架照，动态七图拍录像（四种交互图：顺序/通信/定时/交互概览）。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验二：六关系强度排序 ---- */
+  (function () {
+    var expect = ['依赖（临时用一下）', '关联（长期认识）', '聚合（整体-部分，可分离）', '组合（整体-部分，同生共死）', '泛化（is-a 继承）', '实现（兑现接口承诺）'];
+    var pool = CX.utils.$('rl-pool'), slot = CX.utils.$('rl-slot');
+    CX.shuffle(expect.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]') || slot.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('rl-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab2-fb');
+      if (got.length < 6) { fb.textContent = '还有 ' + (6 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      var hints = ['最弱：借个道就走；', '长期成员变量；', '空心菱形：散伙各自能活；', '实心菱形：一亡俱亡；', 'is-a 最强；实现与泛化同级（虚线三角兑现接口）。'];
+      for (var i = 0; i < 6; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 位放错了：你放了「' + got[i] + '」。提示：' + hints[i];
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 排序正确：依关聚组泛=实现，强度逐级升高。大雁-翅膀=组合，大雁-雁群=聚合。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验三：include/extend/泛化判断 ---- */
+  (function () {
+    var names = ['include（包含）', 'extend（扩展）', '泛化（generalize）'];
+    var items = [
+      { t: '用例「网上支付」必须先执行「身份验证」', ans: 0,
+        why: '必经步骤→include，箭头从「网上支付」指向「身份验证」。' },
+      { t: '「下单」用例在库存不足时才执行「生成缺货登记」', ans: 1,
+        why: '条件触发、可选执行→extend，箭头从「生成缺货登记」指向「下单」。' },
+      { t: '「手机取款」是「取款」的一种特殊方式', ans: 2,
+        why: '特殊/一般关系→泛化，箭头从「手机取款」指向「取款」。' },
+      { t: '「会议签到」用例偶尔（参会人自愿时）执行「打印桌卡」', ans: 1,
+        why: '自愿=可选，条件触发→extend。别被「偶尔」骗成 include。' }
+    ];
+    var box = CX.utils.$('ie-list'), idx = 0, okCnt = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>判断完成：答对 ' + okCnt + '/' + items.length + '。</p>';
+        CX.utils.$('lab3-fb').textContent = okCnt === items.length ? '✅ 全对：必经=include（箭头离基），可选=extend（箭头回基），是哪种=泛化。' : '判据复习：先问「必然还是可选」，再问「是不是种类关系」。';
+        CX.utils.$('lab3-fb').className = okCnt === items.length ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      box.innerHTML = '<p><b>' + (idx + 1) + '. ' + items[idx].t + '</b></p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' + names.map(function (n, i) { return '<button class="btn" data-r="' + i + '">' + n + '</button>'; }).join('') + '</div>';
+      CX.utils.$$('button[data-r]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var r = +b.getAttribute('data-r'), fbx = CX.utils.$('lab3-fb');
+          if (r === items[idx].ans) { okCnt++; fbx.textContent = '✅ 对：' + items[idx].why; fbx.className = 'lab-feedback ok'; }
+          else { fbx.textContent = '❌ 选错了。先问两步：①必然执行还是条件可选？②是不是「一种…」的种类关系？——' + items[idx].why; fbx.className = 'lab-feedback bad'; }
+          idx++; setTimeout(render, 900);
+        });
+      });
+    }
+    render();
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>复习中心 · 架构师学堂</title>
+<meta name="description" content="SM-2 到期队列、跨域交错混合卷与错题本">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <h1>🔁 复习中心</h1>
+    <p class="foreshadow">遗忘曲线在这里干活：随堂测试的成绩会按 <b>SM-2 算法</b>排出每张记忆卡的下次复习时间；到期就清，清完就稳。做错的题会自动进错题本。</p>
+  </div>
+
+  <section class="sec">
+    <h2><span class="secno">⏰</span>到期记忆卡（SM-2 队列）</h2>
+    <div id="due-box"><p class="foreshadow">加载中……</p></div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">🎲</span>跨域交错混合卷</h2>
+    <p class="foreshadow">从你学过的页面题库随机抽题、打乱域别出卷（交错练习对抗「域块效应」）。未学过任何页时用内置兜底题库。</p>
+    <p>
+      <button class="btn primary" id="btn-mix10">出 10 题混合卷</button>
+      <button class="btn primary" id="btn-mix20">出 20 题混合卷</button>
+      <label style="font-size:.9rem;color:var(--text-dim)">范围：
+        <select id="mix-domain" style="background:var(--card-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 8px">
+          <option value="">全部知识域</option>
+        </select>
+      </label>
+    </p>
+    <div id="mix-quiz"></div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">📕</span>错题本</h2>
+    <div id="wrong-box"></div>
+    <p><button class="btn" id="btn-clear-wrong">清空错题本（请先确认都弄懂了）</button></p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">🧠</span>SM-2 是怎么排期的</h2>
+    <div class="kc-text">
+      <p>每次随堂测试按得分折算质量分 q（1~5）：<b>q≥3</b> 进入下一次间隔——第1次隔1天、第2次隔6天、之后每次 <b>间隔×EF</b>（EF 初始 2.5，答得越好涨得越多）；<b>q&lt;3</b> 该卡重置回 1 天后重见。所以：<b>认真做题 = 给未来的自己省时间</b>。</p>
+    </div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 进度保存在本机浏览器</footer>
+<script>
+/* 内置兜底题库：跨域各 1~2 题，保证没学过页面也能体验混合卷（全部原创仿真题） */
+var FALLBACK_BANK = [
+  { kpId: '05', title: '存储层次与Cache', domain: 'hw', questions: [{ q: 'Cache 对程序员透明的含义是？', opts: [{ t: '程序员无需显式操作，硬件自动调度', why: '对：Cache 由硬件管理，程序员写代码时感知不到它的存在。' }, { t: '容量很小可以忽略', why: '容量小与「透明」无关。' }, { t: '速度可以不计', why: '恰恰是速度关键。' }], ans: 0, src: '仿真题' }] },
+  { kpId: '10', title: '同步互斥与PV操作', domain: 'os', questions: [{ q: '信号量 S=3 表示三个打印机空闲，此时 4 个进程各执行一次 P(S)，S 变为？', opts: [{ t: '0', why: '只减了 3，漏了第 4 个进程在等待。' }, { t: '-1，一个进程等待', why: '对：3 次把 S 减到 0，第 4 次 P 使 S=-1 并阻塞，负数绝对值=等待数。' }, { t: '1', why: '方向反了。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '17', title: '规范化理论', domain: 'db', questions: [{ q: '关系模式 R(学号,姓名,系号,系名)，系号→系名，该模式最高满足？', opts: [{ t: '2NF，存在传递依赖（学号→系号→系名）', why: '对：码为单属性学号，不可能有部分依赖，故满足 2NF；但系名传递依赖于码，不到 3NF；需拆出 系(系号,系名)。' }, { t: '3NF', why: '系名传递依赖于码，不到 3NF。' }, { t: 'BCNF', why: '更不满足。' }], ans: 0, src: '仿真题' }] },
+  { kpId: '22', title: 'IP地址、子网与路由', domain: 'net', questions: [{ q: '/26 子网每个最多容纳多少台可用主机？', opts: [{ t: '64', why: '64 是地址总数，忘了减网络地址与广播地址。' }, { t: '62', why: '对：2^6-2=62，主机号全0是网络地址、全1是广播地址。' }, { t: '30', why: '那是 /27。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '25', title: '软件过程模型', domain: 'se', questions: [{ q: '需求难以一次性明确、需要快速验证可行性的项目，最合适的过程模型是？', opts: [{ t: '瀑布模型', why: '瀑布要求需求冻结，最不适合。' }, { t: '原型模型', why: '对：先造个能跑的原型让用户摸，把模糊需求变具体。' }, { t: 'V模型', why: 'V模型强调测试对应，不解决需求模糊。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '34', title: '架构风格：数据流与调用返回', domain: 'arch', questions: [{ q: '编译器的「词法分析→语法分析→语义分析」最贴合哪种架构风格？', opts: [{ t: '管道-过滤器', why: '对：上一级输出是下一级输入，组件互不认识，数据流驱动。' }, { t: '主程序-子程序', why: '那是主程序点名调用，控制权集中。' }, { t: '事件驱动', why: '没有事件广播机制。' }], ans: 0, src: '仿真题' }] },
+  { kpId: '42', title: '质量属性与质量场景', domain: 'qa', questions: [{ q: '质量属性场景六要素中，「系统在 200ms 内完成故障切换」属于哪个要素？', opts: [{ t: '刺激', why: '刺激是事件本身（故障发生）。' }, { t: '响应度量', why: '对：可量化的响应标准——响应是「完成切换」，度量是「200ms 内」。' }, { t: '环境', why: '环境是运行状态（如正常运行时）。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '48', title: '结构型模式', domain: 'pt', questions: [{ q: '给旧系统写一个新接口类，把老方法名翻译成新调用，用的是？', opts: [{ t: '装饰器', why: '装饰器是同一接口上加功能，不改接口。' }, { t: '适配器', why: '对：转换接口让它能被新代码使用。' }, { t: '代理', why: '代理与目标同接口，做的是控制访问。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '50', title: '密码学基础', domain: 'sec', questions: [{ q: '数字签名对「整段报文」实际签名的是？', opts: [{ t: '报文全文用私钥加密', why: '全文私钥加密太慢，实际签的是摘要。' }, { t: '报文摘要用发送方私钥加密', why: '对：先哈希再私钥签名，接收方用公钥验证+重算摘要比对。' }, { t: '报文用接收方公钥加密', why: '那是保密，不是签名。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '53', title: '知识产权', domain: 'sec', questions: [{ q: '公民作品著作权的发表权保护期是？（发表权属人身权，期限与财产权相同）', opts: [{ t: '作者终生及死后 50 年', why: '对：发表权与财产权同期限；署名权/修改权/保护作品完整权才是永久。' }, { t: '永久保护', why: '永久的是人身权中的三项，不是发表权。' }, { t: '自发表起 20 年', why: '无此规定。' }], ans: 0, src: '仿真题' }] },
+  { kpId: '56', title: '进度管理与关键路径', domain: 'pm', questions: [{ q: '关键路径上某活动延误 3 天，总工期？', opts: [{ t: '不一定变', why: '关键活动没有时差，延误直接顺延总工期。' }, { t: '延误 3 天', why: '对：关键路径是最长路径，总时差为 0。' }, { t: '延误少于 3 天', why: '那是非关键活动才有的事（有时差吸收）。' }], ans: 1, src: '仿真题' }] },
+  { kpId: '38', title: 'SOA与微服务', domain: 'arch', questions: [{ q: '微服务拆分后最需要新建的基础设施是？', opts: [{ t: '更快的数据库', why: '数据库反而常按服务拆分。' }, { t: '服务注册发现/网关/链路监控等治理设施', why: '对：服务多了，找服务、进门、排障都要新设施。' }, { t: '更大的单体机房', why: '与微服务方向相反。' }], ans: 1, src: '仿真题' }] }
+];
+
+window.KP_BOOT = function (CX) {
+  var U = CX.utils;
+  CX.ready(function (idx) {
+    var s = CX.getState();
+
+    /* ---- 到期队列 ---- */
+    function renderDue() {
+      var box = U.$('due-box');
+      var due = CX.dueList();
+      if (!idx) { box.innerHTML = '<div class="callout trap">⚠️ 索引不可用：请用本地服务器访问。</div>'; return; }
+      if (!due.length) {
+        box.innerHTML = '<p class="foreshadow">☀️ 暂无到期记忆卡。做完随堂测试后，这里会按遗忘曲线排期。</p>';
+        return;
+      }
+      box.innerHTML = '<div class="domain-list">' + due.map(function (d) {
+        var p = CX.findPoint(d.id);
+        var title = p ? (p.id + ' · ' + p.title) : (d.id + ' · （题库未见，去重学该页）');
+        var href = p ? CX.pointFile(p) : 'index.html';
+        var days = Math.round((Date.now() - d.card.due) / 86400000);
+        return '<div class="domain-row"><span style="font-size:1.1rem">🗓️</span>' +
+          '<div style="min-width:180px"><a href="' + href + '"><b>' + CX.esc(title) + '</b></a>' +
+          '<div class="foreshadow">间隔 ' + d.card.int + ' 天 · EF ' + d.card.ef.toFixed(2) + ' · ' + (days > 0 ? '已过期 ' + days + ' 天' : '今天到期') + '</div></div>' +
+          '<a class="btn" href="' + href + '">去重学</a></div>';
+      }).join('') + '</div>';
+    }
+    renderDue();
+
+    /* ---- 域下拉 ---- */
+    var sel = U.$('mix-domain');
+    if (idx) Object.keys(idx.domains).forEach(function (k) {
+      var o = document.createElement('option');
+      o.value = k; o.textContent = idx.domains[k].icon + ' ' + idx.domains[k].name;
+      sel.appendChild(o);
+    });
+
+    /* ---- 混合卷 ---- */
+    function buildMix(n) {
+      var bank = CX.getBank();
+      var pool = [];
+      Object.keys(bank).forEach(function (kpId) {
+        if (sel.value && bank[kpId].domain !== sel.value) return;
+        bank[kpId].questions.forEach(function (q) {
+          pool.push({ kpId: kpId, title: bank[kpId].title, q: q });
+        });
+      });
+      var usedFallback = false;
+      if (pool.length === 0) {
+        usedFallback = true;
+        FALLBACK_BANK.forEach(function (b) {
+          if (sel.value && b.domain !== sel.value) return;
+          b.questions.forEach(function (q) { pool.push({ kpId: b.kpId, title: b.title, q: q }); });
+        });
+      }
+      pool = CX.shuffle(pool).slice(0, n);
+      var box = U.$('mix-quiz');
+      if (!pool.length) { box.innerHTML = '<p class="foreshadow">这个域还没有题目，先去学一两页吧。</p>'; return; }
+      box.innerHTML = usedFallback && pool.length < n
+        ? '<div class="callout">💡 你学过的页面题库还不够，本卷部分取自内置兜底题库；学得越多，混合卷越像真题。</div>' : '';
+      var holder = document.createElement('div');
+      box.appendChild(holder);
+      pool.forEach(function (item, i) {
+        var div = document.createElement('div');
+        div.setAttribute('data-mixq', i);
+        box.appendChild(div);
+        CX.renderQuiz(div, [Object.assign({}, item.q, { tag: (item.q.tag ? item.q.tag + ' · ' : '') + item.kpId + ' ' + item.title })], { mode: 'review' });
+      });
+    }
+    U.$('btn-mix10').addEventListener('click', function () { buildMix(10); });
+    U.$('btn-mix20').addEventListener('click', function () { buildMix(20); });
+
+    /* ---- 错题本 ---- */
+    function renderWrong() {
+      var s2 = CX.getState();
+      var box = U.$('wrong-box');
+      if (!s2.wrong.length) { box.innerHTML = '<p class="foreshadow">🎉 暂无错题。做错的题会自动出现在这里，附上正确答案与解析。</p>'; return; }
+      box.innerHTML = '<div style="display:grid;gap:8px">' + s2.wrong.slice().reverse().map(function (w, i) {
+        var p = w.kpId ? CX.findPoint(w.kpId) : null;
+        var link = p ? '<a href="' + CX.pointFile(p) + '">→ 回到 ' + p.id + ' ' + CX.esc(p.title) + '</a>' : '';
+        return '<details class="fold"><summary>❌ ' + CX.esc(w.q.slice(0, 42)) + (w.q.length > 42 ? '…' : '') + '</summary>' +
+          '<p><b>你的答案：</b>' + CX.esc(w.chosen) + '</p>' +
+          '<p><b>正确答案：</b>' + CX.esc(w.correct) + '</p>' +
+          (w.why ? '<p><b>解析：</b>' + CX.esc(w.why) + '</p>' : '') +
+          '<p class="foreshadow">' + link + '</p></details>';
+      }).join('') + '</div>';
+    }
+    renderWrong();
+    U.$('btn-clear-wrong').addEventListener('click', function () {
+      var s3 = CX.getState();
+      s3.wrong = [];
+      CX.saveState(s3);
+      renderWrong();
+    });
+  });
+};
+</script>
+<script defer src="assets/app.js"></script>
+</body>
+</html>

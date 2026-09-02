@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · 存储层次与Cache · 架构师学堂</title>
+<meta name="description" content="小而快的缓存挡住大而慢的内存，局部性是金字塔成立的根基。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="01-computer-overview.html">前置 01</a></span>
+    <h1>05 · 存储层次与Cache</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">小而快的缓存挡住大而慢的内存，局部性是金字塔成立的根基。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>游戏引擎团队把热数据数组从内存搬到「更靠近 CPU」的地方还不够，帧率仍卡顿。性能分析显示：数组每 4KB 就有一个元素被访问，而 L1 Cache 只有 32KB、4 路组相联——<b>数据明明都在 Cache 容量以内，为什么命中率还是上不去？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>因为 <strong>容量小不等于不冲突</strong>。直接映射/组相联下，主存块「按地址规则」进固定的行：两个常用块若映射到同一行，就会互相顶替（冲突缺失），命中率照样崩。这不是容量问题，是<strong>映射规则</strong>问题——对策是改组相联/全相联、或把数据布局错开（padding）。本页从存储金字塔讲到映射、替换、写策略，最后落到两个考计算题的口径公式。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>01 · 计算机系统组成与体系结构</b>——Cache 正是给「CPU 等内存」开的药方：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>存储层次</strong>是一金字塔：寄存器 → Cache（L1/L2/L3）→ 内存 → SSD/磁盘，越往上越快、越小、越贵。CPU 旁的 Cache 是主存热点数据的<strong>副本</strong>（本域比喻：随手抽屉 vs 办公桌）。它成立的根基是<strong>局部性原理</strong>：刚用过的信息很快再用（时间局部性）；用过某地址，其邻居也将被用（空间局部性）。</p>
+      <h3>解决什么问题</h3>
+      <p>CPU 快、内存慢，速度差近百倍（一般认为的量级）；没有 Cache，01 页动画里「市政府干等办公桌」会占去绝大多数时间。Cache 让绝大多数访问在抽屉里就地完成，平均访问时间被拉到接近 Cache 的水平。</p>
+      <h3>核心机制</h3>
+      <p><strong>命中率与平均访问时间</strong>（设命中率 h，Cache 访问 t_c，主存访问 t_m）：</p>
+      <table class="tbl">
+        <tr><th>口径</th><th>公式</th><th>例：h=0.9, t_c=5ns, t_m=100ns</th></tr>
+        <tr><td>同时访问（两级同时启动，谁先中用谁）</td><td>T = h·t_c + (1-h)·t_m</td><td>0.9×5+0.1×100 = <b>14.5ns</b></td></tr>
+        <tr><td>先 Cache 后主存（未命中才去，时间要<b>相加</b>）</td><td>T = h·t_c + (1-h)·(t_c+t_m)</td><td>0.9×5+0.1×105 = <b>15ns</b></td></tr>
+      </table>
+      <p>两口径只差在「缺失时是否额外多花一次 t_c」，审题必须看清。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>机制</th><th>做法</th><th>代价/特点</th></tr>
+        <tr><td>直接映射</td><td>主存块号 mod 行数 → 固定行</td><td>硬件最省、不用比较全部；冲突缺失多</td></tr>
+        <tr><td>全相联</td><td>可放任意行，全部标记并行比较</td><td>命中率高；比较器贵，只宜小容量</td></tr>
+        <tr><td>组相联</td><td>先按组号定组，组内任意放</td><td>前两者的折中，主流选择（如 4/8 路）</td></tr>
+        <tr><td>替换算法</td><td>LRU（最久未用先换出）、FIFO、随机</td><td>LRU 依据时间局部性，最常考</td></tr>
+        <tr><td>写穿透 write-through</td><td>写 Cache 同时写主存</td><td>一致性好、写慢</td></tr>
+        <tr><td>写回 write-back</td><td>只写 Cache 置脏位，换出时才写主存</td><td>写快；存在与主存暂时不一致的窗口</td></tr>
+      </table>
+      <p>现代 CPU 用<strong>多级 Cache</strong>：L1 小而快（几十 KB）、L2/L3 更大更慢，逐层兜底；缺一级就去下一级。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①两种口径题年年有：「同时访问」用 h·t_c+(1-h)·t_m；「先访问 Cache 未命中再访问主存」必须相加，选错选项就差一次 t_c；②命中率低不一定是容量小，可能是<strong>映射冲突</strong>（本页开场案例）；③Cache 与缓冲（Buffer）不是一回事：Cache 为「快」存副本，Buffer 为「稳」吸收速度差。</div>
+      <h3>专业英语小贴士</h3>
+      <p>cache hit / miss（命中/缺失）；hit ratio（命中率）；locality of reference（访问局部性）；write-back / write-through（写回/写穿透）；L1/L2/L3 cache（多级缓存）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>你是办公室里办事的「市政府」：<strong>随手抽屉</strong>（Cache）里放这几天最常翻的文件，<strong>办公桌</strong>（内存）放本月卷宗，<strong>档案馆</strong>（磁盘）存历年档案。抽屉只放「大概率马上要用的」，这就是局部性；抽屉满了就挑「最久没人翻的」清出去，这就是 LRU；你在抽屉里改了数字先不还档案馆、等文件被换出时再抄回去，这就是写回法——档案馆在此期间看到的还是旧数。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>常用的放抽屉</td><td>热点副本、局部性</td><td>成立</td></tr>
+      <tr><td>最久没人翻的先清出</td><td>LRU 替换</td><td>成立</td></tr>
+      <tr><td>抽屉改了数办公桌立刻知道</td><td>写回法下主存同步更新</td><td><b>失效</b>：写回法要等换出才同步，期间主存是旧值</td></tr>
+      <tr><td>抽屉越大越好用</td><td>Cache 容量决定一切</td><td><b>失效</b>：映射冲突也会压垮命中率，且容量受成本与功耗约束</td></tr>
+    </table>
+    <div class="rhyme">抽屉办公桌两重天，局部性好抽屉甜；<br>命中快慢两口径，同时各取先后加；<br>映射冲突莫怪容量，直接相联定行忙；<br>写穿同步慢而稳，写回置脏快提防。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画把本页核心公式做成实验台：上半部分看每次访问「抽屉→办公桌」的路线，下半部分画平均访问时间 T 随命中率 h 的完整曲线。拖动滑块改 h、t_c、t_m，并切换两种口径，看曲线怎么动。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>命中率 h <input type="range" id="h-slider" min="0" max="100" value="90"> <span id="h-out">90%</span></label>
+      <label>t_c <input type="range" id="tc-slider" min="2" max="20" value="5"> <span id="tc-out">5ns</span></label>
+      <label>t_m <input type="range" id="tm-slider" min="50" max="200" step="5" value="100"> <span id="tm-out">100ns</span></label>
+      <label>口径 <input type="range" id="cal-slider" min="0" max="1" value="0"> <span id="cal-out">同时访问</span></label>
+      <span class="kf-caption" id="curve-cap"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：直接映射冲突模拟器</h4>
+      <p class="foreshadow">访问序列固定为主存块 [0,4,0,8,0,4,0,8]。拖动 Cache 行数看逐次命中情况，挑战：<b>让缺失次数 ≤ 6</b>：</p>
+      <label>Cache 行数 <input type="range" id="line-slider" min="2" max="8" step="2" value="2"> <span id="line-out">2 行</span></label>
+      <div id="sim-log" style="font-size:.85rem;line-height:1.9;margin-top:6px"></div>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：一次读访问的完整流程</h4>
+      <p class="foreshadow">把卡片拖进槽，排出 CPU 读一个数据可能经过的环节：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：映射与替换写策略</h4>
+      <p class="foreshadow">先点左列一个机制，再点右列对应描述：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>01 页的冯·诺依曼瓶颈（CPU 等内存）由本页的抽屉（Cache）缓解；容量换算 2¹⁰=1024、块号取模都是 02 页二进制功底的应用。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「内存不够快就分级」推到极致：内存不够大就分级到磁盘——<b>12 · 分页分段与虚拟内存</b> 的页表与缺页正是 Cache 思想的放大重演；</li>
+    <li>「写回脏数据、换出时同步」在 <b>13 · 文件系统与设备管理</b> 的缓冲区管理中再次出现。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>写穿透（write-through）</th><th>写回（write-back）</th></tr>
+      <tr><td>差异点</td><td>写 Cache 同时写主存，始终一致</td><td>只写 Cache 置脏位，换出时才写主存</td></tr>
+      <tr><td>易错点</td><td>以为写穿透一定更快（写多时主存成瓶颈）</td><td>忘记脏数据在掉电/异常时会丢，需要补救机制</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">写穿透用「写慢」买「一致」，写回用「不一致窗口」买「写快」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——书桌抽屉里放最常用的文具，抽屉没有才去书柜拿……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 存储金字塔靠局部性成立：时间局部性喂替换算法（LRU），空间局部性喂块调入。</li><li>② 平均访问时间两口径：同时访问 h·t_c+(1-h)·t_m；先 Cache 后主存要相加 (1-h)·(t_c+t_m)，审题定生死。</li><li>③ 直接映射省硬件但会冲突，组相联是主流折中；写穿透求一致、写回求快但留脏数据窗口。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '05', domain: 'hw', loc: 'foundation', root: '..',
+  title: '存储层次与Cache',
+  prev: '04-pipeline.html', prevTitle: '04 · 指令系统与流水线',
+  next: '06-reliability.html', nextTitle: '06 · 可靠性与RAID',
+  keywords: ['局部性','命中率','平均访问时间','直接映射','组相联','LRU','写回','多级缓存']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 01） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·01】冯·诺依曼结构下，CPU 性能受制约的主要瓶颈环节是？',
+    opts: [
+      { t: '指令与数据共用总线往返存储器，CPU 常在等待访存', why: '对。01 页动画的「文书往返」就是它——本页的 Cache 专治这个等待。' },
+      { t: '运算器算得太快', why: '算得快是好事，问题出在喂不上数。' },
+      { t: '输入输出设备太多', why: '外设多会分抢总线，但主要瓶颈在访存路径本身。' }
+    ],
+    ans: 0, tag: '回忆:01', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某系统 Cache 访问 t_c=10ns，主存访问 t_m=60ns，命中率 h=0.9（同时访问口径）。平均访问时间为？',
+      opts: [
+        { t: '15 ns', why: '对。T=h·t_c+(1-h)·t_m=0.9×10+0.1×60=15ns。' },
+        { t: '16 ns', why: '这是「先 Cache 后主存」口径（未命中多算一次 t_c）的结果；本题说同时访问，不相加。' },
+        { t: '70 ns', why: '这是缺失时走的全程时间；平均要按概率加权，绝大多数访问命中。' },
+        { t: '35 ns', why: '把两项简单平均了；权重是 h 与 1-h，不是各占一半。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '同参数（t_c=10ns，t_m=60ns，h=0.9），若采用「先访问 Cache，未命中再访问主存」的方式，平均访问时间为？',
+      opts: [
+        { t: '15 ns', why: '这是同时访问口径；本问未命中时要先白跑一趟 Cache（10ns）再进主存，需相加。' },
+        { t: '16 ns', why: '对。T=h·t_c+(1-h)·(t_c+t_m)=9+0.1×70=16ns——两种口径只差这 1ns。' },
+        { t: '60 ns', why: '这是纯缺失时间；还要乘上缺失概率并加上命中部分。' },
+        { t: '9 ns', why: '只算了命中项；缺失的 10% 也要计入。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '主存中的每一块按规则只能装入唯一一个 Cache 行的映射方式是？',
+      opts: [
+        { t: '全相联映射', why: '全相联恰恰相反：任意行都可放，靠并行比较找块。' },
+        { t: '直接映射', why: '对。块号 mod 行数定死位置，硬件最省，但两块挤同一行就互相顶替（冲突缺失）。' },
+        { t: '组相联映射', why: '组相联先定组，组内仍可任选一路，不是唯一行。' },
+        { t: '随机映射', why: '没有这种分类；替换有随机算法，映射没有。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '关于写回（write-back）策略，下列说法正确的是？',
+      opts: [
+        { t: '每次写 Cache 都立即写主存', why: '那是写穿透；写回只置脏位，等换出才写。' },
+        { t: '写速度快，但脏数据在换出前与主存不一致，掉电有丢失风险', why: '对。脏位标记「待同步」，收益是写快，代价是一致性窗口与丢失风险。' },
+        { t: '不设脏位也能正确工作', why: '没有脏位就不知道哪些行改过，换出时无从判断要不要写主存。' },
+        { t: '适用于写极频繁且要求强一致的场景', why: '强一致场景应选写穿透；写回恰恰容忍暂时不一致。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '【交错复习·02】直接映射 Cache 有 16 行，主存第 133 块应装入哪一行？',
+      opts: [
+        { t: '第 5 行', why: '对。133 mod 16=5；用 02 页功底看更直观：133=1000 0101₂，低 4 位 0101 就是 5——行号就是块号二进制的低 log₂(行数) 位。' },
+        { t: '第 4 行', why: '低 4 位算错：0101₂=5 不是 4；行号取的是二进制低位，不是十进制尾数。' },
+        { t: '第 13 行', why: '133 mod 100 的惯性错解；模数是行数 16。' },
+        { t: '第 8 行', why: '133÷16≈8.3 的商被误当行号；规则是取余。' }
+      ],
+      ans: 0, tag: '交错复习:02', src: '仿真题' }
+  ], { kpId: '05', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某数据库服务器：Cache 访问 t_c=5ns，主存访问 t_m=100ns，实测命中率 h=0.9。架构师甲用「同时访问」口径估算 T=14.5ns 并宣称已达设计目标；架构师乙用「先 Cache 后主存」口径估算 T=15ns，指出协议按后者实现。',
+    q: '(1) 复核两人计算，说明两口径的差别出现在哪一项；(2) 若命中率提升到 0.95，两口径各改善多少；(3) 给出三条提升命中率的工程手段并说明各自利用了什么性质。',
+    ref: '(1) 甲：0.9×5+0.1×100=14.5ns；乙：0.9×5+0.1×(5+100)=15ns。差别仅在缺失项：同时访问只计 t_m，先 Cache 后主存要加白跑的 t_c，两式只差 (1-h)·t_c。(2) h=0.95：同时口径 T=0.95×5+0.05×100=9.75ns（改善 4.75ns）；先后口径 T=0.95×5+0.05×105=10ns（改善 5ns）——命中率提升对平均时间的影响是「截断式」的，越接近 1 收益越大。(3) 手段：①增大 Cache 容量/块大小——利用空间局部性装更多邻居（块过大反而挤占行数，要权衡）；②改用组相联提高路数——减少映射冲突缺失；③软件优化数据布局与循环顺序（如按行遍历数组）、预取——直接提升局部性。',
+    points: ['两个口径都算对且指出差异项 (1-h)·t_c', 'h=0.95 时两口径数值正确并说明非线性收益', '三条手段分别对应容量/映射/局部性三个层面'],
+    frame: '答题框架：先定口径（题干按哪种实现）→分别代入公式→做敏感性分析（h 变化）→措施分层（硬件映射/软件局部性）。',
+    kpId: '05'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '图像处理内核按列处理一个 1024×1024 的 int 数组（每行 4KB，恰好与 Cache 行映射冲突）。Profile 显示 L1 直接映射 Cache（32KB、行大小 64B）命中率不足 20%，而同样的算法按行处理时命中率超过 90%。',
+    q: '(1) 解释按列处理命中率骤降的原因；(2) 给出两种不改硬件的软件优化方案；(3) 说明若允许改硬件，用什么映射方式能缓解该问题。',
+    ref: '(1) 按列访问时相邻两次访问的地址相隔 4KB（一行跨度），它们不在同一块（块只有 64B），时间局部性被拉断、空间局部性用不上；更糟的是固定步长 4KB 使多个活跃块反复映射到同一直接映射行（或同一组），互相顶替形成冲突缺失，即使数据总量远小于 32KB 也留不住。(2) 方案一：改按行遍历或分块（tiling）处理——把工作集压进 Cache 并用满每块 64B 的空间局部性；方案二：给数组做 padding（每行末尾补若干无效元素错开步长），或交换循环内外层顺序，让相邻访问落在同一块。(3) 改用组相联（如 4 路/8 路）或全相联映射：同一组的多个「冲突块」可分占不同路，显著降低冲突缺失；代价是比较器硬件增多。',
+    points: ['指出大步长访问破坏局部性 + 固定步长引发映射冲突两层原因', '软件方案（行列交换/分块/padding）具体可操作', '说清组相联缓解冲突的机制与代价'],
+    frame: '答题框架：先算地址跨度与块大小的关系→定位缺失类型（容量缺失还是冲突缺失）→软件/硬件两层对策各给一条并说明机制。',
+    kpId: '05'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '浏览器把常用图片缓存在本地，再次访问时先查本地缓存、没有才向服务器请求。这与本页思想的关系是？',
+    opts: [
+      { t: '同一思想：本地=抽屉，服务器=档案馆，命中率决定平均响应时间', why: '对。Cache 是跨层级的通用思想；本页公式把「命中率→平均时间」同样算得清。' },
+      { t: '完全不同，那是网络技术', why: '机制同源：副本+命中判定+缺失回源。' },
+      { t: '只有 CPU 才有缓存概念', why: '从 CPU、浏览器到 CDN、Redis，缓存思想贯穿全栈。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '05', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['01'], 'prev');
+  CX.depChain('#bridge-next', ['12', '13'], 'next');
+
+  /* ---- 动画：命中率曲线 + 访问路线 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var h = 0.9, tc = 5, tm = 100, caliber = 0;   /* caliber 0=同时访问 1=先后 */
+  var SEQ = [0.97, 0.62, 0.85, 0.74, 0.92, 0.55, 0.8, 0.68];
+  function avgT(hh) {
+    return caliber === 0 ? hh * tc + (1 - hh) * tm : hh * tc + (1 - hh) * (tc + tm);
+  }
+  function draw(t) {
+    var nAcc = SEQ.length;
+    var seg = t * nAcc, idx = Math.min(nAcc - 1, Math.floor(seg)), frac = seg - idx;
+    var hit = SEQ[idx] <= h;
+    /* ---- 场景 ---- */
+    var s = '<svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="320" rx="12" fill="var(--bg-soft)"/>';
+    var y = 70;
+    s += '<rect x="40" y="40" width="120" height="60" rx="8" fill="var(--card-2)" stroke="var(--line)"/>';
+    s += '<text x="100" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text)">CPU 办公室</text>';
+    s += '<text x="100" y="86" text-anchor="middle" font-size="11" fill="var(--text-dim)">要读一个数据</text>';
+    s += '<rect x="260" y="40" width="120" height="60" rx="8" fill="var(--ok)" opacity=".2" stroke="var(--ok)"/>';
+    s += '<text x="320" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ok)">抽屉 Cache</text>';
+    s += '<text x="320" y="86" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + tc + 'ns 可取到</text>';
+    s += '<rect x="600" y="40" width="120" height="60" rx="8" fill="var(--bad)" opacity=".18" stroke="var(--bad)"/>';
+    s += '<text x="660" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="var(--bad)">办公桌 内存</text>';
+    s += '<text x="660" y="86" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + tm + 'ns 才能翻到</text>';
+    s += '<line x1="160" y1="70" x2="260" y2="70" stroke="var(--line)" stroke-width="4"/>';
+    s += '<line x1="380" y1="70" x2="600" y2="70" stroke="var(--line)" stroke-width="4"/>';
+    /* 请求点位置：CPU→抽屉→(命中返回 | 缺失去档案馆→返回) */
+    var px;
+    if (frac < 0.4) px = 160 + 100 * (frac / 0.4);
+    else if (frac < 0.55) px = 320;
+    else if (!hit && frac < 0.8) px = 380 + 220 * ((frac - 0.55) / 0.25);
+    else if (!hit) px = 600 - 440 * ((frac - 0.8) / 0.2);
+    else px = 320 - 160 * ((frac - 0.55) / 0.45);
+    s += '<circle cx="' + px.toFixed(1) + '" cy="64" r="9" fill="var(--accent-2)"/>';
+    s += '<text x="' + px.toFixed(1) + '" y="68" text-anchor="middle" font-size="10" font-weight="700" fill="var(--bg)">读</text>';
+    s += '<text x="380" y="118" text-anchor="middle" font-size="12" fill="var(--text-dim)">第 ' + (idx + 1) + '/' + nAcc + ' 次访问：' + (hit ? '抽屉有货（命中）' : '抽屉没有（缺失），再翻办公桌') + '</text>';
+    /* ---- 曲线 ---- */
+    var cx0 = 90, cx1 = 470, cy0 = 150, cy1 = 290;
+    var tMax = avgT(0);
+    function X(hh) { return cx0 + (cx1 - cx0) * hh; }
+    function Y(v) { return cy1 - (cy1 - cy0) * (v / tMax); }
+    s += '<rect x="' + (cx0 - 10) + '" y="' + (cy0 - 10) + '" width="' + (cx1 - cx0 + 30) + '" height="' + (cy1 - cy0 + 26) + '" rx="8" fill="var(--card)" stroke="var(--line)"/>';
+    var i, pl1 = '', pl2 = '';
+    for (i = 0; i <= 20; i++) {
+      var hh = i / 20;
+      var v1 = hh * tc + (1 - hh) * tm;
+      var v2 = hh * tc + (1 - hh) * (tc + tm);
+      pl1 += (i ? ' ' : '') + X(hh).toFixed(1) + ',' + Y(v1).toFixed(1);
+      pl2 += (i ? ' ' : '') + X(hh).toFixed(1) + ',' + Y(v2).toFixed(1);
+    }
+    s += '<polyline points="' + pl1 + '" fill="none" stroke="var(--accent)" stroke-width="2" opacity="' + (caliber === 0 ? 1 : .3) + '"/>';
+    s += '<polyline points="' + pl2 + '" fill="none" stroke="var(--ok)" stroke-width="2" opacity="' + (caliber === 1 ? 1 : .3) + '"/>';
+    var vNow = avgT(h);
+    s += '<line x1="' + X(h).toFixed(1) + '" y1="' + Y(vNow).toFixed(1) + '" x2="' + X(h).toFixed(1) + '" y2="' + cy1 + '" stroke="var(--text-dim)" stroke-dasharray="3 3"/>';
+    s += '<circle cx="' + X(h).toFixed(1) + '" cy="' + Y(vNow).toFixed(1) + '" r="6" fill="' + (caliber === 0 ? 'var(--accent)' : 'var(--ok)') + '"/>';
+    s += '<text x="' + (cx0 - 16) + '" y="' + (cy0 + 4) + '" font-size="11" fill="var(--text-dim)">T/ns</text>';
+    s += '<text x="' + (cx1 + 6) + '" y="' + (cy1 + 4) + '" font-size="11" fill="var(--text-dim)">h</text>';
+    s += '<text x="' + ((cx0 + cx1) / 2) + '" y="' + (cy1 + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-dim)">命中率 h：0 → 1（蓝=同时访问口径，绿=先Cache后主存口径，亮线为当前口径）</text>';
+    /* 公式面板 */
+    s += '<text x="500" y="176" font-size="13" font-weight="700" fill="' + (caliber === 0 ? 'var(--accent)' : 'var(--text-dim)') + '">同时：T=h·tc+(1-h)·tm</text>';
+    s += '<text x="500" y="198" font-size="13" font-weight="700" fill="' + (caliber === 1 ? 'var(--ok)' : 'var(--text-dim)') + '">先后：T=h·tc+(1-h)(tc+tm)</text>';
+    s += '<text x="500" y="228" font-size="14" fill="var(--text)">当前：h=' + h.toFixed(2) + '</text>';
+    s += '<text x="500" y="252" font-size="14" fill="var(--text)">' + h.toFixed(2) + '×' + tc + ' + ' + (1 - h).toFixed(2) + '×' + (caliber === 0 ? tm : (tc + tm)) + '</text>';
+    s += '<text x="500" y="278" font-size="16" font-weight="700" fill="var(--accent-2)">= ' + vNow.toFixed(1) + ' ns</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.15) cap = '第一次访问：抽屉多半没货——冷启动，只能去办公桌并把块搬回抽屉。';
+    else if (t < 0.85) cap = '第 ' + (idx + 1) + ' 次访问：' + (hit ? '命中，' + tc + 'ns 完成——曲线上的点被 h 拉向左侧低位。' : '缺失，多花 ' + (caliber === 0 ? tm : tc + tm) + 'ns——少数长尾访问就是它们。');
+    else cap = '收尾：看曲线——h 越接近 1，T 越贴近 t_c；两口径只差 (1-h)·t_c，审题先看用哪种。';
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#curve-cap').textContent = '当前口径下：T = ' + vNow.toFixed(1) + ' ns' + (caliber === 1 ? '（含缺失时白跑的 ' + tc + 'ns）' : '');
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+  function bindSlider(id, fn) {
+    CX.utils.$(id).addEventListener('input', function () { fn(this.value); draw(anim.t || 0); });
+  }
+  bindSlider('#h-slider', function (v) { h = v / 100; CX.utils.$('#h-out').textContent = v + '%'; });
+  bindSlider('#tc-slider', function (v) { tc = parseInt(v, 10); CX.utils.$('#tc-out').textContent = tc + 'ns'; });
+  bindSlider('#tm-slider', function (v) { tm = parseInt(v, 10); CX.utils.$('#tm-out').textContent = tm + 'ns'; });
+  bindSlider('#cal-slider', function (v) { caliber = parseInt(v, 10); CX.utils.$('#cal-out').textContent = caliber === 0 ? '同时访问' : '先Cache后主存'; });
+
+  /* ---- 实验一：直接映射冲突模拟 ---- */
+  var lineS = CX.utils.$('#line-slider');
+  var SEQ_BLOCKS = [0, 4, 0, 8, 0, 4, 0, 8];
+  function simulate() {
+    var lines = parseInt(lineS.value, 10);
+    CX.utils.$('#line-out').textContent = lines + ' 行';
+    var rows = [], log = '', miss = 0, i;
+    for (i = 0; i < lines; i++) rows.push(-1);
+    for (i = 0; i < SEQ_BLOCKS.length; i++) {
+      var b = SEQ_BLOCKS[i], row = b % lines;
+      var hit = rows[row] === b;
+      if (!hit) {
+        var old = rows[row];
+        rows[row] = b; miss++;
+        log += '访问块' + b + '→行' + row + '：<b style="color:var(--bad)">缺失</b>（行内原是' + (old < 0 ? '空行' : '块' + old + '，被顶出') + '，换入块' + b + '）<br>';
+      } else {
+        log += '访问块' + b + '→行' + row + '：<b style="color:var(--ok)">命中</b><br>';
+      }
+    }
+    CX.utils.$('#sim-log').innerHTML = log;
+    var fb = CX.utils.$('#lab1-fb');
+    if (miss <= 6) {
+      fb.textContent = '✅ 缺失 ' + miss + ' 次 ≤ 6。观察：行数多到 8 时，块 0/4/8 不再全挤第 0 行（8 mod 8=0 仍冲突，但 4 有了自己的行）——映射冲突缓解，命中率上升。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      fb.textContent = '❌ 缺失 ' + miss + ' 次 > 6。错在这一步：行数太少时 0、4、8 全被「块号 mod 行数」压进第 0 行，谁进谁出互相顶替（冲突缺失）——这堆数据总量根本不大，是映射规则挤的，把行数调大。';
+      fb.className = 'lab-feedback bad';
+    }
+  }
+  lineS.addEventListener('input', simulate);
+  simulate();
+
+  /* ---- 实验二：拖拽排序 ---- */
+  var order = [
+    'CPU 发出访存地址',
+    '按映射规则定位 Cache 行并比较标记',
+    '命中：从 Cache 取数返回 CPU',
+    '未命中：访问主存读取该数据所在块',
+    '把块调入 Cache 行（行满则按替换算法换出）',
+    '数据交给 CPU 并更新命中统计'
+  ];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab2-fb');
+    if (got.length < 6) { fb.textContent = '还有 ' + (6 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 6; i++) {
+      if (got[i] !== order[i]) {
+        var hint;
+        if (i === 0) hint = '第 1 步错了：一切访问从「CPU 发地址」开始，没有地址谈不上查找。';
+        else if (i === 1) hint = '第 2 步错了：先「映射定位+比标记」才能判断命中与否——不查就下结论是顺序颠倒。';
+        else if (i === 4) hint = '第 5 步错了：先「从主存取块」再「调入 Cache 行」，调入要在拿到块之后；换出是腾位动作，发生在调入时。';
+        else hint = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。主线：发地址 → 查 Cache → 命中即回 / 未命中取块 → 调入回填 → 交付。';
+        fb.textContent = hint; fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：发地址 → 定位比对 → 命中直取 / 未命中取块回填 → 交付。命中与否在第 2 步分岔。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验三：连线匹配 ---- */
+  var pairs = [
+    ['直接映射', '块号 mod 行数定死位置，硬件省但冲突缺失多'],
+    ['组相联', '先按组号定组，组内任选一路，主流折中'],
+    ['全相联', '任意行可放，需并行比较全部标记，成本高'],
+    ['LRU', '替换「最久未被访问」的行，依据时间局部性'],
+    ['写回法', '只写 Cache 置脏位，换出时才写主存']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的描述。';
+        CX.utils.$('#lab3-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab3-fb').textContent = '先点左列一个机制。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('#lab3-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL.dataset.k;
+          var hint = (k === '写回法') ? '❌ 写回法的关键词是「脏位」与「换出时才写」——你选的这条说的是映射或替换，不是写策略。'
+            : (k === 'LRU') ? '❌ LRU 是替换算法，判据是「最久未用」——你选的这条说的是块放哪（映射），不是旧块让谁走。'
+            : '❌ 「' + k + '」不对应这条。分辨步骤：先问「块放哪」（映射三类），再问「满了谁走」（替换），最后问「写了何时同步」（写策略）。';
+          CX.utils.$('#lab3-fb').textContent = hint;
+          CX.utils.$('#lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab3-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

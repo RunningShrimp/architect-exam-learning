@@ -1,0 +1,14 @@
+{
+  "name": "架构师学堂 · 系统架构设计师学习站",
+  "short_name": "架构师学堂",
+  "description": "软考高级·系统架构设计师离线学习站：城市隐喻 + 间隔重复 + 主动回忆，零外部依赖，可完全离线使用。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1420",
+  "theme_color": "#0f1420",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

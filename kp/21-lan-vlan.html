@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21 · 局域网与以太网 · 架构师学堂</title>
+<meta name="description" content="交换机按门牌号转发、路由器按城市转发，VLAN 把一台交换机隔成几个院子。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机网络</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="20-osi-tcpip.html">前置 20</a></span>
+    <h1>21 · 局域网与以太网</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">交换机按门牌号转发、路由器按城市转发，VLAN 把一台交换机隔成几个院子。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>一栋 8 层写字楼，全楼 200 多个信息点经几台老式集线器级联。每到下午 3 点（各公司同时做备份），网络几乎瘫痪；财务部还担心报表数据被同楼公司抓包。物业请你出方案：为什么全网会「一起瘫」？又怎么让财务部「独门独院」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>两个病根：① 集线器是物理层设备，所有端口同属<strong>一个冲突域</strong>，级联后冲突域更大——CSMA/CD 下冲突与退避重传吞掉几乎所有带宽，于是「一起瘫」；② 集线器把信号复制给所有端口，同楼公司处于同一个<strong>广播域</strong>，抓包轻而易举。药方：整体换成以太网交换机（每个端口独立冲突域，按 MAC 精准转发），再把财务部划入独立 VLAN（隔离广播域），VLAN 之间需要通信时走三层交换机/路由器受控放行。学完本页，「冲突域」和「广播域」这两个词你就能随口讲清。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本页工作在 20 页分层模型的<strong>数据链路层</strong>，先回忆 <b>20 · OSI与TCP/IP分层</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><span class="term-tip" title="Local Area Network，覆盖一栋楼或一个园区、自建自管的网络">局域网（LAN）</span>是地理范围有限（一栋楼/一个园区）、速率高、误码率低的网络。<span class="term-tip" title="Ethernet，IEEE 802.3 标准，当今有线局域网的事实统一标准">以太网</span>（IEEE 802.3）在有线局域网里一家独大。每块网卡有全球唯一的 <span class="term-tip" title="Medium Access Control address，48 位物理地址，前 3 字节是厂商标识 OUI，后 3 字节是厂商序号">MAC 地址</span>（48 位，通常写成 6 组十六进制），这就是「小区里的门牌号」。</p>
+      <h3>解决什么问题</h3>
+      <p>多台主机共享同一段传输介质时，必须约定「谁先说话」——否则大家同时开口，信号撞车全成废码。这就是介质访问控制问题；经典以太网的答案是 <span class="term-tip" title="Carrier Sense Multiple Access with Collision Detection，带冲突检测的载波监听多路访问">CSMA/CD</span>。</p>
+      <h3>核心机制：CSMA/CD 与争用期</h3>
+      <p>十六字诀：<strong>先听后发、边发边听、冲突停发、随机重发</strong>（二进制指数退避算法决定「随机」等多久）。关键约束是「边发边听」要来得及：信号在最远两端之间跑一个来回需要 2τ（τ 为单程传播时延，2τ 称为<strong>争用期</strong>）。发送方必须保证发完最短一帧之前能听到冲突，于是——</p>
+      <p><strong>最小帧长 = 2τ × 数据率</strong>。经典 10Mb/s 以太网：争用期 51.2μs，最小帧 = 512bit = <strong>64 字节</strong>。例：网段单程时延 τ=5μs、速率 100Mb/s，则争用期 10μs，最小帧长 = 10μs × 100Mb/s = 1000bit = 125 字节。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>设备/技术</th><th>工作层次</th><th>转发依据</th><th>冲突域</th><th>广播域</th></tr>
+        <tr><td>集线器（Hub）</td><td>物理层</td><td>无（复制信号到所有口）</td><td>所有端口共享 <b>1 个</b></td><td>1 个</td></tr>
+        <tr><td>交换机（Switch）</td><td>数据链路层</td><td>MAC 地址表（自学习）</td><td>每端口 <b>1 个</b>（隔离冲突域）</td><td>默认整台 <b>1 个</b></td></tr>
+        <tr><td>VLAN（802.1Q）</td><td>数据链路层</td><td>帧内 4 字节 Tag</td><td>—</td><td>把 1 个切成 N 个（隔离广播域）</td></tr>
+        <tr><td>路由器</td><td>网络层</td><td>IP 路由表</td><td>隔离</td><td>每接口 <b>1 个</b>（隔离广播域）</td></tr>
+      </table>
+      <p>以太网帧结构（MAC 帧）：<b>目的 MAC(6B) | 源 MAC(6B) | 类型(2B) | 数据(46~1500B，MTU=1500) | FCS(4B)</b>。交换机<strong>自学习</strong>：收到帧就把「源 MAC ↔ 入端口」记进 MAC 表；表里查不到目的 MAC 就向本 VLAN 洪泛。VLAN 间默认不通，互通必须经三层设备（路由器或三层交换机）。</p>
+      <table class="tbl">
+        <tr><th colspan="2">专业英语小贴士</th></tr>
+        <tr><td>collision domain / broadcast domain</td><td>冲突域 / 广播域——「交换机 splits collision domains, VLANs split broadcast domains」</td></tr>
+        <tr><td>CSMA/CD</td><td>Carrier Sense Multiple Access with Collision Detection，载波监听多路访问/冲突检测</td></tr>
+        <tr><td>trunk</td><td>干线——一条链路同时承载多个 VLAN 的帧（打 Tag 区分）</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① <strong>交换机隔离冲突域但不隔离广播域</strong>——隔离广播域靠 VLAN 或路由器，这是每年最常挖的坑。② 全双工交换机端口收发通道分离、不存在冲突，已<strong>不再需要 CSMA/CD</strong>。③ 最小帧长计算忘乘 2（用了单程 τ）或忘记与「64 字节」口径换算。④ 划了 VLAN 之后部门之间「不通」不是故障——默认就该不通，要走三层才通。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>本域统一比喻：<strong>交换机 = 小区门卫</strong>。集线器则像拿大喇叭喊话——一个人开口全楼都听见（而且同时两个人喊就全乱）；门卫按门牌精准递送，还能「脸熟记人」。</p>
+    <table class="tbl">
+      <tr><th>类比项（小区/门卫）</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>大喇叭广播全楼听见</td><td>集线器广播式转发 / 广播域</td><td>成立</td></tr>
+      <tr><td>门卫按门牌递送、脸熟记人</td><td>交换机查 MAC 表转发、自学习</td><td>成立</td></tr>
+      <tr><td>把一栋楼隔成封闭院落，喊话出不了院</td><td>VLAN 隔离广播域</td><td>成立</td></tr>
+      <tr><td>砌了墙快递就永远进不来</td><td>VLAN 间通信</td><td><b>失效</b>：VLAN 间可经三层设备受控互通，比现实的墙灵活</td></tr>
+      <tr><td>门卫见到生面孔会上前盘问</td><td>交换机对未知 MAC</td><td><b>失效</b>：交换机不会盘问，MAC 表查不到就向全 VLAN 洪泛（顺便学习）</td></tr>
+    </table>
+    <div class="rhyme">先听后发边听发，冲突停发退避加；<br>集线一吼全楼响，交换查表送到家；<br>VLAN 砌墙圈广播，跨院通行路由搭。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示广播域边界：PC1 发出一个广播帧（如 ARP 请求），默认情况下洪泛到交换机所有端口；拖动「VLAN 分组数」滑块砌墙后，广播只在同一个 VLAN 内转发，跨院端口被拦下。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>VLAN 分组数 <input type="range" id="vlan-slider" min="1" max="3" step="1" value="1"> <span id="vlan-out">1</span>（VLAN10 / VLAN20 / VLAN30）</label>
+      <span class="kf-caption" id="vlan-info"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：CSMA/CD 争用期与最小帧长计算器</h4>
+      <p class="foreshadow">拖动滑块改变网段长度与数据率，观察争用期与最小帧长如何变化（信号速率按铜缆常用工程口径 2×10⁸ m/s）：</p>
+      <label>网段单程长度 d <input type="range" id="d-slider" min="100" max="2000" step="100" value="1000"> <span id="d-out">1000</span> m</label><br>
+      <label>数据率 R <input type="range" id="r-slider" min="10" max="1000" step="10" value="100"> <span id="r-out">100</span> Mb/s</label>
+      <div class="kf-caption" id="ccalc"></div>
+      <p style="margin-top:10px"><b>考一考：</b>τ=5μs、R=100Mb/s（即滑块默认值），最小帧长至少是多少？</p>
+      <button class="btn" data-opt="0">500 bit</button>
+      <button class="btn" data-opt="1">1000 bit（125 字节）</button>
+      <button class="btn" data-opt="2">512 bit</button>
+      <button class="btn" data-opt="3">50 bit</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：设备/技术 ↔ 它隔离了什么「域」</h4>
+      <p class="foreshadow">先点左列，再点右列。配错会指出你混淆的是「冲突」还是「广播」。</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>20 页给出「交换机=数据链路层、路由器=网络层」的归属结论，本页把这个结论展开成可计算的机制：链路层怎么发（CSMA/CD）、怎么转（MAC 表）、怎么隔（VLAN）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>「切院子」的下一步是「切门牌」：<b>22 · IP地址、子网与路由</b> 用子网划分在网络层继续隔离广播、规划地址；</li>
+      <li>财务部「独门独院」的安全诉求，是 <b>51 · 网络安全防护体系</b> 安全域划分的原型。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>冲突域（collision domain）</th><th>广播域（broadcast domain）</th></tr>
+      <tr><td>差异点</td><td>信号「撞车」的范围：同一冲突域内两台设备同时发送必然冲突</td><td>广播帧能到达的范围：同一广播域内一台设备发广播全体收到</td></tr>
+      <tr><td>易错点</td><td>以为交换机能隔离广播——它只隔离冲突域</td><td>以为划了子网（IP 层）广播就消失了——同网段广播照样洪泛</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">集线器连冲突域都切不开，交换机切冲突域，VLAN/路由器才切广播域。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——集线器像拿大喇叭喊话全楼都听见，交换机像门卫按门牌送信……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① CSMA/CD 十六字诀：先听后发、边发边听、冲突停发、随机重发；最小帧长 = 2τ × 数据率（经典口径 64 字节）。</li><li>② 交换机每端口独立冲突域、按 MAC 表转发（自学习）；集线器所有端口一个冲突域且广播式转发。</li><li>③ 交换机不隔离广播域：VLAN（802.1Q）把一台交换机切成多个广播域，VLAN 间互通必须走三层设备。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '21', domain: 'net', loc: 'roads', root: '..',
+  title: '局域网与以太网', prev: '20-osi-tcpip.html', prevTitle: '20 · OSI与TCP/IP分层',
+  next: '22-ip-subnet.html', nextTitle: '22 · IP地址、子网与路由',
+  keywords: ['以太网', 'CSMA/CD', '争用期', '冲突域', '广播域', 'VLAN', 'MAC 地址', '交换机']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 20 · OSI与TCP/IP分层） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·20】交换机根据帧中的什么信息转发？它工作在 OSI 参考模型的哪一层？',
+    opts: [
+      { t: 'MAC 地址；数据链路层', why: '对。交换机读以太网帧头里的目的 MAC 查表转发，属于数据链路层——本页正是这一层的展开。' },
+      { t: 'IP 地址；网络层', why: '按 IP 转发的是路由器（网络层）；三层交换机才有这个能力，二层交换机只认 MAC。' },
+      { t: '端口号；传输层', why: '端口是传输层概念，用于定位进程；交换机的世界里没有端口（port）这个语义。' },
+      { t: '域名；应用层', why: '域名是应用层好记的名字，解析成 IP 才能用；交换机完全不看域名。' }
+    ],
+    ans: 0, tag: '回忆:20', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某 CSMA/CD 总线网段单程传播时延 τ=10μs，数据率为 100Mb/s，其最小帧长至少为？',
+      opts: [
+        { t: '1000 bit', why: '错在只用单程 τ：发送方必须保证发完最短帧之前能听到「最远端也在发」的冲突，要按往返 2τ 算。' },
+        { t: '2000 bit（250 字节）', why: '对。争用期 = 2τ = 20μs，最小帧长 = 20μs × 100Mb/s = 2000bit。帧太短的话，冲突信号还没回来帧已发完，检测失效。' },
+        { t: '100 bit', why: '量级错了：把 μs 与 Mb/s 的单位换算弄丢了一位（20μs×100Mb/s 是 2000bit 而非 100bit）。' },
+        { t: '512 bit', why: '512bit=64 字节是 10Mb/s 经典以太网（争用期 51.2μs）的口径，本题速率与 τ 都变了，必须重算。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '关于集线器与交换机，下列说法正确的是？',
+      opts: [
+        { t: '两者都能隔离冲突域，区别只在速率', why: '集线器是物理层设备，所有端口共享一个冲突域，根本不具备隔离能力。' },
+        { t: '交换机每个端口是独立冲突域，集线器所有端口共享一个冲突域', why: '对。这是两者最本质的区别，也是「换掉集线器网速立刻改善」的原因。' },
+        { t: '两者都隔离广播域，可放心混用', why: '默认一台交换机仍是一个广播域——隔离广播域要靠 VLAN 或路由器。' },
+        { t: '集线器按 MAC 表精准转发，更安全', why: '集线器不懂 MAC、把信号复制到所有端口，既慢又容易被抓包。' }
+      ],
+      ans: 1, tag: '设备对比', src: '仿真题' },
+    { q: '在企业网中部署 VLAN 的主要目的是？',
+      opts: [
+        { t: '提高物理层传输速率', why: '速率由链路规格（百兆/千兆）决定，VLAN 是逻辑隔离手段，不改变速率。' },
+        { t: '隔离广播域，按部门收敛流量并提升安全与可管理性', why: '对。VLAN 把一个广播域切成多个，广播不再全楼洪泛，跨 VLAN 访问必须经三层设备受控放行。' },
+        { t: '完全替代路由器，实现任意隔离网络互通', why: 'VLAN 之间默认不通；要互通仍需路由器或三层交换机，它替代不了路由功能。' },
+        { t: '让交换机学会按 IP 地址转发', why: '按 IP 转发是三层功能；VLAN Tag 是链路层的 4 字节标记（802.1Q）。' }
+      ],
+      ans: 1, tag: 'VLAN', src: '仿真题' },
+    { q: '主机发出 ARP 请求「谁是 192.168.1.1，请告知你的 MAC」。按 20 页的协议归属口径，ARP 归入哪一层？这类请求最远能到达哪里？',
+      opts: [
+        { t: '网络层；以广播帧在本广播域内洪泛，不出网段', why: '对。主流教材把 ARP 归网络层；广播帧被 VLAN/路由器挡住，只能在本地广播域内传播——这也解释了广播域为什么要切小。' },
+        { t: '数据链路层；以单播帧直达网关', why: '归属口径错（按主流教材归网络层）；而且此刻还不知道网关 MAC，只能广播。' },
+        { t: '传输层；洪泛全网包括跨网段', why: '传输层管端到端进程；广播帧出不了本广播域，更到不了「全网」。' },
+        { t: '应用层；由 DNS 先解析后广播', why: 'ARP 解析的是 IP→MAC，与 DNS 的域名解析无关。' }
+      ],
+      ans: 0, tag: '交错复习:20', src: '仿真题' },
+    { q: '千兆以太网两台主机通过交换机以全双工模式直连，此时还需要 CSMA/CD 机制吗？',
+      opts: [
+        { t: '需要，速率越高越容易冲突', why: '全双工下收发各走各的线对，物理上不存在同时双向争用介质，冲突无从发生。' },
+        { t: '不需要：收发通道分离，不再存在冲突', why: '对。交换机全双工端口消灭了冲突域，CSMA/CD 退化为历史机制——这也是它只在「共享介质」时代盛行的原因。' },
+        { t: '只在高峰时段需要', why: '机制有无取决于物理结构（共享/全双工），与时段无关。' },
+        { t: '需要，用来做流量控制', why: '流量控制另有 pause 帧机制；CSMA/CD 管的是介质争用，不是流控。' }
+      ],
+      ans: 1, tag: '机制辨析', src: '仿真题' }
+  ], { kpId: '21', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '写字楼 200 个信息点经多台集线器级联，每天 15:00 各公司同时备份导致全网瘫痪；财务部数据还面临同楼抓包风险。',
+    q: '(1) 用「冲突域/广播域」解释为什么全网一起瘫；(2) 给出分步改造方案（设备与 VLAN 规划）；(3) 说明 VLAN 之间要互通时的正确做法。',
+    ref: '(1) 集线器级联后所有端口共享同一个冲突域：CSMA/CD 下大量主机同时发送→冲突→退避重传，有效带宽趋近于零；同时全网同属一个广播域，备份流量、广播帧全楼洪泛，且任何端口可被抓包。(2) 方案：接入层整体换成百兆/千兆以太网交换机（每端口独立冲突域）；按部门/楼层划分 VLAN（如财务部独立 VLAN），交换机间用 Trunk 干线承载多 VLAN；出口用路由器接运营商。(3) VLAN 间默认隔离；需要互通时在三层交换机或路由器上配置 VLANIF/子接口做受控路由，并配 ACL 限制财务部只开放必要访问。',
+    points: ['用冲突域+广播域双视角解释「一起瘫」，并提到 CSMA/CD 退避重传', '改造方案层次完整：换交换机（冲突域）→ 划 VLAN（广播域）→ 出口路由器', 'VLAN 间互通答出「三层设备受控放行」而非「划了就通」'],
+    frame: '答题框架：诊断（两个域各是什么范围）→ 处方（每个域问题对应一个手段）→ 补充互通与安全约束。域的问题用域的手段解决，一一对应。',
+    kpId: '21'
+  });
+  CX.renderCase('#case2', {
+    stem: '财务部要求：本部门流量与广播不得扩散到其他部门，跨部门访问必须留痕审批。有人提议「把财务部电脑接一台新交换机就隔离了」。',
+    q: '(1) 指出该提议为什么达不到隔离目的；(2) 给出正确方案（含 VLAN 与三层控制点）；(3) 说明为什么「只划 VLAN」还不等于「安全合规」，还差什么。',
+    ref: '(1) 交换机只隔离冲突域：新交换机若仍与全楼交换机级联且不划 VLAN，全网仍是一个广播域，广播照样洪泛，财务流量依旧可达所有端口。(2) 正确方案：财务部端口划入独立 VLAN（如 VLAN 30），级联链路配置 Trunk 并精确放行 VLAN；在三层交换机/路由器上为 VLAN 30 配置网关，ACL 默认拒绝跨 VLAN 访问、仅白名单放行（如财务系统服务器），所有跨院访问都经过这个控制点天然留痕。(3) VLAN 是链路层隔离，不提供身份认证与审计记录；合规还需要：准入认证（802.1X）、访问审计日志、数据加密（防内网抓包）与定期权限复核——即「隔离是必要条件，不是充分条件」。',
+    points: ['指出交换机≠隔离广播域，级联后仍是同一广播域', '方案包含 VLAN + Trunk + 三层网关/ACL 白名单', '说出 VLAN 之外还需认证、审计、加密等合规措施'],
+    frame: '答题框架：先驳错误方案（指出其混淆的域）→ 给分层方案（二层隔离+三层控制）→ 再补管理面（认证/审计/加密）。安全类案例题记得「技术+管理」两条腿。',
+    kpId: '21'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '多租户系统里 100 家公司共用一套服务器集群，要求各租户故障与「广播」（消息扩散）互不影响。哪种做法与 VLAN 的思想同源？',
+    opts: [
+      { t: '给每家公司单独采购一套物理集群', why: '这是物理隔离（相当于集线器换路由器+单独布线），安全但成本高，不是 VLAN 的「逻辑隔离」思想。' },
+      { t: '逻辑隔离：按租户 ID 打标，同一集群内的消息/任务只在同租户范围内传播', why: '对。VLAN 的本质是「同一物理设施上按标记切出多个逻辑隔离单元」——租户 ID 就是 VLAN Tag 的思想迁移。' },
+      { t: '不设任何隔离，靠程序小心一点不写错', why: '共享介质上没有隔离规则必然互相踩踏，正如不划 VLAN 的广播风暴。' },
+      { t: '把所有租户消息合并成一个大消息池统一广播', why: '这恰恰制造了「全楼一个大喇叭」的广播风暴，与隔离目标相反。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '21', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['20'], 'prev');
+  CX.depChain('#bridge-next', ['22', '51'], 'next');
+
+  /* ---- 动画：广播域边界 + VLAN 分组滑块 ---- */
+  var COLORS = ['#3b82f6', '#f59e0b', '#10b981'];
+  var stage = document.getElementById('demo1-stage');
+  var curT = 0, numVlans = 1;
+  function grouping(n) {
+    if (n === 1) return [[0, 1, 2, 3, 4, 5]];
+    if (n === 2) return [[0, 1, 2], [3, 4, 5]];
+    return [[0, 1, 2], [3, 4], [5]];
+  }
+  function draw(t) {
+    curT = t;
+    var groups = grouping(numVlans);
+    var colorOf = {};
+    groups.forEach(function (g, gi) { g.forEach(function (p) { colorOf[p] = gi; }); });
+    var swX = 300, swY = 30, swW = 120, swH = 44;
+    var pcY = 208, pcW = 84, pcH = 40;
+    var xs = [];
+    for (var i = 0; i < 6; i++) xs.push(24 + i * 112);
+    var swCX = swX + swW / 2, swCY = swY + swH / 2;
+    var s = '<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="VLAN 广播域边界">';
+    s += '<rect width="700" height="280" rx="12" fill="var(--bg-soft)"/>';
+    s += '<rect x="' + swX + '" y="' + swY + '" width="' + swW + '" height="' + swH + '" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="' + swCX + '" y="' + (swCY + 5) + '" text-anchor="middle" font-size="13" font-weight="bold" fill="var(--accent)">交换机</text>';
+    /* VLAN 院子底色 */
+    groups.forEach(function (g, gi) {
+      var x0 = xs[g[0]] - 6, x1 = xs[g[g.length - 1]] + pcW + 6;
+      s += '<rect x="' + x0 + '" y="' + (pcY - 10) + '" width="' + (x1 - x0) + '" height="' + (pcH + 32) + '" rx="10" fill="' + COLORS[gi] + '" opacity=".08" stroke="' + COLORS[gi] + '" stroke-dasharray="6 5"/>';
+      s += '<text x="' + ((x0 + x1) / 2) + '" y="' + (pcY + pcH + 16) + '" text-anchor="middle" font-size="11" fill="' + COLORS[gi] + '">VLAN ' + (10 * (gi + 1)) + '（广播域 ' + (gi + 1) + '）</text>';
+    });
+    /* 链路 */
+    for (var i = 0; i < 6; i++) {
+      var pcx = xs[i] + pcW / 2;
+      s += '<line x1="' + swCX + '" y1="' + (swY + swH) + '" x2="' + pcx + '" y2="' + pcY + '" stroke="var(--line)" stroke-width="3"/>';
+    }
+    for (var i = 0; i < 6; i++) {
+      var same = colorOf[i] === colorOf[0];
+      var fill = i === 0 ? 'var(--accent-2)' : (same ? COLORS[colorOf[i]] : 'var(--card)');
+      var strokeC = same ? COLORS[colorOf[i]] : 'var(--bad)';
+      s += '<rect x="' + xs[i] + '" y="' + pcY + '" width="' + pcW + '" height="' + pcH + '" rx="7" fill="' + fill + '" opacity="' + (i === 0 ? '.95' : '1') + '" stroke="' + (i === 0 ? 'var(--accent-2)' : strokeC) + '" stroke-width="2"/>';
+      var txtFill = (i === 0 || same) ? (i === 0 ? 'var(--bg)' : COLORS[colorOf[i]]) : 'var(--text-dim)';
+      s += '<text x="' + (xs[i] + pcW / 2) + '" y="' + (pcY + 25) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="' + txtFill + '">PC' + (i + 1) + '</text>';
+    }
+    /* 动画：PC1 -> 交换机 */
+    if (t < 0.25) {
+      var f = t / 0.25;
+      var x1 = xs[0] + pcW / 2, y1 = pcY, x2 = swCX, y2 = swY + swH;
+      var px = x1 + (x2 - x1) * f, py = y1 + (y2 - y1) * f;
+      s += '<circle cx="' + px + '" cy="' + py + '" r="7" fill="var(--accent-2)"/>';
+    }
+    /* 洪泛与拦截 */
+    var sameTargets = [], blockedTargets = [];
+    for (var i = 1; i < 6; i++) { if (colorOf[i] === colorOf[0]) sameTargets.push(i); else blockedTargets.push(i); }
+    if (t >= 0.25 && t < 0.85) {
+      var p2 = (t - 0.25) / 0.6;
+      var nShow = Math.min(sameTargets.length, Math.floor(p2 / 0.7 * sameTargets.length + 0.999));
+      for (var k = 0; k < nShow && k < sameTargets.length; k++) {
+        var ti = sameTargets[k];
+        var tx = xs[ti] + pcW / 2, ty = pcY;
+        s += '<line x1="' + swCX + '" y1="' + (swY + swH) + '" x2="' + tx + '" y2="' + ty + '" stroke="' + COLORS[colorOf[0]] + '" stroke-width="3" opacity=".85"/>';
+        var localF = Math.min(1, Math.max(0, (p2 * sameTargets.length) - k));
+        var px2 = swCX + (tx - swCX) * localF, py2 = (swY + swH) + (ty - swY - swH) * localF;
+        s += '<circle cx="' + px2 + '" cy="' + py2 + '" r="6" fill="' + COLORS[colorOf[0]] + '"/>';
+      }
+      if (p2 > 0.7) {
+        blockedTargets.forEach(function (ti) {
+          var tx = xs[ti] + pcW / 2, ty = pcY;
+          s += '<line x1="' + swCX + '" y1="' + (swY + swH) + '" x2="' + tx + '" y2="' + ty + '" stroke="var(--bad)" stroke-width="3" stroke-dasharray="4 6" opacity=".5"/>';
+          var mx = (swCX + tx) / 2, my = ((swY + swH) + ty) / 2;
+          s += '<text x="' + mx + '" y="' + (my - 4) + '" text-anchor="middle" font-size="18" font-weight="bold" fill="var(--bad)">✗</text>';
+        });
+      }
+    }
+    if (t >= 0.85) {
+      var msg = numVlans === 1 ? '没有 VLAN：广播出了交换机门就到全院（1 个广播域）' : '广播只在 VLAN' + (10 * (colorOf[0] + 1)) + ' 内转发：' + numVlans + ' 个 VLAN = ' + numVlans + ' 个广播域';
+      s += '<rect x="150" y="122" width="400" height="30" rx="8" fill="var(--card)" stroke="var(--ok)"/>';
+      s += '<text x="350" y="142" text-anchor="middle" font-size="13" font-weight="bold" fill="var(--ok)">' + msg + '</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.25) cap = 'PC1 发出广播帧（例如 ARP 请求：「谁的 IP 是 192.168.x.1？请告知 MAC」）';
+    else if (t < 0.85) cap = sameTargets.length ? '交换机把广播帧洪泛到 PC1 同 VLAN 的所有端口；跨 VLAN 端口被「院墙」拦下（✗）' : '广播只在同一 VLAN 内转发';
+    else cap = numVlans === 1 ? '默认一台交换机=1 个广播域：全院都能听到广播' : 'VLAN 把 1 个广播域切成 ' + numVlans + ' 个：跨院要通信必须走三层设备（路由器/三层交换机）';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  CX.makeAnim('#demo1-ctl', { steps: 10, duration: 12, onTick: draw });
+  var vslider = document.getElementById('vlan-slider');
+  vslider.addEventListener('input', function () {
+    numVlans = parseInt(vslider.value, 10);
+    document.getElementById('vlan-out').textContent = String(numVlans);
+    document.getElementById('vlan-info').textContent = numVlans === 1 ? '当前：无 VLAN，全网一个院子' : '当前：' + numVlans + ' 个院子——广播帧出不了自己的院子';
+    draw(curT);
+  });
+  document.getElementById('vlan-info').textContent = '当前：无 VLAN，全网一个院子';
+  draw(0);
+
+  /* ---- 实验一：CSMA/CD 计算器 ---- */
+  var dSlider = document.getElementById('d-slider'), rSlider = document.getElementById('r-slider');
+  var fb1 = document.getElementById('lab1-fb');
+  function calc() {
+    var d = parseInt(dSlider.value, 10), R = parseInt(rSlider.value, 10);
+    document.getElementById('d-out').textContent = String(d);
+    document.getElementById('r-out').textContent = String(R);
+    var tau = d / 2e8, ct = 2 * tau, bits = ct * R * 1e6;
+    var bytes = bits / 8;
+    document.getElementById('ccalc').textContent =
+      'τ = d/v = ' + d + 'm ÷ 2×10⁸m/s = ' + (tau * 1e6).toFixed(1) + 'μs ｜ 争用期 = 2τ = ' + (ct * 1e6).toFixed(1) +
+      'μs ｜ 最小帧长 = 2τ×R = ' + Math.round(bits) + ' bit ≈ ' + Math.round(bytes) + ' 字节（经典 10M 以太网固定为 64 字节，因其争用期被标准化为 51.2μs）';
+  }
+  dSlider.addEventListener('input', calc);
+  rSlider.addEventListener('input', calc);
+  calc();
+  var rightAns = '1000 bit（125 字节）';
+  var optExplain = {
+    '0': '错在用了单程 τ=5μs：冲突必须等「最远端也在发」的信号跑回来才能被检测，要按 2τ=10μs 算。',
+    '1': '对。争用期 = 2τ = 10μs，最小帧长 = 10μs × 100Mb/s = 1000bit = 125 字节。发送方保证发完最短帧前能听到冲突。',
+    '2': '512bit=64 字节是 10Mb/s 经典以太网（争用期 51.2μs）的固定口径；本题参数变了要重算，不能背数字。',
+    '3': '单位换算丢了量级：μs 与 Mb/s 相乘得到的是 bit，不是几十 bit。'
+  };
+  var btns = document.querySelectorAll('#lab1 [data-opt]');
+  for (var bi = 0; bi < btns.length; bi++) {
+    (function (b) {
+      b.addEventListener('click', function () {
+        var t = b.textContent;
+        if (t === rightAns) { fb1.textContent = '✅ ' + optExplain['1']; fb1.className = 'lab-feedback ok'; }
+        else { fb1.textContent = '❌ ' + (optExplain[b.getAttribute('data-opt')] || '再想想 2τ 的来历。'); fb1.className = 'lab-feedback bad'; }
+      });
+    })(btns[bi]);
+  }
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['集线器', '什么都不隔离：全网 1 个冲突域 + 1 个广播域'],
+    ['交换机', '每端口 1 个冲突域，但默认全网仍是 1 个广播域'],
+    ['VLAN', '把 1 个广播域切成 N 个'],
+    ['路由器', '每接口 1 个广播域，广播不出接口']
+  ];
+  var lBox = document.getElementById('match-left'), rBox = document.getElementById('match-right');
+  var selL = null, done = 0, fb2 = document.getElementById('lab2-fb');
+  function buildMatch() {
+    selL = null; done = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        var all = lBox.querySelectorAll('.match-opt');
+        for (var i = 0; i < all.length; i++) all[i].classList.remove('sel');
+        d.classList.add('sel'); selL = d;
+        fb2.textContent = '已选「' + p[0] + '」，请在右列点它的隔离效果。';
+        fb2.className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { fb2.textContent = '先点左列一个设备/技术。'; fb2.className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; done++;
+          fb2.textContent = '✅ 配对成功 ' + done + '/4。记住：冲突看「撞车」，广播看「喇叭」，两个域别混。';
+          fb2.className = 'lab-feedback ok';
+        } else {
+          fb2.textContent = '❌ 混淆了。判断：它管的是「同时发送会撞车」（冲突域），还是「一喊全城都听见」（广播域）？「' + selL.dataset.k + '」不对应「' + d.textContent.slice(0, 12) + '…」。';
+          fb2.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  document.getElementById('match-reset').addEventListener('click', function () { buildMatch(); fb2.textContent = ''; fb2.className = 'lab-feedback'; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

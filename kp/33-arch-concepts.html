@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>33 · 软件架构概念与4+1视图 · 架构师学堂</title>
+<meta name="description" content="架构=难以更改的早期决策集，4+1视图让不同干系人各看各的图纸。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="29-oo-basics.html">前置 29</a></span>
+    <span class="badge dep"><a href="30-uml.html">前置 30</a></span>
+    <h1>33 · 软件架构概念与4+1视图</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">架构=难以更改的早期决策集，4+1视图给干系人分工看。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某团队开发医保结算系统，项目经理说「架构嘛，就是画几张框图，编码完了自然就有」。三个月后政策变化要求更换数据库厂商，评估结果是：因为代码里到处写死了 SQL 与存储过程，要改动 40% 的模块、工期 2 个月。老板问架构师：为什么早期几个决定，会变成现在改不动的墙？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>「选哪个数据库、允不允许业务代码直接写 SQL、模块之间怎么交互」这些决策在项目第 1 周就做了，但它们像城市总体规划一样<b>决定之后所有建设都得沿着它走</b>——这就是软件架构的本质：一组<b>难以更改、影响全局的早期决策</b>。框图只是架构的「照片」，不是架构本身。架构做对了，后面是盖楼；架构做错了，后面是拆楼。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>学本点之前，先回忆两个前置点：<b>29 · 面向对象基础</b>（逻辑视图的领域模型用的就是类与对象）和 <b>30 · UML建模</b>（4+1 每个视图都有对应的 UML 图）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><b>软件架构（Software Architecture）</b>是系统最基本的组织结构：由<b>构件（Component）</b>、<b>连接件（Connector）</b>和<b>约束（Constraint，也称配置规则）</b>组成，是系统在建造之初作出的一组<b>难以更改的决策集合</b>。用城市规划馆的话说：架构=这座城市的<b>总体规划（总规）</b>——功能往哪放、路网怎么走、红线画在哪，一旦楼房盖起来就很难推翻。</p>
+      <ul>
+        <li><b>构件</b>：承担计算或数据存储的「东西」，如过滤器、数据库、客户端、服务模块。→ 城市里的「功能区、建筑」。</li>
+        <li><b>连接件</b>：构件之间<b>怎么交互</b>的机制，如管道、RPC 调用、事件广播、消息队列。→ 城市里的「道路与管线」。</li>
+        <li><b>约束/配置</b>：构件与连接件如何组合的规则，如「所有对外访问必须经过网关」「每层只能调用相邻下层」。→ 城市里的「规划红线与限高」。</li>
+      </ul>
+      <h3>解决什么问题</h3>
+      <p>没有架构的系统像没有总规的城市：谁来了都随便盖，最后路不通、水不对、拆不动。架构的存在解决四件事：<b>①沟通</b>——给所有干系人（stakeholder）一张共同语言的总图；<b>②早期决策</b>——把最贵、最难改的决定放到最前面做；<b>③复用</b>——架构风格、参考架构、产品线架构都是可复用的「规划套路」；<b>④早期验证风险</b>——楼没盖就能靠评估发现「抗震不达标」（详见 44 · 架构评估）。</p>
+      <h3>核心机制：架构师的四项职责</h3>
+      <table class="tbl">
+        <tr><th>职责</th><th>干什么</th><th>一句话理解</th></tr>
+        <tr><td>领导与协调</td><td>协调投资方、用户、开发、运维等各方诉求</td><td>规划公示会的主持人</td></tr>
+        <tr><td>保证概念完整性</td><td>全局风格、命名、接口口径统一，不让系统变成「拼盘」</td><td>全城一个总规，不各自为政</td></tr>
+        <tr><td>关键技术决策</td><td>技术选型、架构风格、数据分布等拍板并说明理由</td><td>定路网、定功能分区</td></tr>
+        <tr><td>架构评估与演化</td><td>动工前评估、运行中随业务演化调整</td><td>总规要年检、要修编</td></tr>
+      </table>
+      <h3>关键细节：4+1 视图（Kruchten，年年必考）</h3>
+      <p>一张图不可能同时回答所有人的问题，所以用 <b>4 个视图 + 1 个场景</b>分别面向不同干系人：</p>
+      <table class="tbl">
+        <tr><th>视图</th><th>回答什么问题</th><th>主要干系人</th><th>常用 UML 对应</th></tr>
+        <tr><td><b>逻辑视图</b></td><td>功能：系统提供给用户的服务与功能分解（类、对象）</td><td>最终用户</td><td>类图、对象图</td></tr>
+        <tr><td><b>进程视图</b></td><td>并发与性能：进程/线程划分、并发、同步、分布</td><td>系统集成者</td><td>活动图等（教材口径）</td></tr>
+        <tr><td><b>开发视图</b></td><td>代码组织：模块、包、代码库分层与依赖</td><td>程序员</td><td>构件图等</td></tr>
+        <tr><td><b>物理视图</b></td><td>部署映射：软件装到哪些硬件、网络拓扑</td><td>系统工程师</td><td>部署图</td></tr>
+        <tr><td><b>场景（+1）</b></td><td>用关键用例把四个视图串接起来，验证相互一致</td><td>全体（用户代表）</td><td>用例图</td></tr>
+      </table>
+      <p>架构的好处可浓缩为一句话：<b>复用（风格/产品线）、沟通（共同语言）、早期验证（降低风险）</b>。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>architecture（架构）· component（构件）· connector（连接件）· stakeholder（干系人）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①「架构=概要设计」不准确：架构是设计的组成部分，但特指<b>全局性、难以更改的早期决策</b>；② 4+1 是「4 个视图 + 1 个场景」，场景不是与四者并列的第五张平面图，而是<b>验证手段</b>；③ <b>逻辑视图≠开发视图</b>：逻辑讲「功能领域模型」（给用户），开发讲「代码怎么分包」（给程序员）；④ <b>进程视图≠物理视图</b>：进程讲运行时的并发结构，物理讲部署到哪台机器；⑤ 干系人口径按教材：进程→系统集成者，物理→系统工程师。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>软件系统是一座城市，<b>架构就是城市总规</b>：动工之前先决定哪里是住宅区（功能分区=架构风格）、马路怎么修（连接件=道路管线）、限高红线画在哪（约束）。规划要向市民公示（干系人沟通），规划一旦实施，改一条路的代价远高于改一张图（早期决策难更改）。而且总规不是一张图：给市民看功能布局图、给施工方看管线图、给交警看路网图——<b>这正是 4+1 视图</b>。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>城市总规</td><td>软件架构（早期决策集合）</td><td>成立</td></tr>
+      <tr><td>功能区划套路</td><td>架构风格（34页起）</td><td>成立</td></tr>
+      <tr><td>道路、管线</td><td>连接件</td><td>成立</td></tr>
+      <tr><td>规划红线、限高</td><td>约束</td><td>成立</td></tr>
+      <tr><td>给不同部门看不同专题图</td><td>4+1 视图面向不同干系人</td><td>成立</td></tr>
+      <tr><td>总规可以逐年修编、边用边改</td><td>架构修改</td><td><b>失效</b>：现实城市可渐进改造，软件架构一旦实现，修改代价随规模急剧上升，大系统改架构≈局部重建</td></tr>
+    </table>
+    <div class="rhyme">总规一动定乾坤，构件连接约束存；<br>逻辑功能答用户，进程并发集成问；<br>开发模块程序员，物理部署机器跟；<br>场景用例串四图，动工之前验真身。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示：同一座「系统大厦」，四类干系人从四个角度各取所需，最后一个用例（场景）把四个视图串起来做一致性验证。播放看探照灯依次扫过各视图；拖动「视图」滑块可直接跳转。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>视图 <input type="range" id="view-slider" min="0" max="4" step="1" value="0"> <span id="view-out">逻辑视图</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：视图 ↔ 谁最关心什么</h4>
+      <p class="foreshadow">先点左列一个视图，再点右列对应的干系人与关注点：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（归类判断）：这条决策属于构件、连接件还是约束？</h4>
+      <p class="foreshadow">口诀：名词（承担计算存储的东西）=构件；动词（交互机制）=连接件；规矩（必须遵守的组合规则）=约束。</p>
+      <div id="cls-item" style="font-weight:600;margin:6px 0"></div>
+      <div>
+        <button class="btn" data-c="构件">构件</button>
+        <button class="btn" data-c="连接件">连接件</button>
+        <button class="btn" data-c="约束">约束</button>
+      </div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+      <button class="btn primary" id="cls-next" style="display:none;margin-top:6px">下一题 →</button>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（对号入座）：这句话该看哪张视图？</h4>
+      <div id="vq-item" style="font-weight:600;margin:6px 0"></div>
+      <div>
+        <button class="btn" data-v="逻辑视图">逻辑视图</button>
+        <button class="btn" data-v="进程视图">进程视图</button>
+        <button class="btn" data-v="开发视图">开发视图</button>
+        <button class="btn" data-v="物理视图">物理视图</button>
+      </div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+      <button class="btn primary" id="vq-next" style="display:none;margin-top:6px">下一题 →</button>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换一个场景，还是考「视图选干系人」：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>29 · 面向对象基础</b>给了逻辑视图的素材——领域模型就是类与对象；<b>30 · UML建模</b>给了表达工具——4+1 每个视图都能落到具体 UML 图上。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>34 · 架构风格</b>：风格是架构早期决策中最重要的一类「规划套路」；</li>
+      <li><b>41 · ADL与架构文档</b>：架构必须文档化，ADL 把构件/连接件/约束写成机器可分析的形式；</li>
+      <li><b>42 · 质量属性</b>：架构好不好，要用质量属性场景来验收——视图是验收的对象。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>逻辑视图</th><th>开发视图</th></tr>
+      <tr><td>差异点</td><td>功能与领域模型：系统提供什么服务</td><td>代码组织：模块、包、源码目录怎么分</td></tr>
+      <tr><td>面向谁</td><td>最终用户（领域专家）</td><td>程序员（开发管理者）</td></tr>
+      <tr><td>易错点</td><td>常被误当成「给开发看的」</td><td>常与逻辑视图画成同一张图——领域类≠代码模块，二者允许不一致</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">逻辑视图画「城市功能分区图」（给市民看），开发视图画「施工标段划分图」（给施工队看）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——盖一座城市之前要先画总规……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 架构=构件+连接件+约束组成的、难以更改的早期决策集合，价值在复用、沟通、早期验证风险。</li><li>② 架构师四职责：领导协调、保证概念完整性、关键技术决策、评估与演化。</li><li>③ 4+1 视图：逻辑-功能-用户、进程-并发-集成者、开发-代码-程序员、物理-部署-系统工程师，场景用例串四图验证一致。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '33', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '软件架构概念与4+1视图',
+  prev: '32-maintenance-cmm.html', prevTitle: '32 · 维护、配置管理与CMMI',
+  next: '34-styles-dataflow.html', nextTitle: '34 · 架构风格：数据流与调用返回',
+  keywords: ['软件架构','构件','连接件','约束','逻辑视图','进程视图','物理视图','场景']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（真实前置点 29 / 30） ---- */
+  CX.renderQuiz('#quiz-recall', [
+    { q: '【回忆·29】面向对象中「多态」指的是什么？',
+      opts: [
+        { t: '同一个消息发给不同对象，产生不同的行为', why: '对：接口一致、实现各异，重写与动态绑定是它的实现基础。' },
+        { t: '一个类有很多属性', why: '属性多少与多态无关。' },
+        { t: '对象有很多副本', why: '那是克隆/实例化，不是多态。' }
+      ],
+      ans: 0, tag: '回忆:29', src: '仿真题' },
+    { q: '【回忆·30】UML 中表达「对象之间按时间先后传递消息」的图是？',
+      opts: [
+        { t: '顺序图（序列图）', why: '对：纵向时间轴+横向生命线，专画消息时序——进程视图描述并发交互时会用到这类图。' },
+        { t: '类图', why: '类图是静态结构图，不表达时间。' },
+        { t: '部署图', why: '部署图画软件到硬件的映射，不画消息时序。' }
+      ],
+      ans: 0, tag: '回忆:30', src: '仿真题' }
+  ], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '下列关于软件架构的说法，最准确的是哪一项？',
+      opts: [
+        { t: '软件架构就是系统的概要设计图纸', why: '表面化：图纸只是架构的记录，架构的本质是一组决策，不只是图。' },
+        { t: '软件架构是由构件、连接件和约束组成的、难以更改的早期决策集合', why: '对。三要素+「早期且难改」两个定语，是教材口径的核心定义。' },
+        { t: '架构在编码完成后自然形成', why: '那是事后补记，失去了指导开发和早期控险的价值。' },
+        { t: '架构等同于技术栈选型', why: '技术选型只是架构决策的一小部分，还包括风格、数据分布、部署等。' }
+      ],
+      ans: 1, tag: '核心定义', src: '仿真题' },
+    { q: '4+1 视图中，进程视图主要面向哪类干系人？',
+      opts: [
+        { t: '最终用户', why: '最终用户关心功能，对应逻辑视图。' },
+        { t: '程序员', why: '程序员关心代码组织，对应开发视图。' },
+        { t: '系统集成者', why: '对。进程视图回答并发、性能、同步问题，面向系统集成者（教材口径）。' },
+        { t: '系统工程师', why: '系统工程师关心部署映射，对应物理视图。' }
+      ],
+      ans: 2, tag: '4+1视图', src: '仿真题' },
+    { q: '4+1 中「+1」的场景（Scenarios）视图，其独特作用是？',
+      opts: [
+        { t: '记录数据库表结构', why: '表结构属于数据设计，不是场景视图的内容。' },
+        { t: '用关键用例把四个视图串接起来，验证各视图的一致性', why: '对。场景是「验证器」：一个用例走下来，四张图都对得上才说明架构自洽。' },
+        { t: '描述代码分支管理策略', why: '属于配置管理范畴（见 32 页）。' },
+        { t: '替代其余四个视图，一张图包打天下', why: '恰恰相反：场景不能替代视图分离，它依赖四个视图存在。' }
+      ],
+      ans: 1, tag: '场景视图', src: '仿真题' },
+    { q: '【交错复习·30】下列 UML 图中，属于静态图（结构图）的是？',
+      opts: [
+        { t: '活动图', why: '动态图，描述工作流。' },
+        { t: '顺序图', why: '动态图，描述消息时序。' },
+        { t: '部署图', why: '对。部署图描述硬件节点与软件的部署映射，是静态结构图——它正是 4+1 物理视图的对应图。' },
+        { t: '状态图', why: '动态图，描述对象状态迁移。' }
+      ],
+      ans: 2, tag: '交错复习:30', src: '仿真题' },
+    { q: '「架构决策要趁早做」最充分的理由是？',
+      opts: [
+        { t: '越早画图越省成本，纸最便宜', why: '架构不是纸面工作，理由不在于画图本身。' },
+        { t: '架构决策影响全局、越晚修改代价越大，且早期就能以架构为载体做复用与风险验证', why: '对。难更改+全局影响决定它必须前置，评估（44页）让风险在动工前暴露。' },
+        { t: '需求还没定就可以先把架构定死', why: '架构必须响应关键需求与质量属性，脱离需求的「早」是赌博。' },
+        { t: '架构师只有项目初期有空', why: '与人员日程无关。' }
+      ],
+      ans: 1, tag: '架构价值', src: '仿真题' }
+  ], { kpId: '33', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某市「智慧停车」项目评审会上各方争执不休：投资方拿着一摞部署图说看不懂功能；运维只关心服务器和网段；开发经理坚持先讨论代码仓库分包；性能团队要求先定并发模型，四方都觉得对方「跑题」。',
+    q: '(1) 指出四方各自应看 4+1 中的哪个视图；(2) 说明场景视图在本项目中的作用；(3) 论述「用一张总图包打天下」为什么行不通。',
+    ref: '(1) 投资方→逻辑视图（功能与投资价值对应的服务清单）；运维→物理视图（服务器、网络、部署映射）；开发经理→开发视图（代码组织与分包）；性能团队→进程视图（并发、进程线程划分）。(2) 场景视图用关键用例（如「车辆入场识别—计费—抬杆」）把四个视图串接起来验证一致性：功能有入口、并发模型承载得住、代码模块能实现、部署资源放得下。(3) 不同干系人的关注点、抽象层级、术语体系不同，一张图信息过载且无法同时满足精确性与可读性；视图分离让每类人「各看各的、各改各的」，用场景保证视图间不脱节。',
+    points: ['四方与视图对应全部正确（逻辑/物理/开发/进程）', '说出场景=用例串接四视图做一致性验证，而非第五张平面图', '能从「干系人关注点不同、抽象层级不同」论证视图分离的必要性'],
+    frame: '答题框架：先按干系人逐一对号视图（列表给分点）→ 再说场景的黏合作用 → 最后从沟通效率与一致性两个角度立论。',
+    kpId: '33'
+  });
+  CX.renderCase('#case2', {
+    stem: '某项目总监认为「架构就是画模块框图，等编码完了自然有架构」。项目三个月后更换数据库厂商时，因业务代码到处写死 SQL 与存储过程，评估需改动 40% 的模块；同时三个子系统各自为政，接口命名、错误码、日志格式互不兼容。',
+    q: '(1) 指出该总监观点的两个错误；(2) 结合本例说明为什么架构是「难以更改的早期决策集合」；(3) 列出架构师在本项目应承担的四项职责，并各配一句改进措施。',
+    ref: '(1) 错误一：把架构等同于图纸——架构是「构件+连接件+约束」的决策集合，图纸只是记录载体；错误二：认为架构可以事后形成——早期决策（数据访问方式、接口口径）在编码前就已锁定，事后只能补救。(2) 数据访问方式、是否允许直连数据库、统一网关与否，这类决策在第一周就影响所有模块的写法，后续每个功能都「长」在它上面，所以换库=动 40% 模块；越晚发现越贵，故曰「难以更改的早期决策」。(3) ①领导与协调——把各子系统负责人拉进同一套接口规范评审；②概念完整性——统一命名、错误码、日志规范，一人终审；③关键技术决策——数据访问层统一（如统一 DAO/ORM 隔离 SQL），并书面记录理由；④架构评估与演化——编码前做一次架构评审/原型验证数据访问层方案，运行期持续监控演化。',
+    points: ['指出「架构=图纸」与「事后形成」两个错误并给出正确定义', '用本例数据（40% 模块改动）论证早期决策的全局性与难更改性', '四项职责齐全且每项都有可操作的改进措施，概念完整性一职责必须点名'],
+    frame: '答题框架：驳论（错在哪）→ 定义回扣（三要素+早期决策）→ 案例证据（数据）→ 职责清单逐条给措施。',
+    kpId: '33'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某医院 HIS 系统架构评审：信息科长只想确认「系统部署在哪些机房、与医保专网如何打通」，他应该重点审查哪张视图？',
+    opts: [
+      { t: '逻辑视图', why: '逻辑视图讲功能，答不了部署与网络。' },
+      { t: '物理视图', why: '对。部署映射与网络拓扑正是物理视图的内容，面向系统工程师/信息科这类角色。' },
+      { t: '开发视图', why: '开发视图讲代码分包，与机房网络无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '33', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['29', '30'], 'prev');
+  CX.depChain('#bridge-next', ['34', '41', '42'], 'next');
+
+  /* ---- 动画：4+1 视图探照灯 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var viewNames = ['逻辑视图', '进程视图', '开发视图', '物理视图', '场景视图(+1)'];
+  var caps = [
+    '逻辑视图：面向最终用户——「系统能做什么？」功能分解与领域模型。',
+    '进程视图：面向系统集成者——「并发与性能怎么保证？」进程/线程与同步。',
+    '开发视图：面向程序员——「代码怎么组织？」模块、包与依赖。',
+    '物理视图：面向系统工程师——「部署到哪些机器？」软件到硬件的映射。',
+    '场景视图：用关键用例把四个视图串起来，动工前验证相互一致。'
+  ];
+  function draw(t) {
+    var idx = Math.min(4, Math.floor(t * 5));
+    var corner = [[90, 70], [630, 70], [90, 255], [630, 255]];
+    var who = ['最终用户', '系统集成者', '程序员', '系统工程师'];
+    var s = '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="320" rx="12" fill="var(--bg-soft)"/>';
+    var i;
+    /* 探照灯连线 */
+    if (idx < 4) {
+      s += '<line x1="360" y1="162" x2="' + corner[idx][0] + '" y2="' + corner[idx][1] + '" stroke="var(--accent-2)" stroke-width="3" stroke-dasharray="6 6"/>';
+    } else {
+      for (i = 0; i < 4; i++) s += '<line x1="360" y1="162" x2="' + corner[i][0] + '" y2="' + corner[i][1] + '" stroke="var(--ok)" stroke-width="2" stroke-dasharray="4 7" opacity=".8"/>';
+    }
+    /* 四角干系人 */
+    for (i = 0; i < 4; i++) {
+      var on = (idx === i) || idx === 4;
+      s += '<rect x="' + (corner[i][0] - 72) + '" y="' + (corner[i][1] - 26) + '" width="144" height="52" rx="10" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" opacity="' + (on ? '.18' : '1') + '" stroke="' + (on ? 'var(--accent-2)' : 'var(--line)') + '"/>';
+      s += '<text x="' + corner[i][0] + '" y="' + (corner[i][1] - 4) + '" text-anchor="middle" font-size="13" fill="var(--text)">' + who[i] + '</text>';
+      s += '<text x="' + corner[i][0] + '" y="' + (corner[i][1] + 15) + '" text-anchor="middle" font-size="12" fill="' + (on ? 'var(--accent-2)' : 'var(--text-dim)') + '">' + viewNames[i] + '</text>';
+    }
+    /* 中央大厦 */
+    s += '<rect x="295" y="105" width="130" height="115" rx="8" fill="var(--card-2)" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="360" y="238" text-anchor="middle" font-size="12" fill="var(--text-dim)">系统大厦（同一套架构）</text>';
+    /* 视图内容 */
+    if (idx === 0) {
+      var fx = [312, 352, 392];
+      var fn = ['预约', '计费', '报表'];
+      for (i = 0; i < 3; i++) {
+        s += '<rect x="' + fx[i] + '" y="125" width="34" height="40" rx="4" fill="var(--accent)" opacity=".25" stroke="var(--accent)"/>';
+        s += '<text x="' + (fx[i] + 17) + '" y="180" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + fn[i] + '</text>';
+      }
+    } else if (idx === 1) {
+      s += '<line x1="310" y1="125" x2="410" y2="125" stroke="var(--ok)" stroke-width="3"/><text x="416" y="129" font-size="10" fill="var(--text-dim)">计费进程</text>';
+      s += '<line x1="310" y1="150" x2="410" y2="150" stroke="var(--ok)" stroke-width="3"/><text x="416" y="154" font-size="10" fill="var(--text-dim)">查询进程</text>';
+      s += '<line x1="310" y1="175" x2="410" y2="175" stroke="var(--ok)" stroke-width="3"/><text x="416" y="179" font-size="10" fill="var(--text-dim)">推送进程</text>';
+      s += '<text x="360" y="205" text-anchor="middle" font-size="11" fill="var(--warn)">并发 · 同步 · 吞吐</text>';
+    } else if (idx === 2) {
+      s += '<rect x="312" y="122" width="96" height="24" rx="4" fill="none" stroke="var(--accent)"/><text x="360" y="138" text-anchor="middle" font-size="10" fill="var(--text-dim)">com.parking</text>';
+      s += '<rect x="312" y="152" width="44" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="334" y="166" text-anchor="middle" font-size="9" fill="var(--text-dim)">ui</text>';
+      s += '<rect x="364" y="152" width="44" height="20" rx="4" fill="none" stroke="var(--line)"/><text x="386" y="166" text-anchor="middle" font-size="9" fill="var(--text-dim)">svc</text>';
+      s += '<text x="360" y="196" text-anchor="middle" font-size="11" fill="var(--warn)">分包 · 依赖 · 代码库</text>';
+    } else if (idx === 3) {
+      s += '<rect x="308" y="122" width="44" height="52" rx="4" fill="none" stroke="var(--bad)"/><text x="330" y="152" text-anchor="middle" font-size="10" fill="var(--text-dim)">机房A</text>';
+      s += '<rect x="368" y="122" width="44" height="52" rx="4" fill="none" stroke="var(--bad)"/><text x="390" y="152" text-anchor="middle" font-size="10" fill="var(--text-dim)">机房B</text>';
+      s += '<text x="360" y="196" text-anchor="middle" font-size="11" fill="var(--warn)">双机部署 · 网络拓扑</text>';
+    } else {
+      s += '<ellipse cx="360" cy="145" rx="52" ry="18" fill="var(--ok)" opacity=".18" stroke="var(--ok)"/>';
+      s += '<text x="360" y="149" text-anchor="middle" font-size="11" fill="var(--ok)">用例:入场计费</text>';
+      s += '<text x="360" y="196" text-anchor="middle" font-size="11" fill="var(--ok)">串接四图 · 验证一致</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', caps[idx]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 15, duration: 12, onTick: draw });
+  var vs = CX.utils.$('view-slider');
+  vs.addEventListener('input', function () {
+    var vi = Math.max(0, Math.min(4, +vs.value || 0));
+    CX.utils.$('view-out').textContent = viewNames[vi];
+    anim.set((vi + 0.5) / 5);
+  });
+
+  /* ---- 实验一：连线匹配 ---- */
+  var pairs = [
+    ['逻辑视图', '最终用户——功能与服务'],
+    ['进程视图', '系统集成者——并发与性能'],
+    ['开发视图', '程序员——代码组织'],
+    ['物理视图', '系统工程师——部署映射'],
+    ['场景(+1)', '用例串接四图验证一致']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab1-fb').textContent = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab1-fb').textContent = '已选「' + p[0] + '」，请在右列点它对应的人与事。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab1-fb').textContent = '先点左列一个视图。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab1-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab1-fb').textContent = '❌「' + selL.dataset.k + '」不对应「' + d.textContent + '」——回忆口诀：逻辑功能用户看，进程并发集成者，开发代码程序员，物理部署工程师。';
+          CX.utils.$('lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', buildMatch);
+
+  /* ---- 实验二：构件/连接件/约束归类 ---- */
+  var clsItems = [
+    { t: '订单数据库服务器', c: '构件', why: '承担存储的「东西」——构件。' },
+    { t: '过滤器之间的管道', c: '连接件', why: '管道是构件间的交互机制——连接件。' },
+    { t: '所有对外访问必须经过统一网关', c: '约束', why: '强制性的组合规则——约束。' },
+    { t: '报表生成模块', c: '构件', why: '承担计算的单元——构件。' },
+    { t: '客户端与服务器之间的 RPC 调用机制', c: '连接件', why: 'RPC 是交互机制——连接件。' },
+    { t: '关键数据必须加密存储', c: '约束', why: '必须遵守的规矩——约束。' }
+  ];
+  var clsIdx = 0, clsOk = 0;
+  var clsItem = CX.utils.$('cls-item'), clsFb = CX.utils.$('lab2-fb'), clsNext = CX.utils.$('cls-next');
+  function showCls() {
+    clsItem.textContent = '第 ' + (clsIdx + 1) + '/' + clsItems.length + ' 条：「' + clsItems[clsIdx].t + '」';
+    clsFb.textContent = ''; clsFb.className = 'lab-feedback'; clsNext.style.display = 'none';
+  }
+  showCls();
+  CX.utils.$$('#lab2 .btn[data-c]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var it = clsItems[clsIdx];
+      if (b.dataset.c === it.c) {
+        clsOk++;
+        clsFb.textContent = '✅ 正确——' + it.why;
+        clsFb.className = 'lab-feedback ok';
+      } else {
+        clsFb.textContent = '❌ 你选了「' + b.dataset.c + '」，但它属于「' + it.c + '」——' + it.why + '（判断口诀：名词=构件，动词=连接件，规矩=约束）';
+        clsFb.className = 'lab-feedback bad';
+      }
+      CX.utils.$$('#lab2 .btn[data-c]').forEach(function (x) { x.disabled = true; });
+      clsNext.style.display = '';
+    });
+  });
+  clsNext.addEventListener('click', function () {
+    CX.utils.$$('#lab2 .btn[data-c]').forEach(function (x) { x.disabled = false; });
+    clsIdx++;
+    if (clsIdx >= clsItems.length) {
+      clsItem.textContent = '完成！答对 ' + clsOk + '/' + clsItems.length + '。';
+      clsNext.style.display = 'none';
+      clsFb.textContent = clsOk === clsItems.length ? '🎉 全对！三要素已经分得清。' : '再想想错的那几条：构件是名词、连接件是动词、约束是规矩。';
+      clsFb.className = 'lab-feedback ' + (clsOk === clsItems.length ? 'ok' : 'bad');
+      clsIdx = 0; clsOk = 0;
+      setTimeout(showCls, 1800);
+      return;
+    }
+    showCls();
+  });
+
+  /* ---- 实验三：对号入座 ---- */
+  var vq = [
+    { s: '运维组长问：「上线要几台服务器？网段怎么规划？」', a: '物理视图', why: '部署映射——物理视图面向系统工程师/运维。' },
+    { s: '开发经理问：「代码仓库怎么分包？模块依赖怎么定？」', a: '开发视图', why: '代码组织——开发视图面向程序员。' },
+    { s: '性能团队问：「秒杀 1 万并发，进程线程怎么分？」', a: '进程视图', why: '并发与性能——进程视图面向系统集成者。' },
+    { s: '产品经理问：「系统到底给用户提供哪些功能？」', a: '逻辑视图', why: '功能与服务——逻辑视图面向最终用户。' }
+  ];
+  var vqIdx = 0, vqOk = 0;
+  var vqItem = CX.utils.$('vq-item'), vqFb = CX.utils.$('lab3-fb'), vqNext = CX.utils.$('vq-next');
+  function showVq() {
+    vqItem.textContent = '第 ' + (vqIdx + 1) + '/' + vq.length + ' 句：' + vq[vqIdx].s;
+    vqFb.textContent = ''; vqFb.className = 'lab-feedback'; vqNext.style.display = 'none';
+  }
+  showVq();
+  CX.utils.$$('#lab3 .btn[data-v]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var it = vq[vqIdx];
+      if (b.dataset.v === it.a) {
+        vqOk++; vqFb.textContent = '✅ 正确——' + it.why; vqFb.className = 'lab-feedback ok';
+      } else {
+        vqFb.textContent = '❌ 你选了「' + b.dataset.v + '」，正确是「' + it.a + '」——' + it.why;
+        vqFb.className = 'lab-feedback bad';
+      }
+      CX.utils.$$('#lab3 .btn[data-v]').forEach(function (x) { x.disabled = true; });
+      vqNext.style.display = '';
+    });
+  });
+  vqNext.addEventListener('click', function () {
+    CX.utils.$$('#lab3 .btn[data-v]').forEach(function (x) { x.disabled = false; });
+    vqIdx++;
+    if (vqIdx >= vq.length) {
+      vqItem.textContent = '完成！答对 ' + vqOk + '/' + vq.length + '。';
+      vqNext.style.display = 'none';
+      vqFb.textContent = vqOk === vq.length ? '🎉 四张视图你已经能熟练对号。' : '口诀再念一遍：逻辑功能用户看，进程并发集成者，开发代码程序员，物理部署工程师。';
+      vqFb.className = 'lab-feedback ' + (vqOk === vq.length ? 'ok' : 'bad');
+      vqIdx = 0; vqOk = 0;
+      setTimeout(showVq, 1800);
+      return;
+    }
+    showVq();
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

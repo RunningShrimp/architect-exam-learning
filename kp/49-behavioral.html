@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>49 · 行为型模式 · 架构师学堂</title>
+<meta name="description" content="行为型模式管协作：观察者听广播，策略可换算法，状态随态换招，责任链逐级上报——状态自己换、策略你来选。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">📐 标准图纸馆</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="46-principles-gof.html">前置 46</a></span>
+    <h1>49 · 行为型模式</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">行为型模式管协作：观察者听广播，责任链逐级上报，状态机随态换招。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某电商订单系统的 orderService 里，「status」字段被 12 个方法的 if-else 反复判读：待支付、已支付、已发货、已完成、已取消……现在产品要新增「已锁定」状态（风控冻结），开发评估要改 12 处且互相牵连；与此同时，运营要求「支付成功后」自动触发：通知仓配、加积分、发短信——以后还会加更多触发动作，但不能因为某个下游慢就拖住主流程。两个问题，各选哪张「协作图纸」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>前者是<strong>状态模式</strong>：把每种状态封装成独立的状态类，持有「在该状态下各请求如何响应 + 状态完了切到谁」的知识，上下文只委托当前状态——新增状态=新增一个状态类，12 处 if-else 归零。后者是<strong>观察者</strong>：订单作为主题发布「支付成功」事件，仓配/积分/短信各自订阅，一对多解耦、主流程不认识下游（同步观察者仍有拖累风险，改进到异步/消息队列在 40 页等着）。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>46 · 设计原则与GoF总览</b>：行为型是三柜中最大的一柜，共几个模式？</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>行为型模式（11 个）</strong>管「<strong>对象之间怎么分工协作、职责怎么分配、消息怎么流动</strong>」。结构型拼好了房子，行为型决定谁开门、谁烧水、谁给谁传话。</p>
+      <h3>解决什么问题</h3>
+      <p>协作写坏的三种病：①<strong>硬编码触发</strong>——一方直接调用另一方，改一方动全身；②<strong>算法/行为写死</strong>——换一种做法要翻遍业务代码；③<strong>状态 if-地狱</strong>——行为散落在各处判读同一状态字段。11 个模式各堵一类病。</p>
+      <h3>核心机制：11 张图，前 6 个重点讲，后 5 个认脸</h3>
+      <table class="tbl">
+        <tr><th>模式</th><th>意图</th><th>城市比喻</th><th>适用场景</th></tr>
+        <tr><td><b>观察者</b> Observer</td><td>一对多依赖：主题状态变化<strong>自动通知</strong>所有订阅者</td><td><strong>订报纸</strong>：报社只管印，订户自动收</td><td>事件广播、消息订阅、UI 监听（发布-订阅的原型）</td></tr>
+        <tr><td><b>策略</b> Strategy</td><td>封装一族<strong>可互相替换的算法</strong>，客户按需选用</td><td><strong>导航让你选</strong>最快/最省/最短</td><td>算法可切换：促销计价、排序选择、支付路由</td></tr>
+        <tr><td><b>命令</b> Command</td><td>把<strong>请求封装成对象</strong>，可排队、日志、撤销</td><td><strong>餐厅点单</strong>：订单小票在厨房排队</td><td>任务队列、撤销/重做、操作日志</td></tr>
+        <tr><td><b>状态</b> State</td><td>行为随内部状态改变，<strong>状态对象知道自己切到谁</strong></td><td><strong>红绿灯</strong>：灯自己按节奏换颜色</td><td>状态机：订单流转、审批流、游戏角色状态</td></tr>
+        <tr><td><b>职责链</b> Chain of Responsibility</td><td>请求沿处理者链传递，<strong>谁合适谁处理</strong></td><td><strong>报销逐级审批</strong>：金额定去找谁签</td><td>审批分级、过滤器链、拦截器</td></tr>
+        <tr><td><b>模板方法</b> Template Method</td><td>父类定<strong>算法骨架</strong>，子类填<strong>特定步骤</strong></td><td><strong>流水线固定工序</strong>，个别工位换件</td><td>流程固定细节多变：冲泡饮品、导出器骨架</td></tr>
+        <tr><td>迭代器 Iterator</td><td>不暴露内部结构，顺序访问聚合元素</td><td>图书管理员按单取书</td><td>遍历容器（for-each 的底层）</td></tr>
+        <tr><td>中介者 Mediator</td><td>封装一系列对象交互，使各方<strong>不再显式互相引用</strong></td><td><strong>机场塔台</strong>：飞机之间不直呼</td><td>网状依赖改星型：聊天室、航班调度、表单联动</td></tr>
+        <tr><td>备忘录 Memento</td><td>不破坏封装地<strong>保存并恢复</strong>对象状态</td><td><strong>游戏存档</strong></td><td>撤销、快照、事务回滚</td></tr>
+        <tr><td>访问者 Visitor</td><td><strong>数据结构不变</strong>，对其元素施加新操作（双分派）</td><td>体检队进小区：楼不动，检查项目换</td><td>结构稳定、操作多变：编译器 AST、报表统计</td></tr>
+        <tr><td>解释器 Interpreter</td><td>给定语言，定义其<strong>文法的表示与解释器</strong></td><td>规则说明书按句执行</td><td>规则引擎、表达式求值、简单 DSL</td></tr>
+      </table>
+      <h3>关键细节 1：状态 vs 策略（高频辨析，结构一样、意图不同）</h3>
+      <table class="tbl">
+        <tr><th></th><th>状态模式</th><th>策略模式</th></tr>
+        <tr><td>类图</td><td colspan="2">几乎完全相同：上下文持有抽象接口引用，指向一组同接口实现</td></tr>
+        <tr><td><b>意图</b></td><td>行为<strong>随内部状态自动流转</strong></td><td>算法<strong>由客户选择替换</strong></td></tr>
+        <tr><td>谁驱动切换</td><td><strong>状态对象自己知道下一步切到谁</strong>（红灯知道 3 秒后切绿）</td><td>各策略<strong>互相不知道对方</strong>存在，由客户传入选哪个</td></tr>
+        <tr><td>客户端感知</td><td>完全无感，用着用着「像换了个类」</td><td>明确知道在选算法（选最快还是最省）</td></tr>
+      </table>
+      <p>一句话：<strong>状态自己换，策略你来选</strong>。考题给一句「自动流转/切换到下一个」选状态，给「用户选择/配置指定」选策略。</p>
+      <h3>关键细节 2：观察者的要点</h3>
+      <p>主题维护<strong>订阅者列表</strong>，提供订阅/退订；状态变化时遍历通知（推模型：把数据塞给订阅者；拉模型：通知后订阅者自己来取）。价值：<strong>一对多解耦</strong>——主题不认识具体订阅者，新增订阅方不改主题代码（开闭）。局限：通知顺序不保证、同步通知会被慢订阅者拖住（改进=异步/消息队列，见 40 页）。</p>
+      <h3>关键细节 3：三张代表模式类图（空心三角=泛化/实现，空心菱形=聚合）</h3>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 380 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="观察者类图">
+            <rect x="14" y="16" width="160" height="72" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="94" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«abstract»</text>
+            <text x="94" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">主题（报社）</text>
+            <line x1="14" y1="56" x2="174" y2="56" stroke="var(--line)"/>
+            <text x="94" y="72" text-anchor="middle" font-size="10" fill="var(--accent-2)">- 订阅者列表</text>
+            <text x="94" y="86" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 订阅() + 通知()</text>
+            <rect x="210" y="16" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="285" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="285" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">观察者（订户）</text>
+            <line x1="210" y1="56" x2="360" y2="56" stroke="var(--line)"/>
+            <text x="285" y="70" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ update()</text>
+            <polygon points="174,44 182,39 190,44 182,49" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="190" y1="44" x2="210" y2="44" stroke="var(--text)"/>
+            <text x="200" y="36" text-anchor="middle" font-size="9" fill="var(--text-dim)">1..*</text>
+            <polygon points="94,88 84,106 104,106" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="94" y1="106" x2="94" y2="150" stroke="var(--text)"/>
+            <polygon points="285,72 275,90 295,90" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="285" y1="90" x2="285" y2="150" stroke="var(--text)"/>
+            <rect x="14" y="150" width="160" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="94" y="168" text-anchor="middle" font-size="12" fill="var(--text)">订单主题（具体）</text>
+            <line x1="14" y1="175" x2="174" y2="175" stroke="var(--line)"/>
+            <text x="94" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">状态变化 → notifyAll()</text>
+            <rect x="210" y="150" width="150" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="285" y="168" text-anchor="middle" font-size="12" fill="var(--text)">仓配/积分/短信订阅</text>
+            <line x1="210" y1="175" x2="360" y2="175" stroke="var(--line)"/>
+            <text x="285" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ update() 各自响应</text>
+            <text x="190" y="226" text-anchor="middle" font-size="11" fill="var(--accent)">订报纸：报社不认识订户是谁，只维护订阅名单</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 A · 观察者：主题聚合观察者列表（菱形在主题端），观察者各自实现 update()</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 380 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="状态模式类图">
+            <rect x="14" y="60" width="130" height="64" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="79" y="78" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">订单上下文</text>
+            <line x1="14" y1="86" x2="144" y2="86" stroke="var(--line)"/>
+            <text x="79" y="104" text-anchor="middle" font-size="10" fill="var(--accent-2)">- state: 订单状态</text>
+            <text x="79" y="118" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ request() 委托 state</text>
+            <polygon points="144,92 152,87 160,92 152,97" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="160" y1="92" x2="200" y2="92" stroke="var(--text)"/>
+            <text x="180" y="84" text-anchor="middle" font-size="9" fill="var(--text-dim)">当前态</text>
+            <rect x="202" y="16" width="160" height="60" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="282" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="282" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">订单状态</text>
+            <line x1="202" y1="56" x2="362" y2="56" stroke="var(--line)"/>
+            <text x="282" y="71" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 支付() / 发货() …</text>
+            <polyline points="205,150 205,110 233,110 233,94" fill="none" stroke="var(--text)"/>
+            <polygon points="240,76 231,94 249,94" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polyline points="322,150 322,110 293,110 293,94" fill="none" stroke="var(--text)"/>
+            <polygon points="300,76 291,94 309,94" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <rect x="150" y="150" width="110" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="205" y="168" text-anchor="middle" font-size="12" fill="var(--text)">待支付态</text>
+            <line x1="150" y1="175" x2="260" y2="175" stroke="var(--line)"/>
+            <text x="205" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">支付()→切到已支付</text>
+            <rect x="272" y="150" width="100" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="322" y="168" text-anchor="middle" font-size="12" fill="var(--text)">已支付态</text>
+            <line x1="272" y1="175" x2="372" y2="175" stroke="var(--line)"/>
+            <text x="322" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">发货()→切到下一态</text>
+            <text x="190" y="226" text-anchor="middle" font-size="11" fill="var(--accent)">状态对象知道下一步切到谁——与策略的分界就在这</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 B · 状态：上下文委托当前状态对象，切换逻辑住在状态类里</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 380 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="职责链类图">
+            <rect x="110" y="16" width="160" height="64" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="190" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«abstract»</text>
+            <text x="190" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">审批者（处理者）</text>
+            <line x1="110" y1="56" x2="270" y2="56" stroke="var(--line)"/>
+            <text x="190" y="72" text-anchor="middle" font-size="10" fill="var(--accent-2)">- next: 审批者（同类引用）</text>
+            <polyline points="86,150 86,108 143,108 143,98" fill="none" stroke="var(--text)"/>
+            <polygon points="150,80 141,98 159,98" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polyline points="294,150 294,108 237,108 237,98" fill="none" stroke="var(--text)"/>
+            <polygon points="230,80 221,98 239,98" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <rect x="16" y="150" width="140" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="86" y="168" text-anchor="middle" font-size="12" fill="var(--text)">组长（≤500 批）</text>
+            <line x1="16" y1="175" x2="156" y2="175" stroke="var(--line)"/>
+            <text x="86" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">超权限 → next.handle()</text>
+            <rect x="224" y="150" width="140" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="294" y="168" text-anchor="middle" font-size="12" fill="var(--text)">经理（≤5000 批）</text>
+            <line x1="224" y1="175" x2="364" y2="175" stroke="var(--line)"/>
+            <text x="294" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">超权限 → 继续沿链上报</text>
+            <text x="190" y="226" text-anchor="middle" font-size="11" fill="var(--accent)">链表式审批：请求进链，谁够格谁签字，其余只管传递</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 C · 职责链：处理者各自指向同类型的 next，形成链（报销逐级上报）</figcaption>
+        </figure>
+      </div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①<strong>状态 vs 策略</strong>是本域最高频陷阱：类图几乎一样，判据只有意图——「自动流转、知道下一个是谁」=状态，「客户主动选、彼此不知道」=策略；②观察者是<strong>一对多</strong>广播（主题对订阅者），中介者是<strong>多对多经中心</strong>协调（各方互不直呼塔台别认错）；③模板方法的骨架在<strong>父类且常声明为不可重写</strong>，子类只填空——把整个流程都在子类重写一遍就不是模板方法了；④命令 vs 备忘录：命令保存的是「<strong>动作</strong>」可反向执行（撤销操作），备忘录保存的是「<strong>状态快照</strong>」直接恢复（读档）；⑤访问者把操作塞进结构外部的访问者类，代价是结构类要暴露 accept()——结构常变就别用访问者。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>observer（观察者）· strategy（策略）· state（状态）。英语题常用句式：The observer pattern defines a one-to-many dependency so that when one object changes state, all its dependents are notified automatically.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在 <b>📐 标准图纸馆</b>的行为型抽屉里：<strong>订报纸</strong>——你订了报，报社出了新刊自动送上门，报社不知道你是谁（观察者）；<strong>导航让你选</strong>最快/最省/最短，选完整段路都按这套算法走（策略）；<strong>餐厅点单</strong>——小票成了对象，能排队能补开能作废（命令）；<strong>红绿灯</strong>自己按节奏换灯，车流行为跟着变（状态）；<strong>报销逐级审批</strong>，金额决定谁签字（职责链）；<strong>流水线固定工序</strong>，个别工位子类换件（模板方法）；<strong>机场塔台</strong>让二十架飞机不必互相呼喊（中介者）；<strong>游戏存档</strong>随时读回（备忘录）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>订报纸：报社印、订户收</td><td>观察者：一对多自动通知</td><td>成立</td></tr>
+      <tr><td>导航方案由你选</td><td>策略：客户选择算法</td><td>成立</td></tr>
+      <tr><td>点单小票排队、可作废</td><td>命令：请求对象化、排队撤销</td><td>成立</td></tr>
+      <tr><td>红绿灯自己换灯</td><td>状态：自动流转、知道切到谁</td><td>成立</td></tr>
+      <tr><td>报销按金额找对签字人</td><td>职责链：沿链传递、谁合适谁处理</td><td>成立</td></tr>
+      <tr><td>订报后报社盯着你读完没读</td><td>观察者=主题关心订阅者内部</td><td><b>失效</b>：主题只广播、不追踪订阅者后续行为——双向知情就越界成中介者/紧耦合了</td></tr>
+    </table>
+    <div class="rhyme">观察订报自动达，策略导航你来抓；<br>点单入队命令票，红绿自换状态家；<br>报销逐级责任链，流水工序模板搭；<br>塔台协调中介者，存档读档备忘录查。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画用红绿灯演示状态模式：播放看 红→绿→黄→红 自动流转，路口车流行为随状态改变；拖动「绿灯时长」滑块看通行效率变化。注意解说里的关键句——<strong>灯自己知道下一步切到谁</strong>，这正是状态与策略的分界。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>绿灯时长 <input type="range" id="g-slider" min="2" max="8" step="1" value="4"> <span id="g-out">4</span> 秒</label>
+      <span class="kf-caption">红灯 3 秒、黄灯 1 秒固定；绿灯时长是可调参数。绿灯越长放行越多，但对向等待也越久——真实路口这是权衡点。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（模式判类）：这个场景该选哪个行为型模式？</h4>
+      <p class="foreshadow">先点一条场景，再点模式名；选错会指出你把哪个意图弄混了。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-m="observer">观察者</button>
+        <button class="btn" data-m="strategy">策略</button>
+        <button class="btn" data-m="command">命令</button>
+        <button class="btn" data-m="state">状态</button>
+        <button class="btn" data-m="chain">责任链</button>
+        <button class="btn" data-m="template">模板方法</button>
+        <button class="btn" data-m="mediator">中介者</button>
+        <button class="btn" data-m="memento">备忘录</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（辨析专练）：状态还是策略？只看意图</h4>
+      <p class="foreshadow">六条描述类图几乎一样，判意图。口诀先默念：<b>状态自己换，策略你来选</b>。</p>
+      <div id="lab2-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-d="state">状态模式</button>
+        <button class="btn" data-d="strategy">策略模式</button>
+      </div>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（交互实验）：报社的一对多广播</h4>
+      <p class="foreshadow">点名字切换「订阅/退订」，然后点「发刊」——看主题怎么只对着名单广播：</p>
+      <div id="lab3-subs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"></div>
+      <button class="btn primary" id="lab3-pub" style="margin-top:8px">📰 发刊（主题状态变化 → notify）</button>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（状态 vs 策略）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>46 · 设计原则与GoF总览 给了三柜口诀与总纲：行为型 11 个是最大一柜——策略/状态/命令都靠「面向接口 + 运行时替换」（依赖倒置）落地，观察者的「新增订阅方不改主题」是开闭在协作层的体现。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>40 · 中间件与事件驱动：观察者的同步局限（慢订阅者拖垮主题）正是消息队列「削峰、异步、解耦」要解决的问题——发布-订阅是它在架构级的放大；</li><li>38 · SOA与微服务：中介者「网状改星型」的思想，在服务治理里变成了「编排器/服务总线」；</li><li>工作流与审批系统（项目管理域之外的工程实践）：状态 + 责任链 + 命令（审计日志）是审批流三件套。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>状态模式</th><th>策略模式</th></tr>
+      <tr><td>差异点</td><td>行为随内部状态<strong>自动流转</strong>，状态对象知道下一步切到谁</td><td>算法由<strong>客户选择</strong>注入，各策略互相不知道对方存在</td></tr>
+      <tr><td>易错点</td><td>看到「同接口一组实现类」就答策略——忘了问「谁驱动切换」</td><td>把「用户选方案」也答成状态——策略的切换主动权永远在客户端</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">状态自己换，策略你来选；类图像孪生，意图定生死。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——你订了报纸，报社一有新刊就自动送来（观察者）；导航让你挑最快还是最省的路（策略）；红绿灯不用人管，自己按节奏换灯（状态）……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 行为型 11 个管「协作」：重点六将——观察者（订报纸）、策略（导航选路）、命令（点单小票）、状态（红绿灯）、责任链（逐级审批）、模板方法（固定工序）；认脸五行——迭代器、中介者、备忘录、访问者、解释器。</li><li>② 状态 vs 策略一锤定音：状态自己换（自动流转、知道切到谁），策略你来选（客户注入、彼此不知）。</li><li>③ 观察者是一对多广播、主题不认识订阅者；中介者是多对多经塔台协调——别把塔台当报社。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '49', domain: 'pt', loc: 'blueprint', root: '..',
+  title: '行为型模式', prev: '48-structural.html', prevTitle: '48 · 结构型模式',
+  next: '50-crypto.html', nextTitle: '50 · 密码学基础',
+  keywords: ['观察者', '策略', '命令', '状态模式', '责任链', '模板方法', '中介者', '备忘录']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 46） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·46】GoF 23 个模式中，行为型这一柜共有几个？',
+    opts: [
+      { t: '5 个', why: '5 是创建型的数量（工厂方法/抽象工厂/单例/建造者/原型）。' },
+      { t: '7 个', why: '7 是结构型的数量（适配器/装饰器/代理/外观/桥接/组合/享元）。' },
+      { t: '11 个', why: '对。5+7+11=23：创建管生、结构管拼、行为管处——观察者/模板方法/策略/职责链/状态/迭代器/命令/备忘录/访问者/中介者/解释器。' },
+      { t: '23 个全是行为型', why: '23 是总数，三柜相加的结果，不是行为型单柜数。' }
+    ],
+    ans: 2, tag: '回忆:46', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '「空调控制板在 制冷/制热/除湿 三种模式间自动轮换，模式对象自己决定何时切到下一个模式，面板代码从不指定切到谁」——应选哪个模式？',
+      opts: [
+        { t: '策略：三种模式是三个可替换算法', why: '策略的切换主动权在客户；题干明确「模式对象自己决定、面板不指定」——这是状态模式的签名。' },
+        { t: '状态：行为随状态自动流转，状态对象知道下一步切到谁', why: '对。判据就一句「谁驱动切换」：自动流转=状态，客户选择=策略；类图像孪生，意图定生死。' },
+        { t: '命令：把切模式封装成命令对象', why: '命令管「请求对象化、排队撤销」，题干没有排队/撤销诉求。' },
+        { t: '模板方法：固定轮换流程让子类填空', why: '模板方法管「骨架固定步骤子类填」，与模式间自动流转无关。' }
+      ],
+      ans: 1, tag: '状态vs策略', src: '仿真题' },
+    { q: '「报销单金额 ≤500 组长批，≤5000 经理批，更高总监批，超限自动继续上报」——最合适的是？',
+      opts: [
+        { t: '观察者：审批结果通知各相关方', why: '观察者管「状态变化后广播通知」，不管「找谁审批」的传递决策。' },
+        { t: '职责链：请求沿审批者链传递，谁够权限谁处理', why: '对。逐级审批是职责链的标准场景：每个处理者判断能否处理，不能则传给 next；发起者不必知道最终谁批。' },
+        { t: '中介者：由塔台统一协调审批', why: '中介者管「多方互不直呼经中心协调」，审批是单向沿链传递，不是多向协调。' },
+        { t: '命令：把审批封装成命令入队', why: '命令管请求对象化/排队/撤销，题干核心是「分级传递」而非排队。' }
+      ],
+      ans: 1, tag: '责任链', src: '仿真题' },
+    { q: '「表格编辑器要求：每次操作可撤销（Ctrl+Z）、可把操作记录成宏回放」——把「操作」封装成对象入栈管理，这是哪个模式？',
+      opts: [
+        { t: '备忘录：保存编辑器状态快照', why: '备忘录保存「状态」直接恢复；题干要保存「动作」并能回放——动作对象化是命令的领地（两者易混：命令存动作、备忘录存状态）。' },
+        { t: '命令：请求封装为对象，支持撤销与排队回放', why: '对。操作→命令对象（含 execute/undo），栈管理撤销、序列管理宏回放——「请求变对象」正是命令的意图。' },
+        { t: '策略：撤销是一种可选算法', why: '撤销不是「可替换算法」，策略不提供 undo/回放语义。' },
+        { t: '迭代器：按序遍历操作历史', why: '迭代器只管遍历聚合对象，不赋予元素「可执行/可撤销」语义。' }
+      ],
+      ans: 1, tag: '命令', src: '仿真题' },
+    { q: '【交错复习:46】策略模式中，上下文只依赖「抽象策略接口」，具体算法在运行时注入替换——这最直接落地了 46 页哪条原则？',
+      opts: [
+        { t: '依赖倒置：面向接口编程，不面向实现', why: '对。上下文持有抽象引用、具体算法运行时注入——「依赖接口不倚墙」；换算法不改上下文同时满足开闭，但题干强调的「只依赖抽象」直接对应依赖倒置。' },
+        { t: '里氏替换', why: '里氏管「子类换父类行为必须仍正确」，是替换后正确性的约束，不是「依赖谁」的约束。' },
+        { t: '迪米特法则', why: '迪米特管「不深挖陌生对象内部」，与注入抽象无关。' },
+        { t: '接口隔离', why: '接口隔离管「别强迫依赖用不到的方法」，题干没有胖接口场景。' }
+      ],
+      ans: 0, tag: '交错复习:46', src: '仿真题' },
+    { q: '【交错复习:29】观察者模式中，主题遍历订阅者列表逐个调用 update()，「同一个消息、不同订阅者各自做出不同响应」——这依赖 29 页面向对象的哪个机制？',
+      opts: [
+        { t: '多态：同一消息，不同实现对象各自响应', why: '对。主题只认抽象观察者接口，运行时各具体订阅者的 update() 各干各的——没有 29 页的动态多态，广播就退化成主题逐个认识所有订阅者。' },
+        { t: '封装', why: '封装是藏细节，解释不了「同消息不同响应」。' },
+        { t: '继承', why: '继承只复用结构，静态绑定下做不到运行时各响各的。' },
+        { t: '重载', why: '重载是同类同名不同参的编译期绑定，与广播无关。' }
+      ],
+      ans: 0, tag: '交错复习:29', src: '仿真题' }
+  ], { kpId: '49', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '延续开场场景：订单系统的 orderService 用 status 字段 + 12 处 if-else 判读实现 待支付/已支付/已发货/已完成/已取消 五状态流转；现要新增「已锁定（风控冻结）」状态，评估需改动 12 处且极易漏改。同时各方法里还散落着「状态变化后发短信、加积分」的硬编码调用。',
+    q: '(1) 指出该设计违反的设计原则与主要问题；(2) 选择合适的模式重构状态流转，给出类图要素（类/接口、关系与切换语义）；(3) 「状态变化后的通知动作」应选哪个模式？说明它与状态模式如何配合；(4) 说明重构后「已锁定」状态如何满足开闭。',
+    ref: '(1) 违反开闭：新增状态要改 12 处既有代码（修改而非扩展）；违反单一职责：orderService 同时承担状态机判断、业务动作、通知多个职责；行为散落导致「某状态的合法操作集」无法集中审视，漏改即缺陷。(2) 采用状态模式：定义「订单状态接口」（含 支付()/发货()/取消() 等操作）；每个状态一个实现类（待支付态/已支付态/…），各自实现「本状态下各操作的行为 + 完成后切换到哪个状态」（如待支付态.支付()：执行扣款→上下文.setState(已支付态)）；订单上下文持有当前状态引用（聚合/关联，菱形在上下文端），request() 全部委托给当前状态——切换语义（谁切到谁）集中在状态类内。(3) 通知动作用观察者：订单上下文作为主题，状态切换成功后发布「状态变更」事件，仓配/积分/短信作为观察者订阅；配合方式=状态类只负责「切换并触发 notify」，不直接认识下游，二者解耦（同步通知会被慢订阅拖住，可演进为异步/消息队列）。(4) 新增已锁定=新增一个状态实现类并定义它与相邻状态的切换规则，既有状态类与上下文不改——对扩展开放、对修改关闭；各状态的行为集中在一处，也便于风控规则审计。',
+    points: ['原则判定准确（开闭/单一职责）且能说明「行为散落」的工程风险', '类图要素完整：状态接口+状态实现+三角关系+上下文持有当前状态+切换语义写在状态类', '通知动作选观察者并说明与状态模式的配合边界（切换后发布事件）', '新增状态只加类不改老码的开闭论证成立'],
+    frame: '答题框架：问题定性（原则+散落风险）→ 模式选择与类图要素（接口/实现/持有/切换语义位置）→ 协作模式搭配（观察者发布事件）→ 扩展性验证（新状态动哪不动哪）。',
+    kpId: '49'
+  });
+  CX.renderCase('#case2', {
+    stem: '论坛系统：帖子发布后要通知审核服务、积分服务、推送服务，未来还会增加更多下游。方案A：主流程依次直接调用三个服务；方案B：引入观察者，主流程（主题）同步遍历调用各订阅者 update()。上线后发现：积分服务偶发慢查询时，发帖接口响应从 80ms 恶化到 2s；且三个下游各自的失败会相互影响主流程。',
+    q: '(1) 对比方案A与方案B，说明观察者带来的解耦收益；(2) 分析方案B仍存在的两个问题及根因；(3) 给出演进方案并说明它与本页观察者的关系；(4) 辨析：若改为「帖子的所有操作（发布/编辑/删帖）都要经过一个协调中心，由它统一调度三个服务并回写结果」，这是观察者还是中介者？为什么？',
+    ref: '(1) 方案A：主流程硬编码认识三个下游（紧耦合），新增下游要改主流程（违开闭），主流程与下游相互影响。方案B（观察者）：主题只维护订阅者列表并广播，一对多解耦——新增下游=注册新订阅者，主题零修改；主题不认识订阅者具体类型，只认抽象观察者接口（依赖倒置）。(2) 问题一：同步通知——主题遍历调用是串行阻塞，慢订阅者（积分慢查询）直接拖住发帖主流程；问题二：异常传染——任一订阅者抛异常且未隔离，会中断后续订阅者并冲击主题。根因都是「广播是同步内嵌在主题调用栈里」，解耦了类型依赖但没解耦时间依赖。(3) 演进：通知异步化——线程池/事件总线/消息队列承载广播（削峰、故障隔离、最终一致），观察者升级为发布-订阅模式，主题与订阅者之间加入事件通道（对应 40 页中间件与事件驱动架构）；本页的观察者正是它的类级原型，思想同源、尺度不同。(4) 是中介者：协调中心被所有方显式引用，双向交互经它中转并回写结果（星型拓扑）；观察者是单向广播（主题→订阅者，不等回写、不协调订阅者之间的交互）——「报社只发报，塔台要指挥每架飞机起降」。',
+    points: ['对比出观察者的类型解耦收益（新增下游零改主题）', '两个问题定位准确：同步阻塞与异常传染，根因落到「时间依赖未解耦」', '演进方案点到异步/消息队列/发布-订阅并与 40 页呼应', '观察者与中介者辨析正确（单向广播 vs 双向经中心协调）'],
+    frame: '答题框架：方案对比（耦合点逐条列）→ 现象归因（同步栈内广播）→ 演进路径（异步通道、最终一致）→ 模式辨析（广播方向与协调职责）。',
+    kpId: '49'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成游戏场景：「角色处于 正常/中毒/狂暴 三种状态，攻击伤害计算随状态不同而不同；状态由角色内部计时器与事件自动转换，玩家不直接选状态」——角色对象适合采用？',
+    opts: [
+      { t: '策略：三种伤害计算是三个算法', why: '如果玩家手动挑「用哪种计算」才是策略；题干明确「自动转换、玩家不选」——切换驱动在内部。' },
+      { t: '状态：状态对象封装行为并自动切换到下一状态', why: '对。行为随状态变 + 内部自动流转 + 状态知道切到谁——红绿灯换成了角色状态，判据不变：状态自己换。' },
+      { t: '命令：把每次攻击封装成命令', why: '命令管动作对象化/撤销，题干核心是「行为随状态自动变」。' },
+      { t: '备忘录：存档角色状态', why: '备忘录是保存/恢复快照，不改变「行为如何随状态切换」。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '49', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['46'], 'prev');
+  CX.depChain('#bridge-next', ['50'], 'next');
+
+  /* ---- 动画：红绿灯状态机 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var G = 4, RED = 3, YELLOW = 1;
+  function sim(cycleT) {
+    /* 数值模拟：到达 1.1 辆/秒；绿灯放行 1.6 辆/秒 */
+    var q = 0, passed = 0, dt = 0.05;
+    for (var s = 0; s <= cycleT; s += dt) {
+      q += 1.1 * dt;
+      if (s >= RED && s < RED + G) {
+        var served = Math.min(q, 1.6 * dt);
+        q -= served; passed += served;
+      }
+    }
+    return { q: q, passed: Math.floor(passed) };
+  }
+  function draw(t) {
+    var cycle = RED + G + YELLOW;
+    var ct = t * cycle;
+    var st, remain, col, act;
+    if (ct < RED) { st = '红'; remain = RED - ct; col = 'var(--bad)'; act = '禁止进入，车辆排队'; }
+    else if (ct < RED + G) { st = '绿'; remain = RED + G - ct; col = 'var(--ok)'; act = '放行，队列消散'; }
+    else { st = '黄'; remain = cycle - ct; col = 'var(--warn)'; act = '清空路口，准备切红'; }
+    var r = sim(ct);
+    var s = '<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 信号灯 */
+    s += '<rect x="60" y="40" width="90" height="200" rx="10" fill="var(--card)" stroke="var(--line)"/>';
+    ['红', '黄', '绿'].forEach(function (nm, i) {
+      var on = nm === st;
+      var c = nm === '红' ? 'var(--bad)' : nm === '黄' ? 'var(--warn)' : 'var(--ok)';
+      s += '<circle cx="105" cy="' + (78 + i * 62) + '" r="24" fill="' + (on ? c : 'var(--bg-soft)') + '" stroke="var(--line)"/>';
+      if (!on) s += '<text x="105" y="' + (83 + i * 62) + '" text-anchor="middle" font-size="14" fill="var(--text-dim)">' + nm + '</text>';
+    });
+    s += '<text x="105" y="264" text-anchor="middle" font-size="13" font-weight="bold" fill="' + col + '">' + st + '灯 剩 ' + remain.toFixed(1) + 's</text>';
+    /* 状态机小图 */
+    s += '<text x="420" y="58" text-anchor="middle" font-size="13" fill="var(--text-dim)">状态自动流转：每个灯知道下一步切到谁</text>';
+    var boxes = [['红灯', 330], ['绿灯', 430], ['黄灯', 530]];
+    boxes.forEach(function (b) {
+      var on = b[0].charAt(0) === st;
+      var bc = b[0] === '红灯' ? 'var(--bad)' : b[0] === '绿灯' ? 'var(--ok)' : 'var(--warn)';
+      s += '<rect x="' + b[1] + '" y="72" width="70" height="40" rx="8" fill="' + (on ? bc : 'var(--card)') + '" stroke="' + (on ? bc : 'var(--line)') + '" stroke-width="' + (on ? 3 : 1) + '"/>';
+      s += '<text x="' + (b[1] + 35) + '" y="' + (97) + '" text-anchor="middle" font-size="12" fill="' + (on ? 'var(--bg)' : 'var(--text)') + '">' + b[0] + '</text>';
+    });
+    s += '<text x="400" y="132" text-anchor="middle" font-size="11" fill="var(--text-dim)">红 →(3s) 绿 →(' + G + 's) 黄 →(1s) 红 …循环</text>';
+    /* 路口车流 */
+    s += '<rect x="300" y="170" width="360" height="46" rx="8" fill="var(--card)" opacity=".6"/>';
+    s += '<text x="480" y="196" text-anchor="middle" font-size="12" fill="' + (st === '绿' ? 'var(--ok)' : 'var(--text-dim)') + '">' + act + '</text>';
+    var nq = Math.min(11, Math.round(r.q));
+    for (var i = 0; i < nq; i++) {
+      s += '<rect x="' + (312 + i * 32) + '" y="224" width="26" height="16" rx="4" fill="var(--accent)"/>';
+    }
+    s += '<text x="480" y="264" text-anchor="middle" font-size="13" fill="var(--text)">等待 ' + r.q.toFixed(0) + ' 辆 · 本周期已通过 ' + r.passed + ' 辆 · 绿灯时长 G=' + G + 's</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (st === '红') cap = '红灯态：行为=拦车排队；红灯类自己知道 3 秒后 setState(绿灯)——切换知识在状态类里，不在路口代码里。';
+    else if (st === '绿') cap = '绿灯态：行为=放行（每秒约 1.6 辆）；绿灯结束自动切黄——若这是策略，得由「你」来手动选灯，这就是两者的分界。';
+    else cap = '黄灯态：清空路口 → 自动切回红灯；车流行为随状态改变，上下文（路口）对状态无感。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var animObj = CX.makeAnim('#demo1-ctl', { steps: 24, duration: 10, onTick: draw });
+  var gs = CX.utils.$('g-slider');
+  gs.addEventListener('input', function () { G = +gs.value; CX.utils.$('g-out').textContent = G; draw(animObj.t || 0); });
+
+  /* ---- 实验一：行为型判类 ---- */
+  var M1 = [
+    { t: '帖子状态一变，审核、积分、推送等订阅方自动收到通知', k: 'observer', why: '观察者：一对多自动通知，订报纸。' },
+    { t: '导航让你选最快/最省/最短，三种算法可整体替换', k: 'strategy', why: '策略：客户选择可替换算法——选择权在你。' },
+    { t: '点单请求变成对象，可排队、可日志、可撤销', k: 'command', why: '命令：请求对象化，排队/撤销/日志。' },
+    { t: '订单在多个状态间流转，行为随状态变，状态自己知道切到谁', k: 'state', why: '状态：自动流转——别因「类图像策略」就答错，看谁驱动切换。' },
+    { t: '报销 500 内组长批、5000 内经理批、更高总监批', k: 'chain', why: '职责链：沿链传递、谁合适谁处理。' },
+    { t: '冲泡流程固定：烧水→冲泡→倒杯；茶和咖啡只填「泡什么」', k: 'template', why: '模板方法：父类定骨架，子类填特定步骤。' },
+    { t: '二十架飞机互不直接通话，全部经塔台协调起降', k: 'mediator', why: '中介者：网状改星型，塔台统一协调——别和观察者单向广播混。' },
+    { t: '游戏退出前把 HP/位置拍快照，读档时恢复且不破坏封装', k: 'memento', why: '备忘录：保存/恢复状态快照（存的是状态不是动作）。' }
+  ];
+  var m1Sel = null, m1Correct = 0, m1Done = 0;
+  var m1Pool = CX.utils.$('lab1-pool');
+  M1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选这条场景，点上方模式名作答。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var MNAMES = { observer: '观察者', strategy: '策略', command: '命令', state: '状态', chain: '责任链', template: '模板方法', mediator: '中介者', memento: '备忘录' };
+  CX.utils.$$('.lab button[data-m]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m1Sel) { fb1('先点选一条场景。', 'bad'); return; }
+      var item = null;
+      M1.forEach(function (x) { if (x.t === m1Sel.textContent) item = x; });
+      m1Done++;
+      if (btn.getAttribute('data-m') === item.k) {
+        m1Correct++;
+        m1Sel.style.borderColor = 'var(--ok)'; m1Sel.style.opacity = .5;
+        m1Sel.classList.remove('sel'); m1Sel.dataset.done = '1'; m1Sel = null;
+        fb1('✅ 正确：' + item.why + '（' + m1Correct + '/' + m1Done + '）', 'ok');
+      } else {
+        fb1('❌ 你选了「' + MNAMES[btn.getAttribute('data-m')] + '」，意图混淆点：' + item.why + ' 口诀：订报=观察、选路=策略、点单=命令、自换灯=状态、逐级批=责任链、固定工序=模板、塔台=中介者、存档=备忘录。', 'bad');
+        m1Sel.classList.remove('sel'); m1Sel = null;
+      }
+      if (m1Correct === M1.length) fb1('✅ 8 条全对！行为型判类只问一句：这段协作里「消息/职责/切换权」在谁手里？', 'ok');
+    });
+  });
+  CX.utils.$('lab1-reset').addEventListener('click', function () {
+    m1Correct = 0; m1Done = 0; m1Sel = null;
+    CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：状态 vs 策略 ---- */
+  var M2 = [
+    { t: '红灯 3 秒后自动把自己切成绿灯，无需外界指定', k: 'state', why: '状态对象自己驱动切换——状态模式。' },
+    { t: '用户在导航里手动选定「最省时间」方案', k: 'strategy', why: '客户主动选择算法——策略模式。' },
+    { t: '上下文持有当前对象，且当前对象决定下一个对象是谁', k: 'state', why: '「下一个是谁」的知识在实现类内部=自动流转=状态。' },
+    { t: '各算法实现互相不知道对方存在，由客户传入用哪个', k: 'strategy', why: '策略之间互不相识、客户注入——策略模式。' },
+    { t: '同一组接口实现，语义是「模式会自己流转到下一个」', k: 'state', why: '流转语义=状态；结构相同看意图。' },
+    { t: '同一组接口实现，语义是「算法选项，选哪个就是哪个」', k: 'strategy', why: '选项语义=策略；一句话：状态自己换，策略你来选。' }
+  ];
+  var m2Sel = null, m2Correct = 0, m2Done = 0;
+  var m2Pool = CX.utils.$('lab2-pool');
+  M2.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m2Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m2Sel = d;
+      fb2('已选这条描述，先默念口诀再作答：状态自己换，策略你来选。');
+    });
+    m2Pool.appendChild(d);
+  });
+  function fb2(msg, cls) { var f = CX.utils.$('lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var D2NAMES = { state: '状态模式', strategy: '策略模式' };
+  CX.utils.$$('.lab button[data-d]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m2Sel) { fb2('先点选一条描述。', 'bad'); return; }
+      var item = null;
+      M2.forEach(function (x) { if (x.t === m2Sel.textContent) item = x; });
+      m2Done++;
+      if (btn.getAttribute('data-d') === item.k) {
+        m2Correct++;
+        m2Sel.style.borderColor = 'var(--ok)'; m2Sel.style.opacity = .5;
+        m2Sel.classList.remove('sel'); m2Sel.dataset.done = '1'; m2Sel = null;
+        fb2('✅ 正确：' + item.why + '（' + m2Correct + '/' + m2Done + '）', 'ok');
+      } else {
+        fb2('❌ 你选了「' + D2NAMES[btn.getAttribute('data-d')] + '」。别看类图（它们是孪生），只问一句：切换由谁驱动？自己流转/知道下一个=状态；客户选择/彼此不知=策略。本题：' + item.why, 'bad');
+        m2Sel.classList.remove('sel'); m2Sel = null;
+      }
+      if (m2Correct === M2.length) fb2('✅ 6 条全对！考题永远拿「同接口一组实现类」设陷阱，用「谁驱动切换」一击破题。', 'ok');
+    });
+  });
+  CX.utils.$('lab2-reset').addEventListener('click', function () {
+    m2Correct = 0; m2Done = 0; m2Sel = null;
+    CX.utils.$$('.match-opt', m2Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb2('已重置。', '');
+  });
+
+  /* ---- 实验三：观察者订阅 ---- */
+  var SUBS = ['张三', '李四', '城市早报', '广告机器人'];
+  var subState = { '张三': true, '李四': false, '城市早报': true, '广告机器人': false };
+  var subsBox = CX.utils.$('lab3-subs');
+  function fb3(msg, cls) { var f = CX.utils.$('lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  function renderSubs() {
+    subsBox.innerHTML = '';
+    SUBS.forEach(function (nm) {
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = (subState[nm] ? '✅ 已订阅 ' : '⬜ 未订阅 ') + nm;
+      if (subState[nm]) b.style.borderColor = 'var(--ok)';
+      b.addEventListener('click', function () {
+        subState[nm] = !subState[nm];
+        fb3(subState[nm] ? '「' + nm + '」执行 订阅()：加入主题的订阅者列表。' : '「' + nm + '」执行 退订()：从列表移除。主题全程不关心你是谁、拿报纸干什么。', '');
+        renderSubs();
+      });
+      subsBox.appendChild(b);
+    });
+  }
+  renderSubs();
+  CX.utils.$('lab3-pub').addEventListener('click', function () {
+    var got = SUBS.filter(function (nm) { return subState[nm]; });
+    if (got.length === 0) {
+      fb3('发刊完成：本期 0 份送达——没有任何订阅者，主题照样正常工作（一对多里的「零」也没问题）。主题只对着名单广播，从不维护「谁在读、读后干什么」。', 'ok');
+    } else {
+      fb3('发刊完成：主题遍历订阅者列表 notify → ✅ ' + got.join('、') + ' 各自 update() 做出响应（共 ' + got.length + '/' + SUBS.length + '）。要点：一对多、自动通知、主题不认识订阅者具体类型（只认观察者接口）——新增订阅方零改主题，这就是开闭。', 'ok');
+    }
+  });
+  CX.utils.$('lab3-reset').addEventListener('click', function () {
+    subState['张三'] = true; subState['李四'] = false; subState['城市早报'] = true; subState['广告机器人'] = false;
+    renderSubs(); fb3('已重置。', '');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

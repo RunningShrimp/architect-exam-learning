@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27 · 结构化分析与数据流图 · 架构师学堂</title>
+<meta name="description" content="DFD 画数据流动路线：父图子图要平衡，加工有进有出。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="26-requirements.html">前置 26</a></span>
+    <h1>27 · 结构化分析与数据流图</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">DFD 画数据流动路线：父图子图要平衡，加工有进有出。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>工地监理审图：混凝土从搅拌站来（谁供的？），进浇筑工序（谁加工的？），多余的存进料仓（存哪了？），运输走哪条线（怎么流的？）。如果有一车混凝土「只进不出」堆在某工序前，或某工序「没进任何料却产出了预制板」，监理立刻叫停。软件里的数据流图（DFD）审的是什么？哪些画法等于「堆料不出货」和「无中生有」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>DFD 审三条：①每个<strong>加工</strong>必须有输入有输出——只有入没有出叫<strong>黑洞</strong>（料堆着不出货），只有出没有入叫<strong>奇迹</strong>（无中生有）；②父图子图要<strong>平衡</strong>——子图边界上的输入输出流必须和父图对应加工的流对得上（总图说这工序产出预制板，分解图就不能少了这条产出线）；③<strong>DFD 里没有控制流</strong>——它只画数据怎么流，不画"如果不合格就返工"这类判断与时序。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>26 · 需求工程</b>（DFD 是需求分析阶段的结构化建模工具）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>结构化分析（SA）方法的核心工具是<strong>数据流图（DFD）</strong>：它描述数据在系统中<strong>从哪来、被谁加工、存到哪、往哪去</strong>，不关心加工的先后时序。在工地图上，DFD 就是<strong>建材流线路图</strong>：供应商（外部实体）→ 施工工序（加工）→ 料仓（数据存储）→ 运输路线（数据流）。</p>
+      <h3>解决什么问题</h3>
+      <p>需求文字描述「一千个人读出一千个系统」；DFD 用一张 everyone 看得懂的图把「数据怎么流」钉死，再配合数据字典把每个数据项定义清楚，让分析师和业主<strong>对着同一张图确认</strong>。</p>
+      <h3>核心机制 1：四要素（符号先认全）</h3>
+      <table class="tbl">
+        <tr><th>要素</th><th>常用符号</th><th>含义</th><th>工地类比</th></tr>
+        <tr><td>外部实体</td><td>矩形（方框）</td><td>系统之外的数据来源或去向（人员/组织/外系统）</td><td>供应商 / 业主</td></tr>
+        <tr><td>加工（处理）</td><td>圆或圆角矩形，带编号</td><td>对数据的加工变换</td><td>施工工序</td></tr>
+        <tr><td>数据存储</td><td>开口矩形或双横线，编号 D1、D2…</td><td>静止存放的数据</td><td>料仓 / 仓库</td></tr>
+        <tr><td>数据流</td><td>带名字的箭头</td><td>流动中的数据（必须有名字、有方向）</td><td>建材运输路线</td></tr>
+      </table>
+      <h3>核心机制 2：分层与编号</h3>
+      <ul>
+        <li><strong>顶层图（Context 图）</strong>：把整个系统看成 1 个加工，只画它与外部实体的边界流。</li>
+        <li><strong>0 层图</strong>：把系统拆成主要加工，编号 1、2、3…</li>
+        <li><strong>1 层图</strong>：对 0 层图某个加工继续细化，编号 1.1、1.2…；再往下 1.1.1……子图的编号以前缀表明它的「父加工」。</li>
+        <li>细化到加工足够简单（能一页说清逻辑）即为<strong>底层图</strong>，底层加工的逻辑用<strong>结构化语言、判定表、判定树</strong>写「加工小说明」。</li>
+      </ul>
+      <h3>核心机制 3：父图子图平衡（案例大题的评分核心）</h3>
+      <p><strong>平衡 = 子图边界上的输入/输出数据流，与父图中对应加工的输入/输出数据流一致（方向一致、内容一致）</strong>。允许的合法变体：父图中一条流（如「订单信息」）在子图中拆成几条更细的流（订单明细+客户信息），名称细分不算不平衡。论证模板：把子图的每条边界流逐一列出，与父图对应加工的流「一条对一条」核对方向与名称。</p>
+      <h3>三条铁律</h3>
+      <ol>
+        <li>每个加工<strong>必须有输入且有输出</strong>：只入不出=「黑洞」，只出不入=「奇迹」。</li>
+        <li>数据流必须<strong>至少一头连着加工</strong>：外部实体↔数据存储、实体↔实体、存储↔存储都<strong>不能直连</strong>。</li>
+        <li>每条数据流、每个加工、每个存储都要<strong>有名字/编号</strong>。</li>
+      </ol>
+      <h3>关键细节：数据字典（DD）</h3>
+      <p>数据字典给 DFD 中每个数据流/数据存储/数据项下定义，常用符号：<code>=</code> 由…组成、<code>+</code> 与（和）、<code>[ | ]</code> 或、<code>{ }</code> 重复、<code>( )</code> 可选。例如：借书单 = 读者编号 + 图书编号 + (借阅日期)。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①<strong>DFD 没有控制流</strong>——不画判断、循环、先后顺序（那是程序流程图/控制流图的事），箭头上流的是数据不是指令；②补全数据流必须写全「起点、终点、名称」三要素，漏名称/方向是案例题最常见的丢分点；③平衡论证不能只数条数，还要核对<strong>方向</strong>与名称细分是否合法；④顶层图只有 1 个加工，别画成多个。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>data flow diagram 数据流图 · context diagram 顶层图（上下文图） · data dictionary 数据字典 · balance 平衡</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>DFD = 工地的<strong>建材流线路图</strong>：方框是供应商（货从那来、货到那去），圆圈工序是加工站，双线料仓是仓库，箭头是运输路线。父图子图平衡，就像「总进度表上的每个工序」与「分项施工方案」必须对得上：总表说 3 号工序出「预制板」，分项方案里 3 号工序就不能没有这条产出。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>供应商与业主</td><td>外部实体（系统之外）</td><td>成立</td></tr>
+      <tr><td>施工工序</td><td>加工（有进料才有出货）</td><td>成立</td></tr>
+      <tr><td>料仓</td><td>数据存储</td><td>成立</td></tr>
+      <tr><td>运输路线</td><td>数据流（有方向有货名）</td><td>成立</td></tr>
+      <tr><td>工序之间的「返工指令」</td><td>控制流</td><td><b>失效</b>：DFD 只画数据不画指令，返工判断属于控制流图/流程图</td></tr>
+    </table>
+    <div class="rhyme">方框实体圆加工，双线仓库箭头流；<br>子图边界对父图，进出方向要守恒；<br>只进不出是黑洞，只出不进叫奇迹；<br>实体仓库不直连，一切数据经加工；<br>流图不画控制流，判断时序莫进来。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「父图↔子图平衡」检查：先展开父图边界流，再画子图内部流动，最后逐条对照边界流。用滑块切到「不平衡」模式，看子图少一条输出流时如何被判红。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>检查模式 <input type="range" id="bal-slider" min="0" max="1" step="1" value="0"> <span id="bal-out">平衡</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽补全）：把缺失的数据流拖到正确端点</h4>
+      <p class="foreshadow">下面是「社区图书馆借阅系统」0 层图的三个缺口。操作：先把一张数据流卡片<strong>拖到起点节点</strong>，再把它<strong>拖到终点节点</strong>。做错会指出你错在方向、端点还是平衡：</p>
+      <div id="flow-cards" style="min-height:40px"></div>
+      <div id="dfd-board" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px"></div>
+      <p class="foreshadow">已有数据流：读者→加工1「借书申请」；加工1→读者「借书结果」；加工1→D1「扣减库存」；D1→加工1「图书库存信息」；加工2→D2「更新借阅记录」；加工2→D1「恢复库存」；加工2→读者「还书回执」。父图（顶层图）中系统对馆长有输出流「统计报表」。</p>
+      <div class="lab-feedback" id="lab1-fb">先拖第一张卡片。</div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（找错诊断）：黑洞、奇迹还是正常？</h4>
+      <p class="foreshadow">看三个加工的进出料情况，点选你的诊断：</p>
+      <div id="hole-list"></div>
+      <div class="lab-feedback" id="lab2-fb">从加工A开始诊断。</div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：数据字典符号 ↔ 含义</h4>
+      <p class="foreshadow">先点左列符号，再点右列含义：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="dd-left"></div>
+        <div id="dd-right"></div>
+      </div>
+      <button class="btn" id="dd-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>26 页把需求翻译成「可验证的系统需求」，本页给出第一个翻译工具：DFD 把数据流动画出来。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>DFD 的加工=功能模块，怎么把加工划分成高内聚低耦合的模块，是 <b>28 · 模块设计与内聚耦合</b> 的主题；</li><li>「画图表达系统」的思想在面向对象一侧长成 UML（<b>30</b>）。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>数据流图 DFD</th><th>程序流程图</th></tr>
+      <tr><th></th><th>分析阶段·系统级·数据视角</th><th>设计/实现阶段·算法级·控制视角</th></tr>
+      <tr><td>差异点</td><td>画数据从哪来到哪去，无时序</td><td>画执行步骤与先后顺序</td></tr>
+      <tr><td>箭头含义</td><td>数据流（流动的数据）</td><td>控制流（执行顺序）</td></tr>
+      <tr><td>易错点</td><td>在 DFD 里画菱形判断、画「先…后…」</td><td>把两者当一回事，考试互选符号</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">DFD 说「什么数据流到哪」，流程图说「先做什么后做什么」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——学校食堂的菜从菜市场来，在厨房加工，放进保温柜……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① DFD 四要素：外部实体（方框）、加工（圆/圆角）、数据存储（双线 Dn）、数据流（带名箭头）。</li><li>② 三条铁律：加工有进有出（防黑洞/奇迹）、数据流必连加工、一切要素有名字。</li><li>③ 案例答题抓手：补流写全「起点→终点→名称」，平衡论证逐条对照子图边界流与父图加工流。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '27', domain: 'se', loc: 'construction', root: '..',
+  title: '结构化分析与数据流图', prev: '26-requirements.html', prevTitle: '26 · 需求工程',
+  next: '28-coupling-cohesion.html', nextTitle: '28 · 模块设计与内聚耦合',
+  keywords: ['数据流图','外部实体','加工','数据存储','父图子图平衡','黑洞','奇迹','数据字典']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·26】需求规格说明书评审通过并建立基线后，业务方想增加一条数据处理要求，正确的做法是？',
+    opts: [
+      { t: '分析员直接改图，保持敏捷', why: '基线后的变更不受控，会重演 26 页案例二的事故。' },
+      { t: '提交变更申请，经影响分析与审批后更新基线', why: '对。基线之后一切改动走变更控制——本页的 DFD 是受基线管理的重要分析制品。' },
+      { t: '口头约定，验收时再说', why: '验收时对不上账，正是 26 页案例的反面教材。' }
+    ],
+    ans: 1, tag: '回忆:26', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '下列哪一项<strong>不能</strong>出现在数据流图中？',
+      opts: [
+        { t: '外部实体', why: '可以，它是数据源点/宿点。' },
+        { t: '控制流（判断分支的走向）', why: '对。DFD 只画数据流，判断与时序是程序流程图/控制流图的内容。' },
+        { t: '数据存储', why: '可以，静止的数据要存放。' },
+        { t: '加工', why: '可以，加工是 DFD 的主角。' }
+      ],
+      ans: 1, tag: '易错点', src: '仿真题' },
+    { q: '某个加工只有输入数据流、没有任何输出数据流，这属于什么错误？',
+      opts: [
+        { t: '奇迹', why: '反了：奇迹是只有输出没有输入。' },
+        { t: '黑洞', why: '对。只进不出=料堆在工序前不出货，加工没有产生任何结果。' },
+        { t: '不平衡', why: '不平衡是父子图对照的概念，与单个加工的进出无关。' },
+        { t: '没有错误', why: '这是 DFD 检查的典型错误，案例题常考。' }
+      ],
+      ans: 1, tag: '黑洞奇迹', src: '仿真题' },
+    { q: '0 层图中加工 2 被细化成一张子图，其中各加工的正确编号是？',
+      opts: [
+        { t: '2A、2B、2C', why: 'DFD 编号用小数点分层，不用字母后缀。' },
+        { t: '2.1、2.2、2.3', why: '对。子图编号=父加工号.序号，一眼可追溯父加工。' },
+        { t: '1.2、2.2、3.2', why: '这混淆了层级：1.2 表示 0 层加工 1 的第 2 个子加工。' },
+        { t: '3、4、5（顺延编号）', why: '子图内编号必须带父号前缀，否则无法与父图对应。' }
+      ],
+      ans: 1, tag: '编号规则', src: '仿真题' },
+    { q: '【交错复习·26】「每条系统需求都能追溯到实现它的设计与验证它的测试用例」，这体现的是 26 页的哪个机制？',
+      opts: [
+        { t: '需求确认的正确性检查', why: '正确性查需求是否真实反映诉求，不查追溯。' },
+        { t: '需求跟踪链（跟踪矩阵）', why: '对。26 页的跟踪链：业务需求↔系统需求↔设计↔测试用例，双向可追溯。' },
+        { t: '需求获取的访谈方法', why: '获取是收集诉求的手段，与追溯无关。' }
+      ],
+      ans: 1, tag: '交错复习:26', src: '仿真题' },
+    { q: '关于父图与子图平衡，正确的是？',
+      opts: [
+        { t: '子图中加工个数必须与父图数据流条数相等', why: '平衡对照的是边界数据流，不是加工个数。' },
+        { t: '子图边界上的输入输出流须与父图对应加工的输入输出流一致（名称允许合法细分）', why: '对。方向、内容一致；父图一条流可在子图细分为多条。' },
+        { t: '子图可以自行新增父图没有的对外输出流，只要业务上合理', why: '这就是不平衡，父子图必须对得上。' },
+        { t: '平衡只检查输入流，输出流不必检查', why: '输入输出都要检查，案例题按双方向评分。' }
+      ],
+      ans: 1, tag: '平衡原则', src: '仿真题' }
+  ], { kpId: '27', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某社区图书馆借阅系统 0 层图（部分）如下——加工：1 借书处理、2 还书处理、3 报表统计；数据存储：D1 图书信息、D2 借阅记录；外部实体：读者、管理员、馆长。已知数据流：读者→1「借书申请」；1→D1「扣减库存」；D1→1「库存信息」；1→读者「借书结果」；1→D2「新增借阅记录」；读者→2「还书单」；2→D2「更新借阅记录」；2→D1「恢复库存」；管理员→3「统计条件」。业务规则：馆长每月收到上月借阅统计报表（顶层图中系统对馆长有一条输出流）。',
+    q: '(1) 指出图中缺失的数据流（写全起点、终点、名称）；(2) 论证补全后父图与子图是平衡的；(3) 若有人主张再加一条 D2→D1「数据同步」直接相连，说明为什么不可以。',
+    ref: '(1) 缺失两条：①D2→3「借阅数据」（报表统计需要原始借阅记录作输入）；②3→馆长「统计报表」（馆长是报表的去向，顶层图中已有这条边界流）。(2) 平衡论证：逐条对照子图边界流与顶层图——子图外部输入：读者→1 借书申请、读者→2 还书单、管理员→3 统计条件，与顶层图系统外部输入一致；子图外部输出：1→读者 借书结果、3→馆长 统计报表，与顶层图系统外部输出一致；方向与名称均对应（无父图一条流拆多条的情形），故父子图平衡。(3) 不可以：DFD 中数据流必须至少一端连着加工，数据存储之间不能直接相连——「同步」若是加工逻辑，应画一个「数据同步」加工分别连 D2 与 D1。',
+    points: ['两条缺失流三要素齐全（D2→3 借阅数据、3→馆长 统报表）', '平衡论证逐条对照边界流、方向名称一致', '说明存储间直连违反「数据流必连加工」铁律并给出改正画法'],
+    frame: '答题框架：先按业务规则找「谁要数据/谁出数据」补流→列表逐条对照父子图边界流→用铁律否决非法连接并给替代画法。',
+    kpId: '27'
+  });
+  CX.renderCase('#case2', {
+    stem: '某同事画的「食堂订餐系统」0 层图里有这些内容：加工 4「订单汇总」只有来自 D3「订单记录」的输入流、没有任何输出流；加工 5「语音播报」只有到外部实体「取餐顾客」的输出流；另有一条从外部实体「食客」直达数据存储 D3 的箭头，箭头上没有写名字。',
+    q: '(1) 指出图中至少三处错误并说明违反的规则；(2) 给出每处错误的改正画法；(3) 说明若按此图继续分解子图，还会带来什么连锁问题。',
+    ref: '(1) 错误一：加工 4 只入不出，是「黑洞」，违反「每个加工必须有输入且有输出」；错误二：加工 5 只出不入，是「奇迹」，同样违反该铁律；错误三：外部实体「食客」直达数据存储 D3，违反「数据流必须至少一端连加工」；错误四：数据流没有名字，违反「每条数据流必须有名称」。(2) 改正：加工 4 增加输出流「汇总结果」到需要的加工或实体；加工 5 补充输入流（如 D3→5「叫号信息」）；食客的订餐数据先流向一个「接收订单」加工，再由该加工写入 D3；给无名流补上名称（如「订餐信息」）。(3) 连锁问题：黑洞/奇迹加工无法编写加工小说明（没有输入无法解释输出从何而来）；不平衡的边界流会让子图无法与父图对账，案例题按「平衡论证不全」扣分。',
+    points: ['准确命名黑洞/奇迹并引用铁律', '指出实体直连存储与无名流错误', '每处错误给出可画的改正方案', '说出连锁影响（小说明写不了/平衡失证）'],
+    frame: '答题框架：逐条「错误+规则+改正」三段式作答，最后补一句对后续建模的影响，体现系统性。',
+    kpId: '27'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '数据字典里写「取书凭证 = 读者编号 + [借书单 | 还书单]」，其中方括号一竖线的含义是？',
+    opts: [
+      { t: '两者必须同时出现', why: '同时出现用「+」（与）。' },
+      { t: '二者取其一（或）', why: '对。[A|B] 表示或关系，凭证要么由借书单构成要么由还书单构成。' },
+      { t: '内容可重复多次', why: '重复是花括号 { }。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['26'], 'prev');
+  CX.depChain('#bridge-next', ['28'], 'next');
+
+  /* ---- 动画：父图子图平衡检查 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var balMode = 0;
+  function ebox(x, y, label) {
+    return '<rect x="' + x + '" y="' + y + '" width="92" height="34" fill="var(--card)" stroke="var(--text-dim)" stroke-width="2"/>' +
+      '<text x="' + (x + 46) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="13" fill="var(--text-dim)">' + label + '</text>';
+  }
+  function pbox(x, y, label, on) {
+    return '<rect x="' + x + '" y="' + y + '" width="110" height="40" rx="18" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>' +
+      '<text x="' + (x + 55) + '" y="' + (y + 25) + '" text-anchor="middle" font-size="13" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + label + '</text>';
+  }
+  function arrow(x1, y1, x2, y2, label, color, dashed) {
+    var mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 6;
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + color + '" stroke-width="2"' + (dashed ? ' stroke-dasharray="5 4"' : '') + ' marker-end="url(#arwD)"/>' +
+      '<text x="' + mx + '" y="' + my + '" text-anchor="middle" font-size="11" fill="' + color + '">' + label + '</text>';
+  }
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="父图子图平衡检查">';
+    s += '<defs><marker id="arwD" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-dim)"/></marker></defs>';
+    s += '<rect width="720" height="320" rx="12" fill="var(--bg-soft)"/>';
+    var ph = t; /* 0~1 */
+    /* --- 父图 --- */
+    s += '<text x="24" y="30" font-size="13" fill="var(--text-dim)">顶层图（父图）：整个系统 = 加工 0</text>';
+    s += ebox(40, 48, '读者');
+    s += pbox(300, 45, '0 借阅管理系统', ph > 0.1);
+    s += ebox(590, 48, '馆长');
+    if (ph > 0.15) s += arrow(132, 60, 300, 60, '借书申请', 'var(--ok)');
+    if (ph > 0.22) s += arrow(410, 92, 132, 92, '借书结果', 'var(--ok)');
+    if (ph > 0.29) s += arrow(410, 60, 590, 60, '统计报表', 'var(--ok)');
+    /* --- 子图 --- */
+    s += '<text x="24" y="176" font-size="13" fill="var(--text-dim)">0 层图（子图）：加工 1/2/3</text>';
+    s += pbox(60, 196, '1 借书处理', ph > 0.4);
+    s += pbox(300, 196, '2 还书处理', ph > 0.48);
+    s += pbox(560, 196, '3 报表统计', ph > 0.56);
+    if (ph > 0.42) s += arrow(132, 240, 300, 240, '借阅数据', 'var(--text-dim)');
+    if (ph > 0.5) s += arrow(410, 240, 560, 240, '借阅数据', 'var(--text-dim)');
+    /* 子图边界流 */
+    if (ph > 0.65) s += arrow(40, 196, 60, 214, '借书申请', 'var(--accent)');
+    if (ph > 0.7) s += arrow(170, 214, 60, 232, '借书结果', 'var(--accent)');
+    if (balMode === 0 && ph > 0.75) s += arrow(670, 214, 640, 236, '统计报表', 'var(--accent)');
+    if (balMode === 1 && ph > 0.75) {
+      s += '<text x="612" y="188" font-size="15" fill="var(--bad)">✗ 缺输出流「统计报表」→馆长</text>';
+    }
+    /* 判定 */
+    if (ph > 0.88) {
+      if (balMode === 0) {
+        s += '<text x="360" y="300" text-anchor="middle" font-size="14" fill="var(--ok)">✔ 对照通过：子图边界流与父图加工 0 的流方向一致、名称一致 → 平衡</text>';
+      } else {
+        s += '<text x="360" y="300" text-anchor="middle" font-size="14" fill="var(--bad)">✘ 父图有「统计报表」出流，子图边界没有 → 不平衡（案例题按论证不全扣分）</text>';
+      }
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (ph < 0.3) cap = '第一步：看父图——加工 0 对外的边界流：借书申请(入)、借书结果(出)、统计报表(出)';
+    else if (ph < 0.6) cap = '第二步：展开子图——内部加工之间也在流数据，但它们不进「平衡检查」';
+    else if (ph < 0.85) cap = '第三步：只挑出子图边界上的流，与父图逐条对照方向与名称';
+    else cap = balMode === 0 ? '结论：一条对一条对上了，父子图平衡' : '结论：子图少一条边界输出流，判不平衡——补流时最容易漏的就是这种「出流」';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var bsl = CX.utils.$('bal-slider');
+  bsl.addEventListener('input', function () {
+    balMode = +bsl.value;
+    CX.utils.$('bal-out').textContent = balMode === 0 ? '平衡' : '不平衡（子图缺一条出流）';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽补全数据流 ---- */
+  (function () {
+    var NODES = {
+      '读者': { type: 'E', label: '读者(外部实体)' },
+      '加工1': { type: 'P', label: '加工1 借书处理' },
+      '加工2': { type: 'P', label: '加工2 还书处理' },
+      '加工3': { type: 'P', label: '加工3 报表统计' },
+      'D1': { type: 'D', label: 'D1 图书信息' },
+      'D2': { type: 'D', label: 'D2 借阅记录' },
+      '馆长': { type: 'E', label: '馆长(外部实体)' }
+    };
+    var ANSWERS = [
+      { card: '新增借阅记录', from: '加工1', to: 'D2' },
+      { card: '借阅数据', from: 'D2', to: '加工3' },
+      { card: '统计报表', from: '加工3', to: '馆长' }
+    ];
+    var board = CX.utils.$('dfd-board'), cardsBox = CX.utils.$('flow-cards'), fb = CX.utils.$('lab1-fb');
+    var selCard = null, selFrom = null, done = 0;
+    var doneSet = {};
+    function isT(v) { return v === 'E' || v === 'D'; }
+    function build() {
+      selCard = null; selFrom = null; done = 0; doneSet = {};
+      cardsBox.innerHTML = '';
+      CX.shuffle(ANSWERS.map(function (a) { return a.card; })).forEach(function (name) {
+        var d = document.createElement('div');
+        d.className = 'drag-item'; d.draggable = true; d.textContent = '数据流：' + name; d.dataset.t = name;
+        d.addEventListener('dragstart', function (e) {
+          e.dataTransfer.setData('text', name);
+          if (selCard !== name) { selCard = name; selFrom = null; }
+          fb.textContent = selFrom
+            ? '「' + name + '」起点已是「' + NODES[selFrom].label + '」，请拖到终点节点完成连线。'
+            : '已拿起「' + name + '」，先拖到它的起点节点。';
+        });
+        cardsBox.appendChild(d);
+      });
+      board.innerHTML = '';
+      Object.keys(NODES).forEach(function (k) {
+        var d = document.createElement('div');
+        d.className = 'drag-slot'; d.style.minWidth = '170px'; d.style.minHeight = '46px'; d.style.padding = '8px';
+        d.textContent = NODES[k].label; d.dataset.node = k;
+        d.addEventListener('dragover', function (e) { e.preventDefault(); d.classList.add('hot'); });
+        d.addEventListener('dragleave', function () { d.classList.remove('hot'); });
+        d.addEventListener('drop', function (e) {
+          e.preventDefault(); d.classList.remove('hot');
+          var name = e.dataTransfer.getData('text') || selCard;
+          if (!name) { fb.textContent = '请先从上方拖一张数据流卡片。'; fb.className = 'lab-feedback bad'; return; }
+          dropOn(name, k);
+        });
+        board.appendChild(d);
+      });
+      fb.textContent = '先拖第一张卡片到它的起点节点。'; fb.className = 'lab-feedback';
+    }
+    function dropOn(name, node) {
+      if (!selFrom) {
+        selFrom = node; selCard = name;
+        fb.textContent = '「' + name + '」的起点记为「' + NODES[node].label + '」，现在把它拖到终点节点。';
+        fb.className = 'lab-feedback';
+        return;
+      }
+      var from = selFrom, to = node;
+      selFrom = null;
+      if (from === to) { fb.textContent = '起点和终点不能是同一个节点——数据流要「从谁流向谁」。'; fb.className = 'lab-feedback bad'; return; }
+      var hit = null;
+      ANSWERS.forEach(function (a) { if (a.card === name && a.from === from && a.to === to && !doneSet[a.card]) hit = a; });
+      if (hit) {
+        doneSet[name] = true; done++;
+        fb.textContent = '✅ 「' + from + ' → ' + to + '：' + name + '」补全成功（' + done + '/3）。';
+        fb.className = 'lab-feedback ok';
+        if (done === ANSWERS.length) fb.textContent = '✅ 三条流全部补全！对照父图：统计报表这条出流正是平衡检查的关键。';
+        return;
+      }
+      /* 错误分型 */
+      var rev = null;
+      ANSWERS.forEach(function (a) { if (a.card === name && a.from === to && a.to === from) rev = a; });
+      if (rev) {
+        fb.textContent = '❌ 方向反了：「' + name + '」应从「' + NODES[rev.from].label + '」流向「' + NODES[rev.to].label + '」。判断依据：数据的产生者流向使用者（报表是统计加工产出的）。';
+      } else if (isT(NODES[from].type) && isT(NODES[to].type)) {
+        fb.textContent = '❌ 这条连接本身非法：外部实体与数据存储（或实体与实体、存储与存储）之间不能直接连数据流——数据必须经过加工。先想清楚这股数据由哪个加工产生。';
+      } else {
+        var known = null;
+        ANSWERS.forEach(function (a) { if (a.card === name) known = a; });
+        if (known) {
+          fb.textContent = '❌ 端点错位：「' + name + '」的含义对不上「' + NODES[from].label + ' → ' + NODES[to].label + '」。想一想这条数据的产生者和使用者分别是谁；若图上本没有这条流而硬画上，会破坏父子图平衡。';
+        } else {
+          fb.textContent = '❌ 图上没有这条流：凭空新增与父图/业务规则不符的流，会破坏父子图平衡。重新对照业务规则选卡片。';
+        }
+      }
+      fb.className = 'lab-feedback bad';
+    }
+    build();
+  })();
+
+  /* ---- 实验二：黑洞/奇迹诊断 ---- */
+  (function () {
+    var items = [
+      { name: '加工A「订单汇总」', desc: '有输入流 D3→A「订单数据」，没有任何输出流', ans: '黑洞',
+        why: '只入不出=黑洞：料堆着不出货，加工没有产出任何结果。' },
+      { name: '加工B「语音播报」', desc: '只有输出流 B→顾客「取餐通知」，没有任何输入流', ans: '奇迹',
+        why: '只出不进=奇迹：没有进料却产出了预制板，数据凭空而来。' },
+      { name: '加工C「库存核对」', desc: '有输入流 D1→C「库存数据」，也有输出流 C→D1「核对结果」', ans: '正常',
+        why: '有进有出，符合「每个加工必须有输入且有输出」的铁律。' }
+    ];
+    var box = CX.utils.$('hole-list'), idx = 0, okCnt = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>诊断完成：答对 ' + okCnt + '/' + items.length + '。</p>';
+        CX.utils.$('lab2-fb').textContent = okCnt === 3 ? '✅ 三种情况全中：黑洞只入不出、奇迹只出不进、正常有进有出。' : '回忆铁律：每个加工必须有输入且有输出。';
+        CX.utils.$('lab2-fb').className = okCnt === 3 ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      var it = items[idx];
+      box.innerHTML = '<p><b>' + it.name + '</b>：' + it.desc + '</p>' +
+        '<button class="btn" data-d="黑洞">是黑洞</button> <button class="btn" data-d="奇迹">是奇迹</button> <button class="btn" data-d="正常">正常</button>';
+      CX.utils.$$('button[data-d]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var v = b.getAttribute('data-d'), fbx = CX.utils.$('lab2-fb');
+          if (v === it.ans) {
+            okCnt++; fbx.textContent = '✅ 判断正确：' + it.why; fbx.className = 'lab-feedback ok';
+          } else {
+            fbx.textContent = '❌ 判成「' + v + '」错了。这道题错在数方向的第二步——先数输入再数输出：' + it.why;
+            fbx.className = 'lab-feedback bad';
+          }
+          idx++; setTimeout(render, 900);
+        });
+      });
+    }
+    render();
+  })();
+
+  /* ---- 实验三：数据字典符号匹配 ---- */
+  (function () {
+    var pairs = [['=', '由…组成（定义）'], ['+', '与（几个成分并列）'], ['[ | ]', '或（多个成分取其一）'], ['{ }', '重复（可出现多次）'], ['( )', '可选（可有可无）']];
+    var lBox = CX.utils.$('dd-left'), rBox = CX.utils.$('dd-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab3-fb').textContent = '已选符号「' + p[0] + '」，请在右列点它的含义。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个符号。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+            CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab3-fb').textContent = '❌ 符号「' + selL.dataset.k + '」不是这个含义——拿「借书单=读者编号+图书编号」逐个符号代入试一遍。';
+            CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('dd-reset').addEventListener('click', function () { build(); CX.utils.$('lab3-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

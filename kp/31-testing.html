@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>31 · 软件测试 · 架构师学堂</title>
+<meta name="description" content="白盒看线路、黑盒看说明书，测试证明缺陷存在而非证明无缺陷。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="25-process-models.html">前置 25</a></span>
+    <span class="badge dep"><a href="26-requirements.html">前置 26</a></span>
+    <h1>31 · 软件测试</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">白盒看线路、黑盒看说明书，测试证明缺陷存在。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>竣工前监理验收一栋楼：一种验收员拿着结构图纸逐条检查钢筋走向（他不看房间能不能住）；另一种验收员只拿住户手册逐项试用（他不关心墙里走线）。同时总包抱怨：还没封顶就想验收水电，只能先装「假水管」顶着；先验收了外墙想封样板间，又得有人「替内装班组发开工指令」。软件测试里的这些「假水管」「代发指令」分别叫什么？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>拿图纸查线路=白盒测试，拿手册试用=黑盒测试。自顶向下集成时，下层模块还没好，要写<strong>桩模块（stub）</strong>假装下层——就是「假水管」；自底向上集成时，上层调用者还没好，要写<strong>驱动模块（driver）</strong>替上层发调用——就是「代发指令」。方向别背反：桩在下、驱动在上。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>25</b> 与 <b>26</b>（V 模型与需求基线）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>软件测试是「为发现缺陷而执行程序」的过程。它分两派：<strong>白盒测试</strong>看代码内部逻辑结构（监理拿图纸查线路），设计手段是各种<strong>覆盖</strong>；<strong>黑盒测试</strong>只看输入输出规格（验收员拿手册试用），设计手段是<strong>等价类划分、边界值分析</strong>等。在工地上，测试就是<strong>监理验收</strong>。</p>
+      <h3>解决什么问题</h3>
+      <p>测试回答两个问题：「这个程序做到需求要求的程度了吗（验证与确认）」与「还没做的部分风险在哪」。要牢记其边界：<strong>测试只能证明缺陷存在，不能证明缺陷不存在</strong>——穷举所有输入不可能。</p>
+      <h3>核心机制 1：V 模型——测试级别与开发阶段一一对应</h3>
+      <table class="tbl">
+        <tr><th>开发侧（左边下行）</th><th>测试侧（右边上行）</th><th>验什么</th></tr>
+        <tr><td>需求分析</td><td><strong>验收测试</strong>（含 α/β）</td><td>是否满足业主诉求书（需求基线）</td></tr>
+        <tr><td>概要设计</td><td><strong>系统测试</strong></td><td>整个系统功能与非功能</td></tr>
+        <tr><td>详细设计</td><td><strong>集成测试</strong></td><td>模块之间接口</td></tr>
+        <tr><td>编码</td><td><strong>单元测试</strong></td><td>单个模块内部逻辑</td></tr>
+      </table>
+      <h3>核心机制 2：白盒覆盖强度（低→高）</h3>
+      <p><strong>语句 &lt; 判定 &lt; 条件 &lt; 判定/条件 &lt; 条件组合 &lt; 路径</strong>（个别教材在判定/条件之外还列修正的条件判定覆盖 MC/DC，属口径扩展）。定义速记：语句=每条语句都跑到；判定=每个判断的真假分支都走到；条件=每个子条件的真假都取到；条件组合=同一判断内子条件真假组合都取到；路径=所有可行路径都走到。</p>
+      <h3>核心机制 3：黑盒两板斧</h3>
+      <ul>
+        <li><strong>等价类划分</strong>：把输入分成若干「同类待遇」的集合，每类取 1 个代表（如年龄 18~60 有效：有效类 1 个+无效类若干个）。</li>
+        <li><strong>边界值分析</strong>：缺陷最爱藏在边界——在 min、max 及其两侧 ±1 取值（17,18,19 与 59,60,61）。</li>
+      </ul>
+      <h3>核心机制 4：集成策略（高频单选）</h3>
+      <ul>
+        <li><strong>自顶向下</strong>：从主控模块沿控制层向下集成，下层未完成用<strong>桩模块 stub</strong> 顶替（假水管在下）。</li>
+        <li><strong>自底向上</strong>：从叶子模块向上集成，上层未完成用<strong>驱动模块 driver</strong> 调用被测模块（代发指令在上）。</li>
+        <li><strong>三明治/混合</strong>：上下夹击，同时用桩与驱动。</li>
+      </ul>
+      <h3>关键细节：McCabe 环形复杂度</h3>
+      <p>对控制流图 G：<strong>V(G) = E − N + 2</strong>（边数−节点数+2），结构化程序下也等于<strong>判定节点数 + 1</strong>。V(G) 给出<strong>线性无关路径数</strong>，一般认为 V(G)≤10 程序复杂度可接受（教材口径）。它也等于「强连通图中可回边的独立环数」，与路径测试的用例设计直接挂钩。</p>
+      <p>其他：<strong>回归测试</strong>——任何代码修改后重跑既有测试，防「改好一处碰坏三处」；<strong>α 测试</strong>——用户在<strong>开发方场所</strong>、开发者在旁记录；<strong>β 测试</strong>——用户在<strong>自己场所</strong>真实环境试用。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①桩与驱动的方向最常考：<strong>顶下要装桩，底上要开车</strong>；②覆盖强度排序方向别背反（语句最弱、路径最强）；③V(G)=E−N+2 里的 E 是<strong>边</strong>不是「用例」；④α/β 区分只在「谁在哪里」；⑤验收测试的依据是<strong>需求（基线）</strong>，不是设计文档。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>white-box/black-box testing 白盒/黑盒测试 · stub/driver 桩模块/驱动模块 · regression testing 回归测试 · cyclomatic complexity 环形复杂度</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>V 模型像工地验收阶梯：盖到哪层、验到哪层——需求对验收、概要对系统、详设对集成、编码对单元。白盒是监理看图纸查钢筋（知道线路才查得出偷工），黑盒是住户拿说明书试门锁（不管墙里怎样，好不好用说了算）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>拿图纸查钢筋走向</td><td>白盒覆盖测试</td><td>成立</td></tr>
+      <tr><td>拿住户手册试门锁</td><td>黑盒等价类/边界值</td><td>成立</td></tr>
+      <tr><td>下层未完工先装「假水管」</td><td>桩模块 stub</td><td>成立</td></tr>
+      <tr><td>上层未到位「代发开工指令」</td><td>驱动模块 driver</td><td>成立</td></tr>
+      <tr><td>验收全部通过=绝对没有隐患</td><td>测试的证明力</td><td><b>失效</b>：测试只能证明缺陷存在，穷举不可能，「无缺陷」不可证</td></tr>
+    </table>
+    <div class="rhyme">白盒看线路，黑盒看说明；<br>语判条判组路径，强度步步升；<br>顶下要装桩，底上要开车；<br>改完必回归，V字左开右验成。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示白盒用例设计：一个小程序（两个判断 a&gt;0且b&gt;0、c&gt;0或d&gt;0）的控制流图。滑块选择覆盖准则，播放逐条展示所需用例及其执行路径，并给出<strong>最少用例数</strong>。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>覆盖准则 <input type="range" id="cv-slider" min="0" max="5" step="1" value="0"> <span id="cv-out">语句覆盖</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：覆盖准则按强度从弱到强排好</h4>
+      <p class="foreshadow">把 6 张准则卡片拖入槽中（弱→强）：</p>
+      <div id="cv-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="cv-slot"></div>
+      <button class="btn" id="cv-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：McCabe 环形复杂度计算器</h4>
+      <p class="foreshadow">拖动滑块改控制流图的边数 E 与节点数 N，观察 V(G)：</p>
+      <div class="anim-controls" style="margin:6px 0">
+        <label>边数 E <input type="range" id="mc-e" min="7" max="14" step="1" value="9"> <span id="mc-eo">9</span></label>
+        <label style="margin-left:16px">节点数 N <input type="range" id="mc-n" min="6" max="10" step="1" value="8"> <span id="mc-no">8</span></label>
+      </div>
+      <div id="mc-draw"></div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：测试名词 ↔ 场景</h4>
+      <p class="foreshadow">先点左列名词，再点右列场景：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="ts-left"></div>
+        <div id="ts-right"></div>
+      </div>
+      <button class="btn" id="ts-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>25 页 V 模型的右半边在本页展开成四个测试级别；26 页的需求基线是验收测试的判卷标准。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>测试贯穿运维期的延续是回归测试与维护，见 <b>32 · 维护、配置管理与CMMI</b>；</li><li>测试发现的架构级缺陷回馈到 <b>45 · 架构演化与重构</b>；</li><li>「不可穷举所以要挑最可能出错的输入」的取舍思想，与 <b>44 · 架构评估</b> 的风险驱动同源。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>桩模块 stub</th><th>驱动模块 driver</th></tr>
+      <tr><td>出现策略</td><td>自顶向下集成</td><td>自底向上集成</td></tr>
+      <tr><td>替代谁</td><td>替代<strong>下层</strong>未完成被调模块</td><td>替代<strong>上层</strong>未完成调用者</td></tr>
+      <tr><td>易错点</td><td>背反成「自顶向下要驱动」</td><td>把两者都当成测试工具箱随便用</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">桩在下顶替被调用者（假水管），驱动在上替你发调用（代发指令）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——查作业有两种查法，一种对答案，一种看解题步骤……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① V 模型：需求↔验收、概要↔系统、详设↔集成、编码↔单元。</li><li>② 白盒覆盖弱→强：语句&lt;判定&lt;条件&lt;判定/条件&lt;条件组合&lt;路径；黑盒靠等价类+边界值。</li><li>③ 顶下装桩（stub）、底上开车（driver）；V(G)=E−N+2=判定节点+1；测试证明缺陷存在，不证明无缺陷。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '31', domain: 'se', loc: 'construction', root: '..',
+  title: '软件测试', prev: '30-uml.html', prevTitle: '30 · UML建模',
+  next: '32-maintenance-cmm.html', nextTitle: '32 · 维护、配置管理与CMMI',
+  keywords: ['V模型','白盒测试','语句覆盖','判定覆盖','边界值','桩模块','驱动模块','环形复杂度']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·25/26】V 模型中「验收测试」的判卷标准来自哪个制品？',
+    opts: [
+      { t: '概要设计说明书', why: '概要设计对应的是系统测试，不是验收。' },
+      { t: '需求规格说明书（需求基线）', why: '对。25 页 V 模型左上角是需求分析、右上角是验收测试；26 页讲过基线是验收对账的依据。' },
+      { t: '详细设计说明书', why: '详设对应集成测试。' }
+    ],
+    ans: 1, tag: '回忆:25/26', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '采用<strong>自底向上</strong>集成策略测试某模块时，它的上层调用者尚未完成，需要编写什么辅助模块？',
+      opts: [
+        { t: '桩模块 stub', why: '方向反了：桩是自顶向下时代替下层被调模块的。' },
+        { t: '驱动模块 driver', why: '对。上层没好，就写一个「代发指令」的驱动模块来调用被测模块。' },
+        { t: '代理模块 proxy', why: '代理是设计模式角色，不是集成测试辅助件。' },
+        { t: '断言模块 assert', why: '断言是编码校验手段，与集成辅助无关。' }
+      ],
+      ans: 1, tag: '集成策略', src: '仿真题' },
+    { q: 'V 模型中与「概要设计」阶段水平对应、主要验证整体功能与非功能的测试级别是？',
+      opts: [
+        { t: '单元测试', why: '单元测试对应编码阶段。' },
+        { t: '系统测试', why: '对。概要设计↔系统测试；需求↔验收、详设↔集成、编码↔单元。' },
+        { t: '集成测试', why: '集成测试对应详细设计。' },
+        { t: '回归测试', why: '回归不是 V 模型的级别，是修改后的重测活动。' }
+      ],
+      ans: 1, tag: 'V模型', src: '仿真题' },
+    { q: '某控制流图有 10 条边、7 个节点，其 McCabe 环形复杂度 V(G) = ？',
+      opts: [
+        { t: '3', why: '按 V(G)=N−E+2 会算出 −1，公式方向记反了。' },
+        { t: '5', why: '对。V(G)=E−N+2=10−7+2=5；也等于判定节点数+1。' },
+        { t: '17', why: '把 E 与 N 相加了，公式用错。' },
+        { t: '19', why: '无此算法，可能是把边数当节点数重复计。' }
+      ],
+      ans: 1, tag: 'McCabe', src: '仿真题' },
+    { q: '【交错复习·26】验收测试发现「系统性能达标但漏做了医保接口对接」，从测试依据的角度，这暴露了哪个环节的问题？',
+      opts: [
+        { t: '设计模式选择不当', why: '设计模式影响实现质量，解释不了「漏做一条需求」。' },
+        { t: '需求工程：完整性缺失（该需求未进入基线）', why: '对。26 页确认四性中的「完整性」没守住——验收对照需求基线，基线里没有就没人做。' },
+        { t: '编码规范不符合', why: '编码规范影响可读性，与本问题无关。' }
+      ],
+      ans: 1, tag: '交错复习:26', src: '仿真题' },
+    { q: '输入规定为「1~100 的整数」，按边界值分析设计测试输入，最合适的一组是？',
+      opts: [
+        { t: '50', why: '50 是中间值，边界值分析偏爱边界，不是中间。' },
+        { t: '0、1、100、101', why: '对。min−1、min、max、max+1 四个点最可能暴露边界缺陷。' },
+        { t: '1、25、50、75、100', why: '这是均匀取样，属于随机/等价类思路，不含越界点。' },
+        { t: '−100、200', why: '离边界太远的极端值性价比低，等价类上归同一无效类。' }
+      ],
+      ans: 1, tag: '边界值', src: '仿真题' }
+  ], { kpId: '31', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某模块伪代码如下：\n输入 a, b, c, d\nif (a>0 且 b>0) 则 x=a+b；否则 x=0；\nif (c>0 或 d>0) 则 y=1；否则 y=0；\n输出 x, y',
+    q: '(1) 画出（文字描述）控制流图并用 V(G)=E−N+2 计算环形复杂度；(2) 分别给出语句覆盖、判定覆盖、条件组合覆盖、路径覆盖的最少用例数；(3) 为「路径覆盖」设计一组用例（写出 a,b,c,d 取值及预期 x,y）。',
+    ref: '(1) 节点：起点、判断1、S1、S2、判断2、S3、S4、终点共 N=8；边：起点→判断1、判断1→S1、判断1→S2、S1→判断2、S2→判断2、判断2→S3、判断2→S4、S3→终点、S4→终点共 E=9；V(G)=9−8+2=3（=判定节点数2+1）。(2) 最少用例数：语句覆盖 2（必须同时走到 S1 与 S2，1 条做不到）；判定覆盖 2；条件组合覆盖 4（判断1 的 (a,b) 四种组合各需一例）；路径覆盖 4（判断1真假 × 判断2真假 = 4 条可行路径）。(3) 一组路径覆盖用例：(1,1,1,1)→x=4,y=1；(1,1,0,0)→x=4,y=0；(0,0,1,0)→x=0,y=1；(0,0,0,0)→x=0,y=0。',
+    points: ['控制流图节点/边计数正确，V(G)=3 且给出验证式', '四个最少用例数正确（2/2/4/4）并说明「为什么不能更少」', '路径覆盖用例四条可行路径齐全、预期值正确'],
+    frame: '答题框架：先画图计数（E、N 分列）→逐准则给「最少值+不可再少的理由」→用例表收尾（输入值+预期输出）。',
+    kpId: '31'
+  });
+  CX.renderCase('#case2', {
+    stem: '某系统 20 个模块：主控模块及 8 个上层模块已完成，10 个底层工具模块中有 6 个可运行；项目要求两周内先对「报表生成链路」完成集成验证，且期间底层数据采集模块仍在并行开发。',
+    q: '(1) 为「报表生成链路」选择集成策略并说明理由；(2) 说明该策略需要的辅助模块及其替身对象；(3) 集成完成后底层数据采集模块提交了修改版，测试组还应安排什么测试，为什么？',
+    ref: '(1) 建议「自底向上」为主（底层工具已可运行，从它们开始集成），对仍缺失的 2 个底层模块所在分支可配合「三明治」处理；理由：自底向上无需等待上层全部完成，可立即开始，且底层是报表链路的基础。(2) 辅助模块：驱动模块 driver——替尚未集成的上层调用者向被测底层模块发起调用并传数；若采用三明治策略，对缺失的 2 个底层模块还要准备桩模块 stub 顶替其被调功能。(3) 应安排回归测试：修改版底层模块可能影响已集成通过的报表链路（接口或行为变化），重跑相关既有用例以确认「修改未破坏已有功能」；同时把修改纳入配置管理基线（为 32 页伏笔）。',
+    points: ['策略选择与场景条件对应（底层可运行→自底向上/三明治）', 'stub/driver 替身对象说明准确', '回归测试安排并说明「防修改破坏已有功能」的理由'],
+    frame: '答题框架：策略（结合进度约束）→辅助件（替谁）→后续动作（回归+基线），逐问落点。',
+    kpId: '31'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '另一小程序只有一个判断：if (x>0 且 y>0) 则执行 S1 否则执行 S2。要达到条件组合覆盖，最少需要几个测试用例？',
+    opts: [
+      { t: '2 个', why: '2 个只能覆盖 (T,T) 与 (F,F)，漏掉 (T,F)、(F,T)。' },
+      { t: '4 个：x,y 真假共 4 种组合', why: '对。同一判断内两个子条件真假组合共 2×2=4，每例至多覆盖一组。' },
+      { t: '8 个', why: '8 是把「语句」也当维度重复计数了。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['25', '26'], 'prev');
+  CX.depChain('#bridge-next', ['32'], 'next');
+
+  /* ---- 动画：白盒覆盖准则与最少用例 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var CV_NAMES = ['语句覆盖', '判定覆盖', '条件覆盖', '判定/条件覆盖', '条件组合覆盖', '路径覆盖'];
+  var CASES = [
+    [[1,1,1,1],[0,0,0,0]],
+    [[1,1,1,1],[0,0,0,0]],
+    [[1,1,1,1],[0,0,0,0]],
+    [[1,1,1,1],[0,0,0,0]],
+    [[1,1,1,1],[1,0,0,1],[0,1,1,0],[0,0,0,0]],
+    [[1,1,1,1],[1,1,0,0],[0,0,1,0],[0,0,0,0]]
+  ];
+  var CRIT_NOTE = [
+    '每条语句都执行：S1 与 S2 互斥，1 例做不到 → 2 例',
+    '每个判断真假分支都走到 → 2 例',
+    '每个子条件真假都取到（a,b,c,d 各取过 T 和 F）→ 2 例',
+    '判定+条件同时满足 → 2 例',
+    '判断1 的 (a,b) 四种组合各需一例 → 4 例',
+    '判断1 × 判断2 = 4 条可行路径 → 4 例'
+  ];
+  var cur = 0;
+  function posOf(id) {
+    var map = {
+      st: [60, 150], j1: [190, 150], s1: [320, 82], s2: [320, 218], j2: [450, 150], s3: [575, 82], s4: [575, 218], en: [682, 150]
+    };
+    return map[id];
+  }
+  function pathIds(cs) { /* 返回节点序列 */
+    var j1 = (cs[0] > 0 && cs[1] > 0), j2 = (cs[2] > 0 || cs[3] > 0);
+    return ['st', 'j1', j1 ? 's1' : 's2', 'j2', j2 ? 's3' : 's4', 'en'];
+  }
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="白盒覆盖演示">';
+    s += '<defs><marker id="arwT" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-dim)"/></marker></defs>';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 基础图：边 */
+    var edges = [['st','j1'],['j1','s1'],['j1','s2'],['s1','j2'],['s2','j2'],['j2','s3'],['j2','s4'],['s3','en'],['s4','en']];
+    edges.forEach(function (e) {
+      var p1 = posOf(e[0]), p2 = posOf(e[1]);
+      s += '<line x1="' + p1[0] + '" y1="' + p1[1] + '" x2="' + p2[0] + '" y2="' + p2[1] + '" stroke="var(--line)" stroke-width="1.5"/>';
+    });
+    /* 当前揭示到的用例路径高亮 */
+    var list = CASES[cur];
+    var shown = Math.max(1, Math.ceil(t * list.length));
+    for (var k = 0; k < shown; k++) {
+      var seq = pathIds(list[k]);
+      var col = ['var(--accent)', 'var(--ok)', 'var(--bad)', 'var(--accent-2)'][k % 4];
+      for (var e2 = 0; e2 < seq.length - 1; e2++) {
+        var a = posOf(seq[e2]), b = posOf(seq[e2 + 1]);
+        s += '<line x1="' + a[0] + '" y1="' + (a[1] + (k - 1.5) * 3) + '" x2="' + b[0] + '" y2="' + (b[1] + (k - 1.5) * 3) + '" stroke="' + col + '" stroke-width="3" opacity=".85"/>';
+      }
+    }
+    /* 节点 */
+    function node(id, label, shape) {
+      var p = posOf(id), on = false;
+      for (var k2 = 0; k2 < shown; k2++) {
+        if (pathIds(list[k2]).indexOf(id) >= 0) { on = true; break; }
+      }
+      if (shape === 'd') {
+        s += '<path d="M ' + (p[0] - 34) + ' ' + p[1] + ' L ' + p[0] + ' ' + (p[1] - 24) + ' L ' + (p[0] + 34) + ' ' + p[1] + ' L ' + p[0] + ' ' + (p[1] + 24) + ' z" fill="' + (on ? 'var(--accent)' : 'var(--card)') + '" stroke="var(--line)"/>';
+      } else {
+        s += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="17" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>';
+      }
+      s += '<text x="' + p[0] + '" y="' + (p[1] + 4) + '" text-anchor="middle" font-size="11" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">' + label + '</text>';
+    }
+    node('st', '起'); node('j1', 'J1', 'd'); node('s1', 'S1'); node('s2', 'S2'); node('j2', 'J2', 'd'); node('s3', 'S3'); node('s4', 'S4'); node('en', '终');
+    s += '<text x="190" y="196" text-anchor="middle" font-size="10" fill="var(--text-dim)">a&gt;0且b&gt;0</text>';
+    s += '<text x="450" y="196" text-anchor="middle" font-size="10" fill="var(--text-dim)">c&gt;0或d&gt;0</text>';
+    /* 用例清单 */
+    var rows = '';
+    for (var r = 0; r < list.length; r++) {
+      var c = list[r];
+      var mark = r < shown ? '✅' : '⬜';
+      rows += '<text x="480" y="' + (44 + r * 18) + '" font-size="12" fill="var(--text-dim)">' + mark + ' 用例' + (r + 1) + '：a=' + (c[0] ? '正' : '非正') + ', b=' + (c[1] ? '正' : '非正') + ', c=' + (c[2] ? '正' : '非正') + ', d=' + (c[3] ? '正' : '非正') + '</text>';
+    }
+    s += rows;
+    if (t >= 0.99) s += '<text x="480" y="' + (44 + list.length * 18) + '" font-size="13" fill="var(--ok)">最少用例数 = ' + list.length + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var idx = Math.min(list.length - 1, Math.floor(t * list.length));
+    var c2 = list[idx];
+    CX.setCap('#demo1-ctl', CV_NAMES[cur] + '：第 ' + (idx + 1) + ' 例 (a=' + (c2[0] ? '正' : '非正') + ',b=' + (c2[1] ? '正' : '非正') + ',c=' + (c2[2] ? '正' : '非正') + ',d=' + (c2[3] ? '正' : '非正') + ') 沿路径 ' + pathIds(c2).join('→') + '；' + CRIT_NOTE[cur]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 24, duration: 12, onTick: draw });
+  var cvsl = CX.utils.$('cv-slider');
+  cvsl.addEventListener('input', function () {
+    cur = +cvsl.value;
+    CX.utils.$('cv-out').textContent = CV_NAMES[cur];
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：覆盖强度排序 ---- */
+  (function () {
+    var expect = ['语句覆盖（每条语句跑到）', '判定覆盖（真假分支都走到）', '条件覆盖（子条件真假都取到）', '判定/条件覆盖（判定+条件同时满足）', '条件组合覆盖（同判断内组合都取到）', '路径覆盖（可行路径都走到）'];
+    var pool = CX.utils.$('cv-pool'), slot = CX.utils.$('cv-slot');
+    CX.shuffle(expect.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]') || slot.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('cv-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab1-fb');
+      if (got.length < 6) { fb.textContent = '还有 ' + (6 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      for (var i = 0; i < 6; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 位放错了：你放了「' + got[i] + '」。提示：强度从「只看语句」到「看所有组合/所有路径」逐级变严——语句最弱，路径最强。';
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 排序正确：语句<判定<条件<判定/条件<条件组合<路径。强度越高，用例一般越多。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验二：McCabe 计算器 ---- */
+  (function () {
+    var eSl = CX.utils.$('mc-e'), nSl = CX.utils.$('mc-n');
+    function render() {
+      var E = +eSl.value, N = +nSl.value, V = E - N + 2;
+      CX.utils.$('mc-eo').textContent = E;
+      CX.utils.$('mc-no').textContent = N;
+      var s = '<svg viewBox="0 0 460 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="V(G)计算">';
+      s += '<rect width="460" height="120" rx="10" fill="var(--bg-soft)"/>';
+      s += '<circle cx="80" cy="60" r="16" fill="var(--card)" stroke="var(--line)"/><text x="80" y="65" text-anchor="middle" font-size="12" fill="var(--text-dim)">N=' + N + '</text>';
+      s += '<circle cx="230" cy="60" r="16" fill="var(--card)" stroke="var(--line)"/><text x="230" y="65" text-anchor="middle" font-size="12" fill="var(--text-dim)">E=' + E + '</text>';
+      s += '<line x1="96" y1="60" x2="214" y2="60" stroke="var(--accent)" stroke-width="2"/>';
+      s += '<text x="155" y="48" text-anchor="middle" font-size="12" fill="var(--accent)">−1</text>';
+      s += '<line x1="246" y1="60" x2="330" y2="60" stroke="var(--text-dim)" stroke-width="2"/>';
+      s += '<text x="288" y="48" text-anchor="middle" font-size="12" fill="var(--text-dim)">+2</text>';
+      s += '<rect x="334" y="34" width="90" height="52" rx="8" fill="' + (V <= 10 ? 'var(--ok)' : 'var(--bad)') + '" opacity=".85"/>';
+      s += '<text x="379" y="58" text-anchor="middle" font-size="14" fill="var(--bg)">V(G)=' + V + '</text>';
+      s += '<text x="379" y="76" text-anchor="middle" font-size="10" fill="var(--bg)">' + (V <= 10 ? '一般认为可接受' : '复杂度偏高') + '</text>';
+      s += '<text x="230" y="108" text-anchor="middle" font-size="12" fill="var(--text-dim)">V(G) = E − N + 2 = ' + E + ' − ' + N + ' + 2 = ' + V + '（也 = 判定节点数 + 1）</text>';
+      s += '</svg>';
+      CX.utils.$('mc-draw').innerHTML = s;
+      var fb = CX.utils.$('lab2-fb');
+      fb.textContent = '把 V(G) 换算成独立路径数：至少需要 ' + V + ' 条线性无关路径的用例组合才能覆盖基本集。试着让 V(G) 超过 10，看看复杂度警示。';
+      fb.className = 'lab-feedback';
+    }
+    eSl.addEventListener('input', render);
+    nSl.addEventListener('input', render);
+    render();
+  })();
+
+  /* ---- 实验三：测试名词↔场景匹配 ---- */
+  (function () {
+    var pairs = [
+      ['桩模块 stub', '自顶向下集成时，替还没写好的下层被调模块（假水管）'],
+      ['驱动模块 driver', '自底向上集成时，替还没好的上层调用者发指令'],
+      ['回归测试', '修复一个缺陷后重跑原有用例确认没改坏别处'],
+      ['α 测试', '用户到开发方现场试用，开发人员在旁记录问题'],
+      ['β 测试', '用户在自己办公室的真实环境试用预发布版本']
+    ];
+    var lBox = CX.utils.$('ts-left'), rBox = CX.utils.$('ts-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的场景。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个名词。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+            CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+          } else {
+            var hint = '';
+            if (selL.dataset.k === '桩模块 stub' || d.dataset.v === '桩模块 stub') hint = '方向口诀：顶下要装桩，底上要开车。';
+            else if (selL.dataset.k === 'α 测试' || d.dataset.v === 'α 测试') hint = 'α/β 只看地点：开发方场所=α，用户场所=β。';
+            else hint = '重读场景中的关键词再试。';
+            CX.utils.$('lab3-fb').textContent = '❌ 「' + selL.dataset.k + '」不对应此场景。' + hint;
+            CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('ts-reset').addEventListener('click', function () { build(); CX.utils.$('lab3-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

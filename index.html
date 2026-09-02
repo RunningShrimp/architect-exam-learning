@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>架构师学堂 · 系统架构设计师学习站</title>
+<meta name="description" content="软考高级·系统架构设计师离线学习站：城市隐喻+间隔重复+主动回忆，62个知识点，零外部依赖。">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <h1>🏙️ 架构师学堂 · 把整门考试建成一座城市</h1>
+    <p class="foreshadow">面向「软考高级 · 系统架构设计师」。全站贯穿一个隐喻：<b>软件系统 = 一座城市</b>——缓存是便利店、负载均衡是红绿灯、微服务是专业商铺区。62 个知识点按依赖关系排成学习序，从 01 出发顺序学即可；每个页面都带讲解、动画、实验、测试与复习调度。</p>
+  </div>
+
+  <section class="sec">
+    <h2><span class="secno">📊</span>学习仪表盘</h2>
+    <div class="dash-grid" id="dash-stats"></div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">🎯</span>各域掌握度雷达</h2>
+    <div class="demo-stage" id="radar-stage"></div>
+    <p class="foreshadow">掌握度口径：做过随堂测试=测试得分比例；仅浏览过=0.2；未学=0。学一页亮一格。</p>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">🗺️</span>城市地图 · 点击分区进入知识域</h2>
+    <div class="citymap" id="bigmap"></div>
+    <div class="map-loc" id="map-hint">📍 点击任一分区，跳到对应知识域的页面列表</div>
+  </section>
+
+  <section class="sec" id="domain-sections">
+    <h2><span class="secno">📚</span>知识域与学习路径</h2>
+    <p class="foreshadow">按序号从小到大学；每个域的页都标了考频与难度。⭐=考频(1~5)，◆=难度(1~5)。带「已学/得分」标记的是你的进度。</p>
+    <div class="domain-list" id="domain-list"></div>
+  </section>
+
+  <section class="sec">
+    <h2><span class="secno">🧭</span>怎么用这座城</h2>
+    <ul class="summary-3">
+      <li><b>第一次来</b>：从 <a href="kp/01-computer-overview.html">01 计算机系统组成</a> 开始按顺序学，每页的「随堂测试」会自动把你的成绩写入复习调度（SM-2）。</li>
+      <li><b>每天回来</b>：进 <a href="review.html">复习中心</a> 清掉到期的记忆卡，做一张跨域混合卷，翻翻错题本。</li>
+      <li><b>迷路了</b>：看 <a href="graph.html">知识图谱</a> 找到这个概念的前置与去向；点地图任一分区也能直达。</li>
+    </ul>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器 localStorage<br>知识口径以《系统架构设计师教程（第2版）》与官方大纲为准 · 祝一次通关</footer>
+<script>
+window.KP_BOOT = function (CX) {
+  var U = CX.utils;
+  CX.ready(function (idx) {
+    if (!idx) {
+      U.$('domain-list').innerHTML = '<div class="callout trap">⚠️ 知识索引加载失败：请通过本地服务器（python3 -m http.server）或线上地址访问，file:// 直开受浏览器限制。</div>';
+      return;
+    }
+    var s = CX.getState();
+    var pts = idx.points;
+    function masteryOf(p) {
+      var pg = s.pages[p.id];
+      if (!pg) return 0;
+      if (pg.best) return pg.best;
+      return 0.2;
+    }
+    /* 统计 */
+    var visited = 0, sumM = 0, due = CX.dueList().length;
+    pts.forEach(function (p) {
+      var pg = s.pages[p.id];
+      if (pg && pg.visited) visited++;
+      sumM += masteryOf(p);
+    });
+    var pct = Math.round(visited / pts.length * 100);
+    var stats = [
+      { num: pct + '%', lbl: '总进度（已浏览 ' + visited + '/' + pts.length + ' 页）' },
+      { num: (sumM / pts.length * 100).toFixed(0) + ' 分', lbl: '平均掌握度（测试得分驱动）' },
+      { num: (s.streak || 1) + ' 天', lbl: '连续学习天数（今天学一页就续上）' },
+      { num: due + ' 张', lbl: '到期记忆卡（去复习中心清空）' }
+    ];
+    U.$('dash-stats').innerHTML = stats.map(function (x) {
+      return '<div class="stat-card"><div class="num">' + x.num + '</div><div class="lbl">' + x.lbl + '</div></div>';
+    }).join('');
+
+    /* 雷达图 */
+    var domKeys = Object.keys(idx.domains);
+    function drawRadar() {
+      var stage = U.$('radar-stage');
+      var W = Math.min(560, stage.clientWidth || 560), H = 420, cx = W / 2, cy = H / 2 + 8, R = Math.min(W, H) / 2 - 58;
+      var n = domKeys.length;
+      var pt = function (i, r) {
+        var a = -Math.PI / 2 + i * 2 * Math.PI / n;
+        return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+      };
+      var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+      [0.25, 0.5, 0.75, 1].forEach(function (f) {
+        var poly = domKeys.map(function (k, i) { return pt(i, R * f).join(','); }).join(' ');
+        svg += '<polygon points="' + poly + '" fill="none" stroke="var(--line)" stroke-width="1"/>';
+      });
+      domKeys.forEach(function (k, i) {
+        var xy = pt(i, R);
+        svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + xy[0] + '" y2="' + xy[1] + '" stroke="var(--line)" stroke-width="1"/>';
+      });
+      var vals = domKeys.map(function (k) {
+        var d = idx.domains[k];
+        var list = pts.filter(function (p) { return p.domain === k; });
+        var m = list.reduce(function (acc, p) { return acc + masteryOf(p); }, 0) / list.length;
+        return { k: k, d: d, m: m };
+      });
+      var poly = vals.map(function (v, i) { return pt(i, R * Math.max(0.02, v.m)).join(','); }).join(' ');
+      svg += '<polygon points="' + poly + '" fill="var(--accent)" fill-opacity=".25" stroke="var(--accent)" stroke-width="2"/>';
+      vals.forEach(function (v, i) {
+        var xy = pt(i, R);
+        var lx = cx + (R + 26) * Math.cos(-Math.PI / 2 + i * 2 * Math.PI / n);
+        var ly = cy + (R + 26) * Math.sin(-Math.PI / 2 + i * 2 * Math.PI / n);
+        svg += '<circle cx="' + xy[0] + '" cy="' + xy[1] + '" r="3.5" fill="var(--accent-2)"/>';
+        svg += '<text x="' + lx + '" y="' + ly + '" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + v.d.icon + v.d.name.slice(0, 4) + ' ' + Math.round(v.m * 100) + '%<title>' + CX.esc(v.d.name) + '</title></text>';
+      });
+      svg += '</svg>';
+      stage.innerHTML = svg;
+    }
+    drawRadar();
+    window.addEventListener('resize', drawRadar);
+
+    /* 大地图（可点击） */
+    var big = U.$('bigmap');
+    var locMap = {};
+    domKeys.forEach(function (k) { locMap[idx.domains[k].loc] = k; });
+    big.innerHTML = CX.cityMapSVG('');
+    /* 在地图分区上叠加透明热点 */
+    var svgEl = big.querySelector('svg');
+    var overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    /* 与 app.js 的 MAP_ZONES 坐标一致 */
+    var zones = [
+      ['foundation', 60, 300, 130, 90], ['construction', 60, 160, 130, 90], ['govhall', 230, 300, 120, 90],
+      ['roads', 230, 160, 120, 90], ['archive', 390, 300, 120, 90], ['cityplan', 390, 160, 120, 90],
+      ['inspection', 550, 160, 120, 90], ['blueprint', 550, 300, 120, 90], ['citadel', 390, 40, 120, 80],
+      ['command', 230, 40, 120, 80], ['newtown', 660, 40, 120, 80]
+    ];
+    zones.forEach(function (z) {
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('x', z[1]); r.setAttribute('y', z[2]); r.setAttribute('width', z[3]); r.setAttribute('height', z[4]);
+      r.setAttribute('fill', 'transparent'); r.setAttribute('style', 'cursor:pointer');
+      r.addEventListener('click', function () {
+        var dk = locMap[z[0]];
+        var sec = U.$('dom-' + dk);
+        if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      overlay.appendChild(r);
+    });
+    svgEl.appendChild(overlay);
+
+    /* 域列表 */
+    var html = '';
+    domKeys.forEach(function (k) {
+      var d = idx.domains[k];
+      var list = pts.filter(function (p) { return p.domain === k; });
+      var m = list.reduce(function (acc, p) { return acc + masteryOf(p); }, 0) / list.length;
+      html += '<div class="domain-row" id="dom-' + k + '">' +
+        '<span style="font-size:1.3rem">' + d.icon + '</span>' +
+        '<div style="min-width:200px"><b>' + d.name + '</b><div class="foreshadow">' + d.blurb + ' · ' + list.length + ' 点</div></div>' +
+        '<div class="bar"><i style="width:' + Math.round(m * 100) + '%"></i></div>' +
+        '<span class="pct">' + Math.round(m * 100) + '%</span></div>';
+      html += '<div style="padding:2px 6px 8px">' + list.map(function (p) {
+        var pg = s.pages[p.id];
+        var marks = '';
+        for (var i = 0; i < p.freq; i++) marks += '⭐';
+        var dif = '';
+        for (var j = 0; j < p.diff; j++) dif += '◆';
+        var st = pg && pg.best != null ? '<span class="badge" style="border-color:var(--ok);color:var(--ok)">测试 ' + Math.round(pg.best * 100) + '%</span>'
+          : (pg && pg.visited ? '<span class="badge" style="border-color:var(--accent);color:var(--accent)">已学</span>' : '');
+        return '<a class="dep-chip" style="margin:3px 4px" href="kp/' + p.file.split('/').pop() + '" title="' + CX.esc(p.oneliner) + '">' +
+          '<span class="n">' + p.id + '</span>' + CX.esc(p.title) +
+          ' <span style="font-size:.72rem;color:var(--text-dim)">' + marks + dif + '</span>' + st + '</a>';
+      }).join('') + '</div>';
+    });
+    U.$('domain-list').innerHTML = html;
+  });
+};
+</script>
+<script defer src="assets/app.js"></script>
+</body>
+</html>

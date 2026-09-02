@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 · 同步互斥与PV操作 · 架构师学堂</title>
+<meta name="description" content="信号量是带计数的车位钥匙：P 占位、V 放行，负值是排队人数。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">操作系统 · 🏛️ 市政厅</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="09-process-thread.html">前置 09</a></span>
+    <h1>10 · 同步互斥与PV操作</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">信号量是带计数的车位钥匙：P 占位、V 放行，负值是排队人数。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某秒杀接口：库存 stock=100，扣减逻辑编译后就是两条机器指令——「把 stock 读进寄存器 → 寄存器减 1 写回」。峰值时两个进程几乎同时各扣 1 次，最终库存却只减了 1；长期运行甚至出现负库存（超卖）。问题：两条指令都正确执行了，为什么结果不对？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>两条指令本身都对，但「读—改—写」这个序列不是<b>原子</b>的：进程 A 读到 100，还没写回，进程 B 也读到了 100，随后 A 写回 99、B 也写回 99——两次扣减只生效一次（丢失更新），这就是<b>竞态条件</b>。修法不是换指令，而是给「读—改—写」这段<b>临界区</b>上一把锁：一次只放一个进程进来。这把锁的标准实现，就是本页的主角——信号量与 PV 操作。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>09 · 进程、线程与调度</b>（PV 的每次「睡与叫」都发生在三态图上）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>多个并发进程共享的东西里，一次只允许一个进程使用的叫<b>临界资源</b>（如打印机、共享变量），进程中访问临界资源的那段代码叫<b>临界区</b>。<b>互斥（Mutual Exclusion）</b>= 竞争关系：一次只放一人进临界区；<b>同步（Synchronization）</b>= 合作关系：进程按一定次序推进，「你先做完我才能开始」。<b>信号量（Semaphore）</b>是一个整型变量 S 加两个<b>原语</b>（执行中不可打断）：<b>P(S)</b> 申请资源，<b>V(S)</b> 归还资源——由 Dijkstra 提出，P 来自荷兰语「减小」，V 表示「增加」。</p>
+      <h3>解决什么问题</h3>
+      <p>并发进程中「读—改—写」这类操作交叉执行时，结果不可再现（竞态）。用纯软件标志位实现互斥要么出错、要么「忙等待」空转浪费 CPU。信号量把「抢不到就睡、有人归还就叫」交给内核，实现无忙等待的互斥与同步。</p>
+      <h3>核心机制：P 与 V 的精确定义</h3>
+      <pre><code>P(S):  S = S - 1;
+       if (S &lt; 0)  本进程阻塞，进入 S 的等待队列;
+V(S):  S = S + 1;
+       if (S &lt;= 0) 从等待队列唤醒一个进程;</code></pre>
+      <p><b>S &gt; 0</b>：还剩 S 个可用资源；<b>S = 0</b>：资源刚好用完，无人等待；<b>S &lt; 0</b>：|S| = 正在排队等这个信号的进程数。初值的设定：互斥信号量初值 <b>1</b>；同步信号量初值 = <b>可用资源数 / 需要等待的事件数</b>；「等某件事发生」的同步信号量初值 <b>0</b>。</p>
+      <h3>核心机制：生产者—消费者（必背）</h3>
+      <pre><code>semaphore mutex = 1;   /* 互斥：保护缓冲区本身 */
+semaphore empty = n;   /* 同步：空缓冲格数 */
+semaphore full  = 0;   /* 同步：产品格数   */
+
+生产者                          消费者
+while (true) {                  while (true) {
+  生产一个产品;                    P(full);   /* 先等货 */
+  P(empty);   /* 先申请资源 */     P(mutex);  /* 再进临界区 */
+  P(mutex);   /* 后申请互斥 */     从缓冲区取出产品;
+  把产品放入缓冲区;                V(mutex);  /* 先退出临界区 */
+  V(mutex);   /* 先放锁 */        V(empty);  /* 再还空格 */
+  V(full);    /* 后发通知 */       消费产品;
+}                               }</code></pre>
+      <p>两个 P 的顺序不能颠倒：若生产者先 <code>P(mutex)</code> 再 <code>P(empty)</code>，缓冲区满时它会<b>握着锁</b>睡在 P(empty) 上，消费者连临界区都进不去，无法取货——死锁。</p>
+      <h3>核心机制：读者—写者</h3>
+      <p>规则：允许多个读者同时读；写者与任何人（读者、其他写者）互斥。核心技巧是<b>读者计数器</b>：第一个读者替全体读者锁门，最后一个读者开门。</p>
+      <pre><code>int readcount = 0;          /* 当前读者数（共享变量） */
+semaphore w = 1;            /* 写者锁，第一个读者也要用它 */
+semaphore mutex = 1;        /* 保护 readcount 本身 */
+
+读者:                           写者:
+P(mutex);                       P(w);
+  readcount++;                  执行写操作;
+  if (readcount == 1) P(w);     V(w);
+V(mutex);
+执行读操作;
+P(mutex);
+  readcount--;
+  if (readcount == 0) V(w);
+V(mutex);</code></pre>
+      <h3>核心机制：前趋图 → 信号量标号</h3>
+      <p>前趋图的每条有向边配<b>一个</b>信号量，<b>初值全为 0</b>：<b>前驱节点完成处 V，后继节点开始处 P</b>。某节点有几个前驱，开头就要连续 P 几个信号量（全拿到才能开工）。</p>
+      <h3>关键细节：初值速查</h3>
+      <table class="tbl">
+        <tr><th>用途</th><th>初值</th><th>含义</th></tr>
+        <tr><td>互斥（一把钥匙）</td><td>1</td><td>一次只放一个进程进临界区</td></tr>
+        <tr><td>n 个同类可用资源</td><td>n</td><td>如 n 台打印机、n 格缓冲区</td></tr>
+        <tr><td>等待某事件发生</td><td>0</td><td>事件没发生前 P 会阻塞</td></tr>
+        <tr><td>前趋图每条边</td><td>0</td><td>前驱未完成则后继必须等</td></tr>
+      </table>
+      <h3>专业英语小贴士</h3>
+      <p>Semaphore（信号量）、Critical Section（临界区）、Mutual Exclusion（互斥，简称 mutex）。英语题干里的「atomic operation」指原语操作——执行过程不可被中断。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>
+        ① P/V 必须<b>成对</b>出现；同一进程内「先申请资源、后申请互斥」，释放顺序 V 一般不敏感（惯例先放锁）。<br>
+        ② S 的<b>负值绝对值 = 等待进程数</b>，不是「负的资源」，更不是被取走的数量。<br>
+        ③ 互斥初值 1、同步初值看资源数——把互斥初值设成 0，第一个进程就被永久挡在门外。<br>
+        ④ 生产者-消费者有两个信号量时，<b>P(empty) 在 P(mutex) 之前</b>；颠倒顺序在缓冲满/空时必死锁。
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🏛️ 市政厅的地下停车场：<b>信号量 S = 剩余车位的钥匙数</b>。<b>P</b> 就是伸手取钥匙：拿到一把就驶入（S 减 1）；柜子空了（S&lt;0）只好在门口<b>排队</b>——排了几个人，S 就是几。<b>V</b> 就是还钥匙（S 加 1）：如果门口有人等，钥匙不回柜子、<b>直接交到队首手里</b>（唤醒一个进程）。钥匙总数固定 = 车位数，这就是信号量初值。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>柜子里的钥匙数</td><td>信号量值 S</td><td>成立</td></tr>
+      <tr><td>取钥匙驶入</td><td>P 操作（申请资源）</td><td>成立</td></tr>
+      <tr><td>还钥匙</td><td>V 操作（释放资源）</td><td>成立</td></tr>
+      <tr><td>门口排队的车</td><td>阻塞在 P 上的进程（|S| 个）</td><td>成立</td></tr>
+      <tr><td>还钥匙直接递给排队的车</td><td>V 操作唤醒一个等待进程</td><td>成立</td></tr>
+      <tr><td>「司机自己冲进停车场抢位子」</td><td>（错误类比）</td><td><b>失效边界</b>：现实司机能自己抢，进程必须经内核 P 原语排队，用户态抢锁就是忙等待空转</td></tr>
+    </table>
+    <div class="rhyme">P 占位 V 放行，负值排队数得清；<br>互斥初值是一，同步初值看资源；<br>先 P 资源后加锁，先 V 解锁后通知；<br>前趋一条边，信号一对一，初值全为零。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示信号量值的实时变化：市政厅地下停车场共 4 个车位（S 初值 4），多个进程（车）陆续 P 进 V 出，重点看「S 变负 = 有人在门口排队」与「V 直接把钥匙交给排队者」。拖动滑块改变并发进程数。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>并发进程数 n <input type="range" id="demo1-n" min="3" max="6" step="1" value="5"> <span id="demo1-n-out">5</span></label>
+      <span class="kf-caption" id="demo1-note">车位数固定 4（S 初值 4）：n 越大越能看到排队与唤醒</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把生产者的代码排成不会死锁的顺序</h4>
+      <p class="foreshadow">缓冲区共 n 格。拖动卡片排好「生产一个产品之后」的完整动作，然后点检查：</p>
+      <div id="pv-drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="pv-drag-slot"></div>
+      <button class="btn" id="pv-drag-check">检查顺序</button>
+      <button class="btn" id="pv-drag-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（逐步预测）：信号量值追踪器</h4>
+      <p class="foreshadow">信号量 S 初值为 2。下面依次执行 8 个操作，<b>每一步先自己心算 S 的值，再点选答案</b>。做错会告诉你错在哪一步的哪个规则上：</p>
+      <p>第 <b id="pv2-step">1</b>/8 步：执行 <b id="pv2-op">P</b> 操作 · 执行前 S = <b id="pv2-cur">2</b> · 已答对 <span id="pv2-score">0</span> 题</p>
+      <div id="pv2-btns"></div>
+      <button class="btn" id="pv2-reset">重做</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：前趋图的边 ↔ 信号量</h4>
+      <p class="foreshadow">前趋图：S1→S2，S1→S3，S2→S4，S3→S4。先点左列一条边，再点右列它对应的信号量安排：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="pv3-left"></div>
+        <div id="pv3-right"></div>
+      </div>
+      <button class="btn" id="pv3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>09 · 进程、线程与调度给了三态模型：P 操作把进程从运行态送进阻塞态，V 操作把它从阻塞态唤醒回就绪态——PV 的每一次「睡与叫」都发生在那张三态图上。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>11 · 死锁：PV 顺序用错（先锁后等资源）正是死锁的高发来源，下一页的银行家算法专门管这个；</li>
+      <li>18 · 事务与并发控制：数据库的锁与两段锁协议，思想与本页的互斥一脉相承，只是搬进了数据库世界。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>互斥</th><th>同步</th></tr>
+      <tr><td>差异点</td><td>竞争关系：一次只放一人使用临界资源</td><td>合作关系：按次序推进，你先做完我才能开始</td></tr>
+      <tr><td>易错点</td><td>初值恒为 1</td><td>初值看资源数或事件数（等事件=0）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">互斥是「轮流用同一件东西」，同步是「你先做完我才开始」；互斥其实是同步的特例（次序=一次一人）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——学校只有一辆共享自行车，想骑的人要从小黑板前拿钥匙……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3">
+      <li>① 信号量 = 整型计数 + P/V 两条原语：P 占位（减 1，负则睡），V 放行（加 1，有人等则直接唤醒交给它）。</li>
+      <li>② 初值看语义：互斥 1、资源数 n、等事件 0；生产者-消费者用 mutex/empty/full 三件套，P 顺序「先资源后互斥」不能颠倒。</li>
+      <li>③ 前趋图转信号量：一条边一个信号量、初值 0，前驱完成处 V、后继开始处 P。</li>
+    </ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '10', domain: 'os', loc: 'govhall', root: '..',
+  title: '同步互斥与PV操作',
+  prev: '09-process-thread.html', prevTitle: '09 · 进程、线程与调度',
+  next: '11-deadlock.html', nextTitle: '11 · 死锁',
+  keywords: ['信号量', 'P操作', 'V操作', '临界区', '互斥', '同步', '生产者消费者', '阻塞队列']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---------- 回忆题（前置 09） ---------- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·09】某进程在单 CPU 系统上运行时调用了等待磁盘 I/O 的系统调用，随后它的状态会怎么变？',
+    opts: [
+      { t: '保持运行态，等 I/O 完成再继续', why: '等待事件的进程若霸占 CPU，整机都会被拖慢，它必须让出。' },
+      { t: '从运行态转为阻塞态，CPU 让给其他进程', why: '对：主动等待事件 = 运行→阻塞；这正是 P 操作 S<0 时进程的处境。' },
+      { t: '从就绪态转为阻塞态', why: '它原本在运行，不是在就绪队列里。' }
+    ],
+    ans: 1, tag: '回忆:09', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---------- 随堂 5 题 ---------- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '信号量 S 初值为 3。某段时间内共执行了 6 次 P 操作和 3 次 V 操作，全部完成后 S = ？此时因 S 阻塞的进程有几个？',
+      opts: [
+        { t: 'S = 0，0 个', why: '对：终值只看总账 3−6+3=0；S 终值非负说明没有进程还在排队（中途可能排过队，但都被 V 唤醒了）。' },
+        { t: 'S = 0，3 个', why: '混淆了「中途最多排过队」与「最终还在排队」：终值 S=0 非负，等待队列已清空。' },
+        { t: 'S = −3，3 个', why: '这是把 6 次 P 连着算完的中间状态，忘了 3 次 V 的回收。' },
+        { t: 'S = 6，0 个', why: '把 P 当成加、V 当成减，方向完全反了：P 减 V 加。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '生产者—消费者问题中，若生产者写成「先 P(mutex) 再 P(empty)」，当缓冲区已满时会发生什么？',
+      opts: [
+        { t: '生产者阻塞在 P(empty)，但手里仍握着 mutex；消费者取货时阻塞在 P(mutex)——互相等待，死锁', why: '对：锁内睡眠是 PV 使用的大忌——生产者占着临界区的钥匙去等资源，而能放它进的消费者却进不了临界区。' },
+        { t: '内核检测到后会自动回退生产者的 P(mutex)', why: '经典信号量没有这种「自动回滚」机制，死锁就是死锁。' },
+        { t: '只是效率略低，不影响正确性', why: '这不是性能问题：缓冲一满系统就永久卡死。' },
+        { t: '生产者阻塞在 P(mutex) 上', why: 'mutex 初值 1，生产者第一个 P(mutex) 是成功的，它睡在第二个操作 P(empty) 上。' }
+      ],
+      ans: 0, tag: '机制', src: '仿真题' },
+    { q: '某机房有 3 台同样的打印机，允许多个进程各占一台同时打印。协调「打印任务与打印机」的信号量初值应设为？',
+      opts: [
+        { t: '1', why: '初值 1 意味着一次只放一个进程——那是互斥，白白浪费 2 台打印机。' },
+        { t: '3', why: '对：初值 = 可用同类资源数。P 一台占一台，S 减到 0 后再来的任务才排队。' },
+        { t: '0', why: '初值 0 表示「一开始就没资源」，所有打印任务一上来全部阻塞。' },
+        { t: '任意正整数', why: '初值必须等于实际资源数 3，设大了互斥失效（第 4 个进程也能进来抢打印机）。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·09】信号量 S 初值为 0。进程 X 在运行态执行 P(S)，用三态模型描述接下来发生的事：',
+      opts: [
+        { t: 'X 留在运行态反复检查 S，直到它变大', why: '这是「忙等待」——恰恰是信号量机制要消灭的浪费。' },
+        { t: 'X 由运行态转为阻塞态，进入 S 的等待队列；将来某进程 V(S) 时它被唤醒转成就绪态', why: '对：P 减 1 后 S=−1<0 → 阻塞；V 唤醒只负责「回就绪」，上不上 CPU 由调度程序说了算。' },
+        { t: 'X 直接从阻塞态转为运行态，马上继续执行', why: '不存在「阻塞→运行」的直接转换，必须先回就绪队列。' },
+        { t: 'X 被终止并回收资源', why: 'P 操作失败只是等待，不是错误终止。' }
+      ],
+      ans: 1, tag: '交错复习:09', src: '仿真题' },
+    { q: '【交错复习·05】CPU 的 Cache 与操作系统里的「快表」（把页表常用项放进 CPU 旁的小缓存，12 页详讲）都靠「把常用副本放在近处」提速，二者共同的原理根基是？',
+      opts: [
+        { t: '数据加密原理', why: '加密管安全，与放置副本无关。' },
+        { t: '局部性原理：刚用过的数据/邻近数据很可能马上又被用到', why: '对：时间局部性让「最近访问」的表项值得留在快表里——这与 05 页 Cache 驻留热点数据是同一个道理。' },
+        { t: '虚拟内存置换算法', why: '置换是「放不下时淘汰谁」的策略，不是「为什么副本有效」的根基。' },
+        { t: '总线仲裁机制', why: '总线仲裁解决「谁用马路」，与缓存副本有效性无关。' }
+      ],
+      ans: 1, tag: '交错复习:05', src: '仿真题' }
+  ], { kpId: '10', mode: 'test' });
+
+  /* ---------- 案例分析 ---------- */
+  CX.renderCase('#case1', {
+    stem: '某程序内有六个语句 S1~S6，前趋图如下：S1→S2，S1→S3，S2→S4，S3→S4，S4→S5，S4→S6。要求用信号量机制让它们严格按前趋关系并发执行。',
+    q: '(1) 一共需要几个信号量？各自初值是多少？(2) 写出每个语句前后的 P/V 操作（伪代码形式）；(3) 归纳「前趋图 → 信号量」的通用规则。',
+    ref: '(1) 每条有向边配一个信号量，共 6 个：a(S1→S2)、b(S1→S3)、c(S2→S4)、d(S3→S4)、e(S4→S5)、f(S4→S6)，初值全部为 0。(2) S1：无需 P，完成后 V(a)、V(b)；S2：开始前 P(a)，完成后 V(c)；S3：开始前 P(b)，完成后 V(d)；S4：开始前 P(c)、P(d)（两个都拿到才能开工），完成后 V(e)、V(f)；S5：开始前 P(e)；S6：开始前 P(f)。(3) 通用规则：一条边一个信号量、初值全 0；前驱「完成后」V，后继「开始前」P；节点有几个前驱就连续 P 几个信号量，V 的个数等于它的后继边数。',
+    points: ['信号量个数 = 前趋图边数（6 个），初值全为 0', 'S4 开始前必须 P(c) 与 P(d) 两条边都等齐，不能只 P 一个', 'V 写在前驱完成之后、P 写在后继开始之前，位置不能颠倒', '能归纳出「边↔信号量」通用规则，而不是只记住本题答案'],
+    frame: '答题框架：给每条边编号 → 逐边建信号量（初值 0）→ 逐节点写「前置 P 列表 + 后置 V 列表」→ 用「任一节点开工时其所有前驱必已完成」自检一遍。',
+    kpId: '10'
+  });
+  CX.renderCase('#case2', {
+    stem: '秒杀系统库存 stock=100，扣减为两条机器指令：「读 stock 进寄存器 → 寄存器减 1 写回」。峰值时两个进程几乎同时各扣一次，结果库存只减了 1；系统长期运行后出现负库存（超卖）。',
+    q: '(1) 写出一次导致「丢失更新」的指令交叉序列；(2) 用信号量设计互斥方案，给出伪代码；(3) 若有人把 P 操作挪到「函数最外层的无关 if 分支之后」，可能出现哪两类问题？',
+    ref: '(1) 进程 A 读 stock=100 → 进程 B 读 stock=100（A 尚未写回）→ A 写回 99 → B 写回 99。两次扣减只生效一次，即丢失更新；把它放大到高并发就是负库存。(2) 设 semaphore mutex=1，把「读—减—写回」包进临界区：P(mutex); 读 stock；减 1；写回; V(mutex)。任何时刻只允许一个进程完成整套读改写，结果可再现。(3) 两类问题：其一，「有人 V 却没 P 过」——P 不在进入临界区的必经路径上时，V 会凭空抬高信号量值，互斥失效（两个进程同时进临界区）；其二，「P 过了却永远走不到 V」——某分支跳过了 V，其他进程全部永久阻塞。P/V 必须成对且紧贴临界区。',
+    points: ['写出具体交叉时序并点出「丢失更新/竞态条件」这个词', '方案：mutex 初值 1，P/V 成对，临界区只包住读—改—写三步', '第 (3) 问答出「V 多 P 少→互斥失效」与「P 多 V 少→全体阻塞」两类后果', '点明本质：并发执行结果不可再现，必须用原子机制保护'],
+    frame: '答题框架：画两条进程生命线还原时序 → 给问题命名（竞态/丢失更新）→ 选机制（互斥信号量）→ 检查配对与临界区范围 → 讨论误用后果收尾。',
+    kpId: '10'
+  });
+
+  /* ---------- 变式迁移 ---------- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '食堂门口一桶 10 双一次性筷子：学生进门取一双（P），吃完还一双（V）。高峰期某一刻 S = −3。「3」的确切含义是？',
+    opts: [
+      { t: '已经被取走 3 双筷子', why: '取走的筷子数看「初值与借出」，S 的负值另有含义。' },
+      { t: '桶里还剩 3 双筷子', why: '剩 3 双时 S 应为正 3；S 只在 0 以下才表示有人没拿到。' },
+      { t: '桶已空，且已有 3 名学生在门口排队等筷子（阻塞中）', why: '对：S<0 时 |S| = 等待进程数——这正是「负值排队数」的停车场口径。' },
+      { t: '食堂一共只有 3 双筷子', why: '筷子总数由初值 10 决定，与 S 的当前负值无关。' }
+    ],
+    ans: 2, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---------- 概念桥 ---------- */
+  CX.depChain('#bridge-prev', ['09'], 'prev');
+  CX.depChain('#bridge-next', ['11'], 'next');
+
+  /* ---------- 动画：停车场（信号量） ---------- */
+  var stage = CX.utils.$('demo1-stage');
+  var CAP = 4;      /* 车位数 = S 初值 */
+  var NCAR = 5;     /* 并发进程数（滑块） */
+  var STEPS = 12;
+  function buildEvents(n) {
+    var ev = [], S = CAP, wait = [], inside = [], car = 0;
+    var i;
+    for (i = 0; i < n; i++) {
+      car++; S = S - 1;
+      var came = S < 0;
+      if (came) wait.push(car); else inside.push(car);
+      ev.push({
+        op: 'P', car: car, S: S, wait: wait.slice(), inside: inside.slice(),
+        cap: '进程 ' + car + ' 执行 P(S)：S=' + S + (came ? ' 小于 0，无空位，进入阻塞队列排队（|S|=' + wait.length + ' 人）' : ' ≥ 0，拿到车位钥匙驶入')
+      });
+    }
+    for (i = 0; i < n; i++) {
+      var leaving = inside.length ? inside.shift() : null;
+      S = S + 1;
+      var woke = null;
+      if (S <= 0 && wait.length) { woke = wait.shift(); inside.push(woke); }
+      ev.push({
+        op: 'V', car: leaving, woke: woke, S: S, wait: wait.slice(), inside: inside.slice(),
+        cap: '进程 ' + leaving + ' 执行 V(S)：S=' + S + (woke != null ? '，仍有人排队（V 后 S≤0），钥匙直接交给被唤醒的进程 ' + woke : '，车位空出放回柜子')
+      });
+    }
+    return ev;
+  }
+  function carChip(x, y, label, hot) {
+    var s = '<rect x="' + x + '" y="' + y + '" width="34" height="22" rx="6" fill="' + (hot ? 'var(--accent-2)' : 'var(--card)') + '" stroke="var(--line)"/>';
+    s += '<text x="' + (x + 17) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="11" fill="' + (hot ? 'var(--bg)' : 'var(--text-dim)') + '">' + label + '</text>';
+    return s;
+  }
+  function draw(t) {
+    var ev = buildEvents(NCAR);
+    var f = Math.min(ev.length - 1, Math.floor(t * STEPS));
+    var done = t >= 1 && f === ev.length - 1;
+    var cur = ev[f];
+    var s = '<svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="信号量停车场动画">';
+    s += '<rect width="720" height="330" rx="12" fill="var(--bg-soft)"/>';
+    s += '<rect x="30" y="46" width="96" height="120" rx="10" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<text x="78" y="84" text-anchor="middle" font-size="13" fill="var(--text)">钥匙柜</text>';
+    s += '<text x="78" y="112" text-anchor="middle" font-size="22" font-weight="bold" fill="var(--accent-2)">S=' + cur.S + '</text>';
+    s += '<text x="78" y="136" text-anchor="middle" font-size="10" fill="var(--text-dim)">剩余车位/钥匙</text>';
+    s += '<rect x="150" y="52" width="540" height="108" rx="10" fill="var(--card-2)" stroke="var(--line)" stroke-dasharray="6 6"/>';
+    s += '<text x="420" y="44" text-anchor="middle" font-size="12" fill="var(--text-dim)">停车场（共 ' + CAP + ' 个车位 · 已停 ' + cur.inside.length + ' 辆）</text>';
+    for (var i = 0; i < CAP; i++) {
+      var sx = 168 + i * 132;
+      s += '<rect x="' + sx + '" y="66" width="110" height="80" rx="8" fill="var(--bg-soft)" stroke="var(--line)"/>';
+      if (cur.inside[i] != null) {
+        var hotIn = (cur.op === 'V' && cur.car === cur.inside[i]) || (cur.op === 'P' && cur.car === cur.inside[i] && cur.S >= 0);
+        s += '<circle cx="' + (sx + 55) + '" cy="106" r="24" fill="' + (hotIn ? 'var(--accent-2)' : 'var(--accent)') + '" opacity=".9"/>';
+        s += '<text x="' + (sx + 55) + '" y="112" text-anchor="middle" font-size="15" font-weight="bold" fill="var(--bg)">' + cur.inside[i] + '</text>';
+      } else {
+        s += '<text x="' + (sx + 55) + '" y="110" text-anchor="middle" font-size="11" fill="var(--text-dim)">空位</text>';
+      }
+    }
+    s += '<text x="30" y="206" font-size="12" fill="var(--text-dim)">门口排队（阻塞队列，|S|=' + cur.wait.length + '）：</text>';
+    for (var q = 0; q < cur.wait.length; q++) {
+      var hotQ = cur.op === 'V' && cur.woke === cur.wait[q];
+      s += carChip(260 + q * 44, 190, '车' + cur.wait[q], hotQ);
+    }
+    if (!cur) { /* 不会发生，防御 */ }
+    if (cur.op === 'P' && cur.S >= 0) {
+      s += '<text x="470" y="196" font-size="13" fill="var(--ok)">进程 ' + cur.car + ' 取到钥匙驶入 →</text>';
+    } else if (cur.op === 'P') {
+      s += '<text x="470" y="196" font-size="13" fill="var(--bad)">进程 ' + cur.car + ' 没拿到钥匙，睡在门口…</text>';
+    } else if (cur.woke != null) {
+      s += '<text x="470" y="196" font-size="13" fill="var(--ok)">进程 ' + cur.car + ' 还钥匙，直接交给进程 ' + cur.woke + '</text>';
+    } else {
+      s += '<text x="470" y="196" font-size="13" fill="var(--accent)">进程 ' + cur.car + ' 还钥匙，无人在等</text>';
+    }
+    s += '<text x="30" y="268" font-size="13" fill="var(--text)">P=取钥匙占位（S−1，负则排队）· V=还钥匙放行（S+1，有人等则直接唤醒）</text>';
+    s += '<text x="30" y="296" font-size="12" fill="var(--text-dim)">「P 占位 V 放行，负值排队数得清」——S 的绝对值口径只看当前这一帧</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + (f + 1) + '/' + STEPS + ' 步 · ' + cur.cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: STEPS, duration: 18, onTick: draw });
+  var nSlider = CX.utils.$('demo1-n');
+  nSlider.addEventListener('input', function () {
+    NCAR = parseInt(nSlider.value, 10);
+    CX.utils.$('demo1-n-out').textContent = NCAR;
+    draw(anim.t);
+  });
+
+  /* ---------- 实验一：拖拽排序（生产者动作） ---------- */
+  var EXPECT = [
+    'P(empty) —— 先申请一个空缓冲格（资源）',
+    'P(mutex) —— 再申请进入临界区（互斥）',
+    '把产品放入缓冲格',
+    'V(mutex) —— 退出临界区（先放锁）',
+    'V(full) —— 产品数加 1，唤醒消费者（后通知）'
+  ];
+  var HINTS = [
+    '第 1 步应先 P(empty)：若先 P(mutex) 后 P(empty)，缓冲满时生产者握着锁睡在 P(empty) 上，消费者进不了临界区取货——死锁。口诀「对资源先 P，对互斥后 P」。',
+    '第 2 步才轮到 P(mutex)：拿到空格之后再去竞争临界区，颠倒会死锁。',
+    '第 3 步是干活：进入临界区后才能把产品放进缓冲格。',
+    '第 4 步应先 V(mutex)：先把锁还了让别人能用缓冲区，再发通知。',
+    '第 5 步才 V(full)：最后告诉消费者「有货了」。V 的先后不引发死锁，但这是标准惯例。'
+  ];
+  var pool = CX.utils.$('pv-drag-pool'), slot = CX.utils.$('pv-drag-slot');
+  function buildDrag() {
+    pool.innerHTML = ''; slot.innerHTML = '';
+    CX.utils.$('lab1-fb').textContent = ''; CX.utils.$('lab1-fb').className = 'lab-feedback';
+    CX.shuffle(EXPECT).forEach(function (txt) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = txt; d.dataset.t = txt;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', txt); });
+      pool.appendChild(d);
+    });
+  }
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var txt = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + txt + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('pv-drag-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    if (got.length < EXPECT.length) {
+      fb.textContent = '还有 ' + (EXPECT.length - got.length) + ' 张卡片没拖进槽。';
+      fb.className = 'lab-feedback bad'; return;
+    }
+    for (var i = 0; i < EXPECT.length; i++) {
+      if (got[i] !== EXPECT[i]) { fb.textContent = '❌ ' + HINTS[i]; fb.className = 'lab-feedback bad'; return; }
+    }
+    fb.textContent = '✅ 顺序正确：P(empty) → P(mutex) → 放产品 → V(mutex) → V(full)。资源先 P、互斥后 P；先放锁、后通知。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('pv-drag-reset').addEventListener('click', buildDrag);
+  buildDrag();
+
+  /* ---------- 实验二：信号量值追踪 ---------- */
+  var OPS = ['P', 'P', 'V', 'P', 'P', 'V', 'V', 'P'];
+  var pvS, pvIdx, pvScore;
+  function pv2Reset() {
+    pvS = 2; pvIdx = 0; pvScore = 0;
+    CX.utils.$('lab2-fb').textContent = ''; CX.utils.$('lab2-fb').className = 'lab-feedback';
+    pv2Render();
+  }
+  function pv2Render() {
+    CX.utils.$('pv2-step').textContent = String(Math.min(OPS.length, pvIdx + 1));
+    CX.utils.$('pv2-op').textContent = OPS[pvIdx] || '—';
+    CX.utils.$('pv2-cur').textContent = String(pvS);
+    CX.utils.$('pv2-score').textContent = String(pvScore);
+    var box = CX.utils.$('pv2-btns');
+    box.innerHTML = '';
+    if (pvIdx >= OPS.length) return;
+    for (var v = -3; v <= 3; v++) {
+      (function (val) {
+        var b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = 'S = ' + val;
+        b.addEventListener('click', function () { pv2Pick(val); });
+        box.appendChild(b);
+      })(v);
+    }
+  }
+  function pv2Pick(val) {
+    var fb = CX.utils.$('lab2-fb');
+    var op = OPS[pvIdx];
+    var newS = op === 'P' ? pvS - 1 : pvS + 1;
+    var woke = (op === 'V' && newS <= 0);
+    if (val !== newS) {
+      fb.textContent = '❌ 第 ' + (pvIdx + 1) + ' 步错了：' + op + ' 的规则是先把 S ' + (op === 'P' ? '减' : '加') + ' 1，所以 S 应从 ' + pvS + ' 变为 ' + newS + (op === 'P' && newS < 0 ? '，再因 S 小于 0 阻塞入队——负值的绝对值就是排队人数' : (woke ? '，V 后 S≤0 说明有人在等，要唤醒一个' : '')) + '。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    pvScore++;
+    var msg;
+    if (op === 'P') {
+      msg = newS < 0 ? '✅ S=' + newS + ' &lt; 0：进程阻塞入队，排队人数=' + (-newS) : '✅ S=' + newS + ' ≥ 0：申请成功，无需等待';
+    } else {
+      msg = woke ? '✅ S=' + newS + ' ≤ 0：还有排队者，唤醒一个（它接管了刚释放的资源）' : '✅ S=' + newS + ' &gt; 0：无人排队，资源放回柜子';
+    }
+    pvS = newS; pvIdx++;
+    CX.utils.$('lab2-fb').innerHTML = msg;
+    CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+    if (pvIdx >= OPS.length) {
+      CX.utils.$('lab2-fb').innerHTML += '<br>🎉 全部完成！答对 ' + pvScore + '/8。检查点：第 5 步 P 后 S=−1（1 人排队），第 6 步 V 后 S=0（唤醒 1 人）。';
+    }
+    pv2Render();
+  }
+  CX.utils.$('pv2-reset').addEventListener('click', pv2Reset);
+  pv2Reset();
+
+  /* ---------- 实验三：前趋图连线 ---------- */
+  var pairs = [
+    ['边 S1→S2', '信号量 a：S1 完成处 V(a)，S2 开始处 P(a)，初值 0'],
+    ['边 S1→S3', '信号量 b：S1 完成处 V(b)，S3 开始处 P(b)，初值 0'],
+    ['边 S2→S4', '信号量 c：S2 完成处 V(c)，S4 开始处 P(c)，初值 0'],
+    ['边 S3→S4', '信号量 d：S3 完成处 V(d)，S4 开始处 P(d)，初值 0']
+  ];
+  var lBox = CX.utils.$('pv3-left'), rBox = CX.utils.$('pv3-right');
+  var selL = null, donePairs = 0;
+  function buildMatch3() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab3-fb').textContent = ''; CX.utils.$('lab3-fb').className = 'lab-feedback';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的信号量安排。';
+        CX.utils.$('lab3-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一条边。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab3-fb').textContent = '❌ 配错。规则：一条边一个信号量、初值 0，V 写在前驱完成处、P 写在后继开始处——把这条规则套回这条边再想想。';
+          CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch3();
+  CX.utils.$('pv3-reset').addEventListener('click', buildMatch3);
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

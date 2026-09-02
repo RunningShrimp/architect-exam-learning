@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 · 死锁 · 架构师学堂</title>
+<meta name="description" content="四辆车在十字路口互不相让就是死锁：互斥、占有且等待、不剥夺、循环等待。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">操作系统 · 🏛️ 市政厅</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="10-pv-semaphore.html">前置 10</a></span>
+    <h1>11 · 死锁</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">四车互堵十字路口：互斥、占有且等待、不剥夺、循环等待，缺一不成死锁。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某系统夜间跑数据迁移：作业 A 先锁「用户表」再锁「订单表」，作业 B 先锁「订单表」再锁「用户表」。某晚两作业同时启动，日志显示双方都在「等待对方释放锁」，CPU 利用率 0%，僵持 3 小时直到 DBA 手动 kill 掉一个才恢复。问题：这不是宕机也不是死循环，为什么谁都不动了？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>A 手里握着用户表、订单表却在等 B；B 手里握着订单表、用户表却在等 A——双方各占一份资源、都在等对方手里那份，而锁只能由持有者自己释放（不可剥夺）。这构成一个<b>等待环</b>：环上没有一个人能推进，也没有外人能解套，这就是<b>死锁（Deadlock）</b>。修法也不神秘：让两个作业按同一顺序加锁（先用户后订单），环就永远结不成。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>10 · 同步互斥与PV操作</b>（死锁常从 PV 顺序错误里长出来）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><b>死锁（Deadlock）</b>指一组进程中的每个进程都在等待由该组中其他进程才能引发的事件（典型：等待对方占有的资源），谁都永远无法推进。它是「一组进程集体卡死在阻塞态」的极端情形——单个进程的普通阻塞不算死锁，必须有<b>相互等待</b>。</p>
+      <h3>解决什么问题</h3>
+      <p>并发进程 + 有限资源 + 申请顺序不当，系统就可能整体停摆。死锁理论给出四条<b>必要条件</b>和处理策略的四级阶梯：预防（静态立规矩）、避免（动态算着给）、检测与解除（出了事再拆）、鸵鸟策略（假装看不见——多数通用系统实际就是这么干的，因为检测代价高而死锁罕见）。</p>
+      <h3>核心机制：四个必要条件</h3>
+      <table class="tbl">
+        <tr><th>条件</th><th>含义</th><th>十字路口对应</th></tr>
+        <tr><td>互斥</td><td>资源一次只能一个进程使用</td><td>一条车道同一时刻只能一辆车占用</td></tr>
+        <tr><td>请求和保持（占有且等待）</td><td>拿着已有资源不放，再去申请新的</td><td>占着自己车道，伸头等别人的车道</td></tr>
+        <tr><td>不剥夺</td><td>资源只能由持有者主动释放，不能被抢</td><td>交规不许拖车</td></tr>
+        <tr><td>循环等待</td><td>等待关系首尾相接成环</td><td>北等东、东等南、南等西、西等北</td></tr>
+      </table>
+      <p>四条<b>同时成立</b>死锁才可能发生（必要条件）；反过来，<b>破坏任意一条</b>就能预防死锁。注意：互斥条件一般破坏不了（设备天然独占），只能用 Spooling 假脱机把独占设备改造成共享。</p>
+      <h3>核心机制：处理策略四级阶梯</h3>
+      <table class="tbl">
+        <tr><th>策略</th><th>做法</th><th>破坏/针对</th><th>代价</th></tr>
+        <tr><td>预防</td><td>一次性申请全部资源；资源有序分配</td><td>破坏请求和保持 / 循环等待</td><td>资源利用率低、可能饥饿</td></tr>
+        <tr><td>避免</td><td>银行家算法：分配前算「是否仍存在安全序列」</td><td>不破坏条件，动态躲开不安全状态</td><td>每次分配都要计算，需预知最大需求</td></tr>
+        <tr><td>检测与解除</td><td>定期查资源分配图有无环；用资源剥夺、撤销进程解套</td><td>事后处理</td><td>检测开销 + 解除损失（回滚损失）</td></tr>
+        <tr><td>鸵鸟策略</td><td>不理，交给重启</td><td>——</td><td>Occam 剃刀：死锁罕见时总代价最低</td></tr>
+      </table>
+      <h3>核心机制：银行家算法三步</h3>
+      <p>设每类资源若干个，系统维护 Max（最大需求）、Allocation（已分配）、Available（当前可用）：<b>① 求 Need = Max − Allocation</b>；<b>② 在未完成进程中找一个「Need ≤ Available」的</b>，允许它运行完毕并归还它的 Allocation，Available += Allocation；<b>③ 重复</b>，若所有进程都能排进队列则存在<b>安全序列（Safe Sequence）</b>、状态安全；找不到则状态不安全，本次分配请求拒绝。<b>不安全 ≠ 一定死锁</b>，只是「无法保证不死锁」。</p>
+      <h3>关键细节：环 ≠ 死锁</h3>
+      <p>每类资源只有<b>一个实例</b>时，资源分配图有环 ⇔ 死锁；但每类资源有<b>多个实例</b>时，环只是必要条件——环上进程可能从「别的实例」处满足请求，环自己解开。</p>
+      <h3>专业英语小贴士</h3>
+      <p>Deadlock（死锁）、Banker's Algorithm（银行家算法）、Safe Sequence（安全序列）。英语题里的「hold and wait」就是「请求和保持」条件。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>
+        ① 四个条件是<b>必要</b>而非充分（多实例资源时成环未必死锁）；「破坏任一条即可预防」说的是充分性方向。<br>
+        ② 银行家算法属于「<b>避免</b>」不是「预防」——预防静态破坏条件，避免动态判断安全状态。<br>
+        ③ <b>不安全状态 ≠ 已经死锁</b>：不安全只是失去了「保证不死锁」的能力。<br>
+        ④ 死锁 ≠ 饥饿：饥饿可以没有环（如短作业优先饿死长作业），死锁必有相互等待的环。
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>🏛️ 市政厅门前的十字路口：早高峰四辆车从四个方向同时驶入路口，每辆都占着面前那段路（<b>占有且等待</b>），都要穿过别人占着的路段才能走（<b>互斥</b>）；交规不许拖车、谁也不肯倒车（<b>不剥夺</b>）；北等东、东等南、南等西、西等北（<b>循环等待</b>）。四条一凑齐，路口变成停车场——这就是死锁的标准像。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>一段车道</td><td>一个资源实例</td><td>成立</td></tr>
+      <tr><td>占着车道伸头等下一段</td><td>请求和保持</td><td>成立</td></tr>
+      <tr><td>不许拖车</td><td>不剥夺</td><td>成立</td></tr>
+      <tr><td>交警来拖车/疏导</td><td>死锁解除（资源剥夺/撤销进程）</td><td>成立</td></tr>
+      <tr><td>「司机可以自己倒车让行」</td><td>（错误类比）</td><td><b>失效边界</b>：进程默认不能被抢也不能自觉交出已持资源（不剥夺条件），所以环必须靠外力打破——类比在这里断掉</td></tr>
+    </table>
+    <div class="rhyme">互斥占有不剥夺，环环相扣才成祸；<br>一次申请破占有，有序编号破环锁；<br>银行家算安全账，给不起时别硬碰；<br>鸵鸟装傻省事多，检测解除来兜底。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画把十字路口画成「资源分配环」：四段车道各被一辆车占有，请求箭头一圈圈点亮成环。拖动滑块把「每类车道条数」从 1 改成 2，看看为什么<b>多实例资源让环自己解开</b>。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>每类资源实例数 k <input type="range" id="demo1-k" min="1" max="2" step="1" value="1"> <span id="demo1-k-out">1</span></label>
+      <span class="kf-caption" id="demo1-note">k=1：环=死锁；k=2：等待可以被第二个实例满足，环解开</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（逐步求解）：银行家算法找安全序列</h4>
+      <p class="foreshadow">3 个进程、3 类资源 A/B/C。总资源 (3,2,2)，当前 Available = (1,1,0)。你每步点击一个「可以安全运行完并归还资源」的进程；选错会告诉你错在哪一步、差在哪类资源：</p>
+      <div id="bk-tables"></div>
+      <p>当前可用 Work = <b id="bk-work">(1,1,0)</b> · 已排定：<span id="bk-seq">（空）</span></p>
+      <div id="bk-btns"></div>
+      <button class="btn" id="bk-reset">重做</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：处理策略 ↔ 破坏了哪个条件</h4>
+      <p class="foreshadow">先点左列一个措施，再点右列它的原理归类：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="dl-left"></div>
+        <div id="dl-right"></div>
+      </div>
+      <button class="btn" id="dl-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（情形判断）：死锁 / 饥饿 / 安全？</h4>
+      <p class="foreshadow">读情形，点你认为的判定，错则给理由：</p>
+      <div id="jr-list"></div>
+      <button class="btn" id="jr-reset">重做</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>10 · 同步互斥与PV操作：P/V 顺序不当（先锁互斥再等资源）会「握着钥匙睡大觉」，这正是死锁最常见的出生地；死锁是 PV 家族的暗面。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>18 · 事务与并发控制：数据库两段锁协议（先全部加锁、再全部解锁）正是「破坏请求和保持」在数据库里的翻版；</li>
+      <li>43 · 质量属性战术：为可用性做的「资源池+看门狗」，本质上是给死锁/挂起留一条检测解除的兜底路。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>死锁</th><th>饥饿</th></tr>
+      <tr><td>差异点</td><td>一组进程相互等待成环，永远无法推进</td><td>进程可推进只是总排不上（如优先级低/请求远）</td></tr>
+      <tr><td>易错点</td><td>必有循环等待，且进程处于阻塞态</td><td>不需要环，进程可能仍在就绪队列里打转</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">死锁是「四车互堵谁也走不了」，饥饿是「一直在让行、一次也轮不上」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——四个小伙伴各自拿着一块拼图，但都想先要对方手里那块……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3">
+      <li>① 死锁四必要条件：互斥、请求和保持、不剥夺、循环等待；同时成立才可能死锁，破坏任意一条即可预防。</li>
+      <li>② 处理四级阶梯：预防（一次性申请/有序分配）→ 避免（银行家算安全序列）→ 检测与解除（找环+剥夺/撤销）→ 鸵鸟（常见兜底）。</li>
+      <li>③ 单实例资源「环=死锁」，多实例资源环未必死锁；不安全状态≠已死锁，只是失去了保证。</li>
+    </ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '11', domain: 'os', loc: 'govhall', root: '..',
+  title: '死锁',
+  prev: '10-pv-semaphore.html', prevTitle: '10 · 同步互斥与PV操作',
+  next: '12-virtual-memory.html', nextTitle: '12 · 分页分段与虚拟内存',
+  keywords: ['死锁', '互斥', '请求和保持', '不剥夺', '循环等待', '银行家算法', '安全序列']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---------- 回忆题（前置 10） ---------- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·10】进程对信号量执行 P(S) 且减 1 后 S 变为负值，按定义接下来会发生什么？',
+    opts: [
+      { t: 'P 操作报错返回', why: 'P 是原语，不会因 S 为负而报错——负值本身就是合法状态。' },
+      { t: '该进程阻塞，进入 S 的等待队列，直到别的进程 V(S) 唤醒它', why: '对：S<0 时申请失败睡眠等待。死锁正是「永远等不到那个 V」。' },
+      { t: 'S 被自动加 1 重试', why: '没有这种自动重试机制。' }
+    ],
+    ans: 1, tag: '回忆:10', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---------- 随堂 5 题 ---------- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '「银行家算法」在死锁处理策略的四级阶梯中属于哪一级？',
+      opts: [
+        { t: '预防：静态地破坏死锁的必要条件', why: '预防是事前立规矩（一次性申请、有序分配），银行家并不破坏任何条件。' },
+        { t: '避免：分配前动态判断这次分配是否会进入不安全状态', why: '对：银行家每次分配都做「试探+安全性检查」，不安全就拒绝——它躲的是不安全状态，不是破坏条件。' },
+        { t: '检测：周期性找出资源分配图中的环', why: '检测是事后找环，银行家是事前算账。' },
+        { t: '解除：剥夺资源或撤销进程', why: '解除发生在死锁之后，银行家不让死锁有机会发生。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '3 个进程，每个最多同时需要 2 台打印机。要保证系统无论怎么调度都【不会发生死锁】，至少要配置几台打印机？',
+      opts: [
+        { t: '3 台', why: '3 台不够：最坏情况下每台进程各持 1 台、都在等第 2 台——三车互堵，正好凑齐循环等待。' },
+        { t: '4 台', why: '对：公式为 n×(k−1)+1 = 3×1+1 = 4。最坏情况「每进程持 k−1=1 台」时还剩 1 台，必有进程能凑齐 2 台跑完并归还。' },
+        { t: '6 台', why: 'n×k 是「每人同时满足」的上限，题目只要求「不死锁」，不必人手一台冗余。' },
+        { t: '2 台', why: '比单进程需求还少，任何进程都凑不齐 2 台，全体永久阻塞。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '关于死锁的四个必要条件，下列说法正确的是？',
+      opts: [
+        { t: '四条件同时成立死锁才可能发生，因此破坏其中任意一个即可预防死锁', why: '对：这是「必要条件」的含义——缺一不可；预防策略（一次性申请、有序分配、Spooling）分别破坏不同条件。' },
+        { t: '资源分配图中只要出现环路，系统必然发生死锁', why: '只在「每类资源单实例」时成立；多实例资源的环可能被别的实例解开，环只是必要条件。' },
+        { t: '银行家算法通过破坏「互斥」条件来预防死锁', why: '互斥是设备天然属性，一般不可破坏（只能 Spooling 改共享）；银行家属于「避免」，不碰条件本身。' },
+        { t: '系统一旦进入不安全状态，死锁就已经发生了', why: '不安全 = 找不到安全序列 = 「无法保证不死锁」，此时可能只是有风险，死锁未必已发生。' }
+      ],
+      ans: 0, tag: '概念', src: '仿真题' },
+    { q: '【交错复习:10】线程 T1 依次执行 P(a)、P(b)，线程 T2 依次执行 P(b)、P(a)（信号量 a、b 初值均为 1，其余代码对称）。并发执行时可能出现什么后果？',
+      opts: [
+        { t: '必然一个线程拿不到 a，程序报错退出', why: 'PV 不会报错，两个 P 都可能成功——坏就坏在「各自成功一半」。' },
+        { t: 'T1 拿到 a 后阻塞在 P(b)，T2 拿到 b 后阻塞在 P(a)：互相等待，死锁', why: '对：交叉时 T1 持 a 等 b、T2 持 b 等 a，构成循环等待——这是 PV 顺序不当引发的死锁，预防法就是让所有线程按同一顺序申请。' },
+        { t: '信号量会把其中一个线程自动回退到 P 之前', why: '经典信号量没有回退机制，内核不会替你回滚。' },
+        { t: '毫无影响，因为 P 是原子的', why: 'P 的原子性只保证「每个 P 不被打断」，不保证「两个线程的整体顺序一致」。' }
+      ],
+      ans: 1, tag: '交错复习:10', src: '仿真题' },
+    { q: '【交错复习:09】一组进程发生死锁时，按进程三态模型，这些进程此刻处于什么状态？',
+      opts: [
+        { t: '运行态：正在 CPU 上空转等待', why: '若在运行就不会「等资源」了；死锁进程不占 CPU。' },
+        { t: '就绪态：在就绪队列里排队等 CPU', why: '就绪进程只缺 CPU，给了 CPU 就能跑；死锁进程缺的是资源，给 CPU 也没用。' },
+        { t: '阻塞态：各自等待组内其他进程释放的资源，且该事件永远不会到来', why: '对：死锁是「集体阻塞 + 唤醒条件永不满足」，调度程序再勤快也叫不醒它们。' },
+        { t: '新建态：还没被创建完成', why: '死锁发生在运行过程中，与创建阶段无关。' }
+      ],
+      ans: 2, tag: '交错复习:09', src: '仿真题' }
+  ], { kpId: '11', mode: 'test' });
+
+  /* ---------- 案例分析 ---------- */
+  CX.renderCase('#case1', {
+    stem: '某系统 3 类资源 A/B/C，总量为 (3,2,2)。当前时刻：P1 已占 (1,0,1)、最大需求 (2,1,1)；P2 已占 (1,1,0)、最大需求 (2,2,1)；P3 已占 (0,0,1)、最大需求 (1,1,2)。',
+    q: '(1) 写出 Need 矩阵与当前 Available；(2) 用银行家算法判断此刻状态是否安全，给出一个安全序列并写出每步 Work 的变化；(3) 若此刻 P2 提出额外请求 (1,0,0)，能否分配？说明判定过程。',
+    ref: '(1) Need = Max − Allocation：P1 (1,1,0)，P2 (1,1,1)，P3 (1,1,1)；Available = 总量 − 已分配总和 = (3,2,2) − (2,1,2) = (1,1,0)。(2) 安全。Work=(1,1,0) 时只有 P1 的 Need (1,1,0) ≤ Work；P1 运行完归还 (1,0,1) → Work=(2,1,1)；此后 P2、P3 的 Need 均 (1,1,1) ≤ Work，任选其一：如 P2 → Work=(3,2,1)；P3 → Work=(3,2,2)。安全序列例如 P1→P2→P3（P1→P3→P2 也合法）。(3) 不能。试探分配：Available 变 (0,1,0)，P2 的 Need 变 (0,1,1)。安全性检查：P1 Need (1,1,0) 的 A 类 1 > 0 不满足；P2 Need (0,1,1) 的 C 类 1 > 0 不满足；P3 同样不满足——找不到安全序列，系统将进入不安全状态，故拒绝该请求并回滚试探分配。',
+    points: ['Need=Max−Allocation 计算正确、Available 由总量减已分配总和得出', '安全序列每步都先验证 Need≤Work，再累加 Allocation 更新 Work（第 2 步只有 P1 能跑是关键）', '第 (3) 问按「试探分配 → 安全性检查 → 拒绝回滚」完整流程作答', '明确区分「不安全」与「死锁」，结论表述为「进入不安全状态故拒绝」'],
+    frame: '答题框架：算 Need 与 Available → 逐步找「给得起」的进程并更新 Work → 得安全序列 → 对新请求走「试探+检查+回滚」三步 → 用一句话点明安全/不安全与死锁的区别。',
+    kpId: '11'
+  });
+  CX.renderCase('#case2', {
+    stem: '某数据库系统：夜间批处理模块按「先锁账户表、再锁订单表」顺序加锁；在线交易模块按「先锁订单表、再锁账户表」顺序加锁。某晚两模块并发，监控显示双方互等对方持有的表锁，CPU 利用率 0%，僵持 3 小时后 DBA 手动 kill 掉其中一个会话才恢复。',
+    q: '(1) 用死锁四必要条件逐条对应本案事实；(2) 给出两条预防措施，并分别说明破坏了哪个条件；(3) 数据库产品中的死锁「检测与解除」通常由什么机制实现？',
+    ref: '(1) 互斥：表锁同一时刻只能一个事务持有；请求和保持：各持一表的同时还申领另一张表；不剥夺：表锁只能由持有事务自己提交/回滚时释放，不能被抢；循环等待：账户表↔订单表形成等待环。(2) 措施一：统一加锁顺序（两个模块都先账户后订单）——破坏循环等待；措施二：事务开始时一次性申请所需的全部表锁——破坏请求和保持。（缩短事务时间、降低锁粒度可减小窗口，属辅助手段。）(3) 数据库维护等待图（wait-for graph）：事务为结点、等待关系为边，周期性检测图中是否成环；发现环后按代价选一个「牺牲者」事务回滚（undo）并释放其全部锁，其余事务随之推进——即「检测 + 解除」，其中回滚就是不剥夺条件的强制实现。',
+    points: ['四条件逐条映射到案例事实（锁互斥/持一表要另一表/锁不可抢/两表互等成环），不是只背名词', '每条预防措施明确指出破坏了哪个条件', '第 (3) 问答出「等待图找环 + 选牺牲者回滚释放锁」', '能点出回滚机制本质上是「强制不剥夺」这层对应关系'],
+    frame: '答题框架：列四条件 → 每条给案例证据 → 措施与条件一一对应（破坏谁治谁）→ 检测解除机制收尾，并用「预防/避免/检测」三级给方案归类。',
+    kpId: '11'
+  });
+
+  /* ---------- 变式迁移 ---------- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '景区单行隧道两头，两支车队同时从两端驶入且都不肯倒车，隧道每端入口只能容一列车队依次通过。两支车队在隧道中段头对头僵住。这套情形与死锁理论对应最贴切的是？',
+    opts: [
+      { t: '不是死锁，只是拥堵，等等就好', why: '普通拥堵会自行疏解；这里双方都不释放（倒车=释放已占资源），永远不会自己好。' },
+      { t: '是死锁：双方占有入口段且等待对方让出（请求和保持），单向规则使资源不可剥夺，隧道内头对头构成循环等待', why: '对：这就是「十字路口四车互堵」的单行隧道版，四条件齐活。' },
+      { t: '是饥饿：有一队总也轮不上', why: '饥饿是「一直排不上」，这里是「互相锁死」，已经不能推进了。' },
+      { t: '属于不剥夺策略的正常表现', why: '不剥夺是死锁的必要条件之一，不是策略；本案结果是死锁。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---------- 概念桥 ---------- */
+  CX.depChain('#bridge-prev', ['10'], 'prev');
+  CX.depChain('#bridge-next', ['12'], 'next');
+
+  /* ---------- 动画：十字路口资源环 ---------- */
+  var stage = CX.utils.$('demo1-stage');
+  var K = 1; /* 每类资源实例数滑块 */
+  var B = {
+    n: { x: 320, y: 40, name: 'R北', car: '车北' },
+    e: { x: 560, y: 164, name: 'R东', car: '车东' },
+    s: { x: 320, y: 288, name: 'R南', car: '车南' },
+    w: { x: 80, y: 164, name: 'R西', car: '车西' }
+  };
+  var REQ = [
+    { from: 'n', to: 'e', who: '车北', label: '北等东' },
+    { from: 'e', to: 's', who: '车东', label: '东等南' },
+    { from: 's', to: 'w', who: '车南', label: '南等西' },
+    { from: 'w', to: 'n', who: '车西', label: '西等北' }
+  ];
+  var FRAMES = [
+    { hot: [], cap: '四辆车各自驶入一段路：北东南西各占一段车道（每车都已占有资源）' },
+    { hot: [0], cap: '车北要穿过东行车道：东行路段全被车东占着，只能等待（占有且等待）' },
+    { hot: [0, 1], cap: '车东同样申请南行路段，进入等待' },
+    { hot: [0, 1, 2, 3], cap: '车南等西、车西等北：四个请求全部挂起' },
+    { hot: [0, 1, 2, 3], ring: true, cap: '请求链首尾相接：北→东→南→西→北——循环等待的环成形了' },
+    { hot: [0, 1, 2, 3], ring: true, cap: '核对四必要条件：互斥 ✓ 占有且等待 ✓ 不剥夺 ✓ 循环等待 ✓' },
+    { hot: [0, 1, 2, 3], verdict: true, cap: '' },
+    { hot: [0, 1, 2, 3], verdict: true, cap: '' }
+  ];
+  function blockSvg(key, hot) {
+    var b = B[key];
+    var fill = hot ? 'var(--accent-2)' : 'var(--card)';
+    var s = '<rect x="' + b.x + '" y="' + b.y + '" width="80" height="52" rx="10" fill="' + fill + '" stroke="' + (hot ? 'var(--accent-2)' : 'var(--line)') + '" stroke-width="2"/>';
+    s += '<text x="' + (b.x + 40) + '" y="' + (b.y + 22) + '" text-anchor="middle" font-size="13" font-weight="bold" fill="' + (hot ? 'var(--bg)' : 'var(--text)') + '">' + b.name + '</text>';
+    s += '<text x="' + (b.x + 40) + '" y="' + (b.y + 41) + '" text-anchor="middle" font-size="10" fill="' + (hot ? 'var(--bg)' : 'var(--text-dim)') + '">' + b.car + ' 占有</text>';
+    return s;
+  }
+  function reqArrow(r, hot) {
+    var a = B[r.from], b = B[r.to];
+    var sx = a.x + 40, sy = a.y + 52, tx = b.x + 40, ty = b.y;
+    var mx = (sx + tx) / 2 + (sy > ty ? 46 : -46);
+    var my = (sy + ty) / 2;
+    var col = hot ? 'var(--bad)' : 'var(--line)';
+    var s = '<path d="M ' + sx + ' ' + sy + ' Q ' + mx + ' ' + my + ' ' + tx + ' ' + ty + '" fill="none" stroke="' + col + '" stroke-width="' + (hot ? 3 : 1.5) + '" stroke-dasharray="' + (hot ? '' : '5 5') + '" marker-end="url(#arw2)"/>';
+    s += '<text x="' + (mx + (sy > ty ? 10 : -10)) + '" y="' + my + '" text-anchor="middle" font-size="10" fill="' + (hot ? 'var(--bad)' : 'var(--text-dim)') + '">' + r.label + '</text>';
+    return s;
+  }
+  function draw(t) {
+    var f = Math.min(FRAMES.length - 1, Math.floor(t * FRAMES.length));
+    var F = FRAMES[f];
+    var k2 = (K >= 2);
+    var cap = F.cap;
+    if (F.verdict) {
+      cap = k2
+        ? 'k=2：第 2 条东行车道空闲，车北的请求立即被满足——环被打破，只是拥堵，不是死锁'
+        : 'k=1：环上每段路都唯一且被占，无人能前进也无法被抢——判定死锁，只能靠外力（拖车=资源剥夺/撤销）';
+    }
+    var s = '<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="死锁资源环动画">';
+    s += '<defs><marker id="arw2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--bad)"/></marker></defs>';
+    s += '<rect width="720" height="380" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="360" y="196" text-anchor="middle" font-size="16" fill="var(--text-dim)">🏛️ 十字路口</text>';
+    REQ.forEach(function (r, i) { s += reqArrow(r, F.hot.indexOf(i) >= 0); });
+    ['n', 'e', 's', 'w'].forEach(function (key) { s += blockSvg(key, F.ring); });
+    if (k2 && f >= 6) {
+      s += '<rect x="440" y="52" width="200" height="52" rx="10" fill="var(--ok)" opacity=".85"/>';
+      s += '<text x="540" y="74" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">第 2 条东行车道（空闲）</text>';
+      s += '<text x="540" y="93" text-anchor="middle" font-size="11" fill="var(--bg)">→ 直接分配给车北，环解开</text>';
+    }
+    s += '<text x="30" y="356" font-size="13" fill="var(--text)">单实例资源：环 = 死锁 · 多实例资源：环可能自己解开（环只是必要条件）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + (f + 1) + '/' + FRAMES.length + ' 帧 · ' + cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 8, duration: 16, onTick: draw });
+  var kSlider = CX.utils.$('demo1-k');
+  kSlider.addEventListener('input', function () {
+    K = parseInt(kSlider.value, 10);
+    CX.utils.$('demo1-k-out').textContent = K;
+    draw(anim.t);
+  });
+
+  /* ---------- 实验一：银行家算法逐步求解 ---------- */
+  var PROC = [
+    { id: 'P1', alloc: [1, 0, 1], max: [2, 1, 1], need: [1, 1, 0] },
+    { id: 'P2', alloc: [1, 1, 0], max: [2, 2, 1], need: [1, 1, 1] },
+    { id: 'P3', alloc: [0, 0, 1], max: [1, 1, 2], need: [1, 1, 1] }
+  ];
+  var RES = ['A', 'B', 'C'];
+  var bkWork, bkDone;
+  function vec(v) { return '(' + v.join(',') + ')'; }
+  function bkReset() {
+    bkWork = [1, 1, 0]; bkDone = [];
+    CX.utils.$('lab1-fb').textContent = ''; CX.utils.$('lab1-fb').className = 'lab-feedback';
+    bkRender();
+  }
+  function bkRender() {
+    var h = '<table class="tbl"><tr><th>进程</th><th>Allocation (A,B,C)</th><th>Max</th><th>Need = Max−Alloc</th><th>状态</th></tr>';
+    PROC.forEach(function (p) {
+      h += '<tr><td>' + p.id + '</td><td>' + vec(p.alloc) + '</td><td>' + vec(p.max) + '</td><td>' + vec(p.need) + '</td><td>' + (bkDone.indexOf(p.id) >= 0 ? '✅ 已完成并归还' : '待运行') + '</td></tr>';
+    });
+    h += '</table>';
+    CX.utils.$('bk-tables').innerHTML = h;
+    CX.utils.$('bk-work').textContent = vec(bkWork);
+    CX.utils.$('bk-seq').textContent = bkDone.length ? bkDone.join(' → ') : '（空）';
+    var box = CX.utils.$('bk-btns');
+    box.innerHTML = '';
+    PROC.forEach(function (p) {
+      if (bkDone.indexOf(p.id) >= 0) return;
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = '选 ' + p.id + '（Need ' + vec(p.need) + '）';
+      b.addEventListener('click', function () { bkPick(p); });
+      box.appendChild(b);
+    });
+  }
+  function bkPick(p) {
+    var fb = CX.utils.$('lab1-fb');
+    var short = -1;
+    for (var i = 0; i < 3; i++) { if (p.need[i] > bkWork[i]) { short = i; break; } }
+    if (short >= 0) {
+      fb.textContent = '❌ 第 ' + (bkDone.length + 1) + ' 步选 ' + p.id + ' 不行：它的 Need ' + vec(p.need) + ' 中 ' + RES[short] + ' 类需要 ' + p.need[short] + '，但当前 Work ' + vec(bkWork) + ' 只剩 ' + bkWork[short] + '。银行家算法必须「确认给得起」才分配——选一个 Need 每一类都 ≤ Work 的进程。';
+      fb.className = 'lab-feedback bad';
+      return;
+    }
+    for (var j = 0; j < 3; j++) { bkWork[j] += p.alloc[j]; }
+    bkDone.push(p.id);
+    fb.textContent = '✅ 第 ' + bkDone.length + ' 步：' + p.id + ' 的 Need ' + vec(p.need) + ' ≤ Work，可以运行；跑完归还 Allocation ' + vec(p.alloc) + '，Work 变为 ' + vec(bkWork) + '。';
+    fb.className = 'lab-feedback ok';
+    if (bkDone.length === PROC.length) {
+      fb.textContent = '🎉 安全序列 ' + bkDone.join(' → ') + '，Work 最终 ' + vec(bkWork) + '（等于总资源 3,2,2）。若第 1 步你先选了 P2 或 P3：它们的 Need (1,1,1) 中 C 类 1 大于当时 Work 的 C 0——先给后看就是银行家要防的赌徒行为。';
+      fb.className = 'lab-feedback ok';
+    }
+    bkRender();
+  }
+  CX.utils.$('bk-reset').addEventListener('click', bkReset);
+  bkReset();
+
+  /* ---------- 实验二：策略连线 ---------- */
+  var pairs = [
+    ['一次性申请全部资源后再执行', '预防：破坏「请求和保持」'],
+    ['资源统一编号，只能按递增顺序申请', '预防：破坏「循环等待」'],
+    ['分配前用银行家算法确认安全序列仍存在', '避免：动态躲开不安全状态'],
+    ['周期性检测等待环，剥夺资源或撤销进程', '检测与解除：事后拆环'],
+    ['用 Spooling 假脱机把打印机改成共享', '预防：破坏「互斥」（独占改共享）']
+  ];
+  var lBox = CX.utils.$('dl-left'), rBox = CX.utils.$('dl-right');
+  var selL = null, donePairs = 0;
+  function buildMatch2() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab2-fb').textContent = ''; CX.utils.$('lab2-fb').className = 'lab-feedback';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的原理归类。';
+        CX.utils.$('lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个措施。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 配错。自查：这个措施是在「事前破坏条件」（预防）、还是「事前算账不进险境」（避免）、还是「事后拆环」（检测解除）？';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch2();
+  CX.utils.$('dl-reset').addEventListener('click', buildMatch2);
+
+  /* ---------- 实验三：死锁/饥饿/安全 判断 ---------- */
+  var CASES = [
+    { text: 'P1 占有唯一的 R1 并请求唯一的 R2；P2 占有 R2 并请求 R1。双方都不释放。', ans: 0,
+      why: '死锁：等待环 + 资源不可剥夺，双方永远无法推进。' },
+    { text: '低优先级进程在就绪队列里总被高优先级进程插队，长期得不到 CPU；但没有任何进程持有它需要的资源。', ans: 1,
+      why: '饥饿：没有等待环，它只是总排不上队——死锁必有环，饥饿不需要。' },
+    { text: '3 个进程各最多需 2 台打印机，系统现有 4 台打印机。', ans: 2,
+      why: '安全：最坏情形每个进程已持 1 台（共 3 台）时还剩 1 台，必有进程能凑齐 2 台跑完归还，n(k−1)+1=4 正好兜住。' }
+  ];
+  var JR_OPTS = ['死锁', '饥饿', '安全（不会死锁）'];
+  var jrDone;
+  function jrReset() {
+    jrDone = [];
+    CX.utils.$('lab3-fb').textContent = ''; CX.utils.$('lab3-fb').className = 'lab-feedback';
+    jrRender();
+  }
+  function jrRender() {
+    var box = CX.utils.$('jr-list');
+    box.innerHTML = '';
+    CASES.forEach(function (c, ci) {
+      var row = document.createElement('div');
+      row.style.margin = '8px 0';
+      var h = '<p style="margin:4px 0"><b>情形 ' + (ci + 1) + '：</b>' + c.text + (jrDone.indexOf(ci) >= 0 ? ' <span style="color:var(--ok)">✔</span>' : '') + '</p>';
+      row.innerHTML = h;
+      JR_OPTS.forEach(function (o, oi) {
+        var b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = o;
+        if (jrDone.indexOf(ci) >= 0) b.disabled = true;
+        b.addEventListener('click', function () {
+          var fb = CX.utils.$('lab3-fb');
+          if (oi === c.ans) {
+            if (jrDone.indexOf(ci) < 0) jrDone.push(ci);
+            fb.textContent = '✅ 情形 ' + (ci + 1) + ' 正确：' + c.why;
+            fb.className = 'lab-feedback ok';
+            jrRender();
+          } else {
+            fb.textContent = '❌ 情形 ' + (ci + 1) + ' 判错了。判断顺序：先找「有没有相互等待的环」→ 有环且资源不可剥夺才是死锁；没环只是排不上队是饥饿；算 n(k−1)+1 能兜住是安全。' + c.why;
+            fb.className = 'lab-feedback bad';
+          }
+        });
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    });
+  }
+  CX.utils.$('jr-reset').addEventListener('click', jrReset);
+  jrReset();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

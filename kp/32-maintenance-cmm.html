@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>32 · 维护、配置管理与CMMI · 架构师学堂</title>
+<meta name="description" content="维护分四类，配置管理管住每一个版本，CMMI 给组织成熟度定级。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="31-testing.html">前置 31</a></span>
+    <h1>32 · 维护、配置管理与CMMI</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">维护分四类，配置管理管住每个版本，CMMI 给成熟度定级。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>一栋楼交付后十年里：漏水要修（楼本身的毛病）、加装电梯因为规范更新要改造（外部规矩变了）、业主想多要一间储藏室（住户提新要求）、趁翻新把管线重新布置好为将来改造省事（为以后动手方便）。同时图纸室里两个施工队拿着两个版本的图纸各盖各的，竣工图和施工图对不上——楼上楼下打穿了管道。软件交付后：哪些活动分别对应这四类维护？图纸对不上的问题在软件里靠什么机制避免？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>修漏水=<strong>改正性维护</strong>；规范更新改造=<strong>适应性维护</strong>；加储藏室=<strong>完善性维护</strong>（占比最大，一般认为约 50%）；管线预布置=<strong>预防性维护</strong>。图纸对不上的问题靠<strong>配置管理</strong>：配置项标识、版本控制、基线、变更控制加配置审计——谁在什么时间用哪个版本的图纸，必须有台账；改图纸必须走审批。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>31 · 软件测试</b>（回归测试为什么是维护的好帮手）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>本页三件事管「交付之后」：<strong>软件维护</strong>管交付后的修改活动（分四类）；<strong>软件配置管理（SCM）</strong>管住每一个版本与每一次变更（图纸版本管理）；<strong>CMM/CMMI</strong> 给「施工队（软件组织）」的成熟度定级——衡量一个组织能不能把活干稳。</p>
+      <h3>解决什么问题</h3>
+      <p>软件 60%~80% 的生命周期成本发生在交付之后（教材常见口径）；没有版本台账的团队「不知道改的是哪版、谁批准的、改完影响谁」，CMM/CMMI 则回答「为什么有的团队从不失控，有的团队天天救火」。</p>
+      <h3>核心机制 1：四类维护（占比随口径浮动，完善性最大）</h3>
+      <table class="tbl">
+        <tr><th>类型</th><th>触发原因</th><th>工地类比</th><th>占比（一般认为）</th></tr>
+        <tr><td>改正性维护</td><td>修交付后暴露的缺陷</td><td>修漏水</td><td>约 20%</td></tr>
+        <tr><td>适应性维护</td><td>外部环境变化（OS/硬件/法规/接口升级）</td><td>规范更新后改造电梯</td><td>约 25%</td></tr>
+        <tr><td><strong>完善性维护</strong></td><td>用户新需求、功能增强、体验改进</td><td>应业主要求加盖储藏室</td><td><strong>约 50%（最大头）</strong></td></tr>
+        <tr><td>预防性维护</td><td>为将来可维护性投资（重构、更新文档）</td><td>翻新时预布管线</td><td>约 5%</td></tr>
+      </table>
+      <h3>核心机制 2：配置管理三件套 + 基线 + 审计</h3>
+      <ul>
+        <li><strong>配置项标识</strong>：把受管对象（代码、文档、数据、工具）逐一定义命名编号，纳入管理范围。</li>
+        <li><strong>版本控制</strong>：每个配置项的演化历史可追溯（版本号、变更人、变更时间）。</li>
+        <li><strong>变更控制</strong>：基线建立后，任何修改必须走「申请→影响评估→变更控制委员会（CCB）审批→修改→更新基线」。</li>
+        <li><strong>基线（Baseline）</strong>：通过正式评审的配置项快照，是后续变更的惟一合法出发点。</li>
+        <li><strong>配置审计</strong>：核实「实际交付物=基线+批准的变更」（功能审计、物理审计），配合<strong>配置状态报告</strong>让全员知道现状。</li>
+      </ul>
+      <h3>核心机制 3：CMM 与 CMMI 五级对比（易混重灾区）</h3>
+      <table class="tbl">
+        <tr><th>级别</th><th>CMM（能力成熟度模型）</th><th>CMMI（集成版）</th><th>特征一句话</th></tr>
+        <tr><td>1</td><td>初始级 Initial</td><td>初始级 Initial</td><td>救火式开发，成败靠英雄</td></tr>
+        <tr><td>2</td><td><strong>可重复级 Repeatable</strong></td><td><strong>已管理级 Managed</strong></td><td>项目级管理制度化，同类项目能复用经验</td></tr>
+        <tr><td>3</td><td>已定义级 Defined</td><td>已定义级 Defined</td><td>全组织标准过程，各项目裁剪使用</td></tr>
+        <tr><td>4</td><td><strong>已管理级 Managed</strong></td><td><strong>量化管理级 Quantitatively Managed</strong></td><td>用度量与统计定量控制过程与质量</td></tr>
+        <tr><td>5</td><td>优化级 Optimizing</td><td>优化级 Optimizing</td><td>持续改进，过程本身不断进化</td></tr>
+      </table>
+      <p>记忆：CMM 口诀「<strong>初可定管优</strong>」，CMMI 口诀「<strong>初管定量优</strong>」。差异集中在第 2、4 级：CMM 的 2 级叫「可重复」，CMMI 把「已管理」提到 2 级、4 级改名「量化管理」。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①占比最大的是<strong>完善性</strong>维护（约 50%），不是改正性；②CMM 与 CMMI 的 2/4 级名称互换是历年反复挖的坑；③基线建立<strong>之后</strong>才有「变更控制」之说——基线前的修改走正常开发流程；④配置审计是「核对账实相符」，不是又一次测试（测试归 31 页）。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>corrective/adaptive/perfective/preventive maintenance 改正/适应/完善/预防性维护 · configuration item 配置项 · change control 变更控制 · maturity level 成熟度等级</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>配置管理 = 工地的<strong>图纸版本管理</strong>：每张图纸有编号（配置项标识）、每次改版留痕（版本控制）、盖章封存的图集是基线、改图先打报告（变更控制）、竣工前对账（配置审计）。CMM/CMMI 则是施工队的<strong>资质评级</strong>：一级靠老师傅，五级靠体系自我进化。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>图纸编号上架</td><td>配置项标识</td><td>成立</td></tr>
+      <tr><td>改版留痕可回溯</td><td>版本控制</td><td>成立</td></tr>
+      <tr><td>盖章封存的图集</td><td>基线</td><td>成立</td></tr>
+      <tr><td>竣工对账「图实相符」</td><td>配置审计</td><td>成立</td></tr>
+      <tr><td>资质高的施工队绝不返工</td><td>高成熟度组织的质量</td><td><b>失效</b>：高成熟度意味着「过程稳定可预测」，缺陷仍会发生，但能被度量与持续改进</td></tr>
+    </table>
+    <div class="rhyme">维护改适完预记，完善占半壁江山；<br>标识版本加变更，基线审计来收关；<br>CMM初可定管优，CMMI初管定量优；<br>级别越高乱越少，定量优化步步高。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示变更控制流水线：变更申请→CCB 评估→批准/拒绝→修改配置项→版本升级→更新基线→配置审计。拖动「通过率」滑块，看版本曲线随批准数量爬升。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>变更通过率 <input type="range" id="ap-slider" min="0" max="100" step="10" value="60"> <span id="ap-out">60%</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（场景判断）：这是哪类维护？</h4>
+      <p class="foreshadow">逐条判断，判错会指出你错在哪一步：</p>
+      <div id="mt-list"></div>
+      <div class="lab-feedback" id="lab1-fb">点击第一条开始。</div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：把 CMMI 五个成熟度等级从低到高排好</h4>
+      <p class="foreshadow">口诀「初管定量优」。把卡片拖入槽中：</p>
+      <div id="cm-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="cm-slot"></div>
+      <button class="btn" id="cm-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：配置管理活动 ↔ 它管的工地事务</h4>
+      <p class="foreshadow">先点左列活动，再点右列对应事务：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="sc-left"></div>
+        <div id="sc-right"></div>
+      </div>
+      <button class="btn" id="sc-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>31 页的回归测试是维护期安全网；26 页的基线与变更控制思想在本页升级为配置管理的全套体系。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「过程稳定可度量」在 <b>44 · 架构评估</b> 变成评估组织的体系化方法；</li><li>预防性维护（重构）的技术细节在 <b>45 · 架构演化与重构</b> 展开；</li><li>成熟度定级思想在 <b>55 · 项目管理框架</b> 中与过程组、知识领域合流。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>完善性维护</th><th>预防性维护</th></tr>
+      <tr><td>驱动方</td><td>用户提出（要更多更好的功能）</td><td>开发方主动（为将来改动省成本）</td></tr>
+      <tr><td>目标</td><td>扩充功能、改善性能与体验</td><td>提高未来的可维护性、防患未然</td></tr>
+      <tr><td>易错点</td><td>与适应性混淆：适应是「外部环境逼的」，完善是「用户想要的」</td><td>占比最小（一般认为约 5%），别选成最大头</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">用户「想要更多」是完善，自己「为明天省事」是预防。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——小区交付后要修修补补，图纸必须锁在柜子里按版本翻……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 四类维护「改适完预」，完善性占比最大（一般认为约 50%）。</li><li>② 配置管理：标识、版本控制、变更控制三件套，外加基线、审计与状态报告。</li><li>③ CMM「初可定管优」，CMMI「初管定量优」；2/4 级名称互换是最深的坑。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '32', domain: 'se', loc: 'construction', root: '..',
+  title: '维护、配置管理与CMMI', prev: '31-testing.html', prevTitle: '31 · 软件测试',
+  next: '33-arch-concepts.html', nextTitle: '33 · 软件架构概念与4+1视图',
+  keywords: ['改正性维护','完善性维护','适应性维护','配置管理','基线','变更控制','CMM','CMMI']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·31】维护期改了一个底层模块后，测试组首先要安排什么活动兜底？',
+    opts: [
+      { t: '重新做验收测试', why: '验收是里程碑级活动；日常修改的兜底是回归测试。' },
+      { t: '回归测试：重跑相关既有用例', why: '对。31 页讲过回归防「改好一处碰坏三处」——维护的每一步都离不开它。' },
+      { t: 'α 测试', why: 'α 是交付前用户在开发方场所的验收活动。' }
+    ],
+    ans: 1, tag: '回忆:31', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某银行系统因监管部门升级报文规范而改造对接模块，这属于哪类维护？',
+      opts: [
+        { t: '改正性维护', why: '系统本身没坏，是外部规范变了。' },
+        { t: '适应性维护', why: '对。外部环境（法规/接口/平台）变化逼着系统改，是适应性维护。' },
+        { t: '完善性维护', why: '完善性是用户「想要更多更好」，不是外部变化。' },
+        { t: '预防性维护', why: '预防性是为未来可维护性主动投资。' }
+      ],
+      ans: 1, tag: '维护分类', src: '仿真题' },
+    { q: '一般认为四类维护中占比最大的是？',
+      opts: [
+        { t: '改正性维护', why: '占比约 20%，不是最大头。' },
+        { t: '完善性维护', why: '对。用户不断提新需求、增强功能，一般认为约占 50%，是最大头。' },
+        { t: '适应性维护', why: '约 25%，居第二。' },
+        { t: '预防性维护', why: '占比最小，一般认为约 5%。' }
+      ],
+      ans: 1, tag: '占比', src: '仿真题' },
+    { q: 'CMMI 第 4 级的名称是？',
+      opts: [
+        { t: '已管理级', why: '这是 CMMI 第 2 级的名称——与 CMM 第 4 级重名正是挖坑处。' },
+        { t: '量化管理级', why: '对。CMMI：初始、已管理、已定义、量化管理、优化——第 4 级是量化管理级。' },
+        { t: '可重复级', why: '「可重复」是 CMM 第 2 级，CMMI 中已不使用。' },
+        { t: '已定义级', why: '这是两者的第 3 级。' }
+      ],
+      ans: 1, tag: 'CMMI', src: '仿真题' },
+    { q: '【交错复习·31】修复缺陷并完成回归测试后，这个修改过的模块要重新入库受管。它所在的「正式评审批准过的版本快照」称为？',
+      opts: [
+        { t: '配置项', why: '配置项是受管对象本身，不是「批准过的快照」。' },
+        { t: '基线', why: '对。31 页修改入库对接到本页：通过正式评审批准的配置项快照就是基线，修改它必须走变更控制。' },
+        { t: '版本号', why: '版本号是标识手段，不是快照概念。' }
+      ],
+      ans: 1, tag: '交错复习:31', src: '仿真题' },
+    { q: '关于变更控制流程，正确的顺序是？',
+      opts: [
+        { t: '修改代码→提交申请→CCB 审批→更新基线', why: '先改后审是「先斩后奏」，基线修改必须先审批。' },
+        { t: '提交申请→影响评估→CCB 审批→修改并更新基线→通知相关人员', why: '对。申请→评估→审批→修改+更新基线→通知，缺一步都会失控。' },
+        { t: '提交申请→直接修改→知会 CCB', why: '缺少影响评估与审批，等于绕过变更控制。' },
+        { t: 'CCB 审批→提交申请→修改', why: '顺序颠倒：先有申请才有审批对象。' }
+      ],
+      ans: 1, tag: '变更控制', src: '仿真题' }
+  ], { kpId: '32', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某 ERP 系统运行三年，积压的维护需求：①报表页签切换偶发空指针报错；②税务接口按新规改字段；③销售部希望增加移动端审批；④团队计划趁大版本升级重构核心账务代码并补齐文档。团队只有 6 人，上述四项不可能全做。',
+    q: '(1) 将四项需求对应到维护类型；(2) 结合占比常识给出排序建议并说明理由；(3) 指出这类「带修改的维护」必须配套的两项管理机制。',
+    ref: '(1) ①改正性维护（修缺陷）；②适应性维护（外部法规/接口变化）；③完善性维护（用户新功能）；④预防性维护（重构与文档，为将来投资）。(2) 排序建议：先①（空指针是现网故障，止损优先），再②（合规硬约束有截止期），③作为完善性可排入后续迭代（虽然占比最大，但单条可分期），④穿插进行（小步重构+文档随改随补）。理由：占比常识说明长期看完善性需求最多，应建立迭代化受理通道，而不是一次性做完；短期排序则按风险与合规紧迫度。(3) 配套机制：配置管理——修改必须基于受控基线，版本可追溯；回归测试——每次修改后重跑相关用例防引入新缺陷（31 页），同时变更留痕走变更控制。',
+    points: ['四类划分全部正确', '排序有依据（风险/合规/占比常识），不机械套占比', '给出配置管理+回归测试两项机制并说明作用'],
+    frame: '答题框架：先归类（对号入座）→再排序（给判据：止损>合规>分期>穿插）→最后补管理配套，避免只答分类。',
+    kpId: '32'
+  });
+  CX.renderCase('#case2', {
+    stem: '审计发现某团队的问题：客户拿到的安装包版本号与需求文档对不上；两名工程师各自改过同一份接口文档的不同副本；一次紧急修复未经任何评审直接替换了生产版本。',
+    q: '(1) 逐一指出每类问题违反的配置管理活动；(2) 给出该团队建立配置管理体系的最小方案；(3) 说明基线在方案中如何同时保护客户与开发团队。',
+    ref: '(1) ①交付物与文档版本对不上——缺少配置审计（账实核对）与统一的版本控制；②接口文档多副本并行修改——缺少配置项标识与统一受控库（应一人一检出、集中受管）；③紧急修复未评审直上生产——绕过了基线与变更控制（紧急也应有「紧急变更通道」+事后补审）。(2) 最小方案：盘点并标识全部配置项（代码/文档/脚本/环境）入受控库；启用版本控制工具，主分支+版本号规则；对「需求文档+对应可交付版本」建立基线；变更一律走申请→评估→CCB（可简化为授权人）审批→修改→更新基线；每次交付前做配置审计并出状态报告。(3) 基线的双向保护：对客户——每份基线都是「承诺过、验证过」的确定集合，交付物可对账；对团队——基线之外的修改不被追责，基线之内的修改必须有据可查，紧急修复也可事后补录审计，避免「谁也说不清谁改的」。',
+    points: ['三个问题与配置管理活动一一对应（审计/标识与受控库/基线与变更控制）', '最小方案五要素完整且可落地', '说明基线对双方的保护机制，而非只背定义'],
+    frame: '答题框架：逐条对号（问题→缺失活动）→给方案（标识/版本/基线/变更/审计五步）→升华（基线的契约作用）。',
+    kpId: '32'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '小区物业趁淡季把所有楼层电箱贴上标签并编号造册，方便日后任何维修都能快速定位线路。这与配置管理的哪个活动同构？',
+      opts: [
+        { t: '配置项标识：给受管对象命名编号登记', why: '对。贴标签编号造册=标识配置项，让每个对象可定位可追溯。' },
+        { t: '变更控制', why: '变更控制管「改动的审批流程」，不是编号造册。' },
+        { t: '配置审计', why: '审计是事后对账，不是登记造册本身。' }
+      ],
+      ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['31'], 'prev');
+  CX.depChain('#bridge-next', ['45'], 'next');
+
+  /* ---- 动画：变更控制流水线 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var ap = 0.6;
+  function draw(t) {
+    var gates = ['变更申请', 'CCB评估', '批准/拒绝', '修改配置项', '版本升级', '更新基线', '配置审计'];
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="变更控制流水线">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    var act = t * gates.length;
+    for (var i = 0; i < gates.length; i++) {
+      var x = 24 + i * 98, on = act >= i + 0.85, doing = act >= i && act < i + 0.95;
+      s += '<rect x="' + x + '" y="86" width="84" height="50" rx="9" fill="' + (on ? 'var(--accent-2)' : (doing ? 'var(--accent)' : 'var(--card)')) + '" stroke="var(--line)"/>';
+      s += '<text x="' + (x + 42) + '" y="' + (108 + 5) + '" text-anchor="middle" font-size="11" fill="' + (on || doing ? 'var(--bg)' : 'var(--text-dim)') + '">' + gates[i] + '</text>';
+      if (i === 2 && act > 2.4) {
+        s += '<text x="' + (x + 42) + '" y="152" text-anchor="middle" font-size="11" fill="var(--text-dim)">通过率 ' + Math.round(ap * 100) + '%</text>';
+      }
+      if (i < gates.length - 1) s += '<line x1="' + (x + 84) + '" y1="111" x2="' + (x + 98) + '" y2="111" stroke="var(--text-dim)" stroke-width="2"/>';
+    }
+    /* 被拒绝的变更掉进回收箱 */
+    if (act > 2.5) {
+      s += '<path d="M 266 136 C 260 180, 300 190, 340 186" fill="none" stroke="var(--bad)" stroke-width="1.6" stroke-dasharray="4 4"/>';
+      s += '<rect x="316" y="184" width="52" height="30" rx="6" fill="var(--bad)" opacity=".8"/>';
+      s += '<text x="342" y="204" text-anchor="middle" font-size="11" fill="var(--bg)">拒绝</text>';
+    }
+    /* 版本曲线 */
+    var pts = ['40,252'];
+    var v = 1;
+    for (var k = 1; k <= 8; k++) {
+      var px = 40 + k * 78;
+      v += ap;
+      pts.push(px.toFixed(0) + ',' + (252 - v * 6).toFixed(1));
+    }
+    if (act > 4.2) {
+      s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="var(--ok)" stroke-width="2.5"/>';
+      s += '<text x="400" y="284" text-anchor="middle" font-size="12" fill="var(--text-dim)">基线版本曲线：只升不降——每个批准的变更都产生可追溯的新版本</text>';
+    }
+    if (t >= 0.99) s += '<text x="660" y="70" font-size="16" fill="var(--ok)">✔审计通过</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var idx = Math.min(gates.length - 1, Math.floor(act));
+    var capDetail = ['任何人都可提：写清改什么、为什么', '评估影响面：进度/成本/关联配置项', '不是所有变更都批准——拒绝也要留痕', '在受控库中修改，不私下改副本', '版本号升级，历史可回溯', '通过评审的版本并入基线', '账实核对：交付物=基线+批准的变更'];
+    CX.setCap('#demo1-ctl', '第 ' + (idx + 1) + ' 步「' + gates[idx] + '」：' + capDetail[idx]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 21, duration: 12, onTick: draw });
+  var apsl = CX.utils.$('ap-slider');
+  apsl.addEventListener('input', function () {
+    ap = +apsl.value / 100;
+    CX.utils.$('ap-out').textContent = apsl.value + '%';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：维护分类判断 ---- */
+  (function () {
+    var names = ['改正性维护', '适应性维护', '完善性维护', '预防性维护'];
+    var items = [
+      { t: '用户反馈：导出报表在特定数据下闪退，安排修复', ans: 0,
+        why: '修现网缺陷=改正性维护。' },
+      { t: '操作系统大版本升级后系统部分驱动失效，安排适配', ans: 1,
+        why: '外部环境变化逼的=适应性维护。' },
+      { t: '客户希望增加「扫码登录」和夜间模式', ans: 2,
+        why: '用户想要更多更好=完善性维护（占比最大的一类）。' },
+      { t: '团队主动重构公共日志组件并补齐接口文档', ans: 3,
+        why: '为将来可维护性主动投资=预防性维护（占比最小）。' },
+      { t: '车管所要求年检数据格式变更，安排对接改造', ans: 1,
+        why: '法规/接口变化=适应性维护，不是完善（不是用户「想要更多」）。' }
+    ];
+    var box = CX.utils.$('mt-list'), idx = 0, okCnt = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>判断完成：答对 ' + okCnt + '/' + items.length + '。</p>';
+        CX.utils.$('lab1-fb').textContent = okCnt === items.length ? '✅ 全对。判据一句话：坏了修=改正，环境逼=适应，用户要=完善，自己防=预防。' : '口诀判据：坏了修、环境逼、用户要、自己防。';
+        CX.utils.$('lab1-fb').className = okCnt === items.length ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      box.innerHTML = '<p><b>' + (idx + 1) + '. ' + items[idx].t + '</b></p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' + names.map(function (n, i) { return '<button class="btn" data-m="' + i + '">' + n + '</button>'; }).join('') + '</div>';
+      CX.utils.$$('button[data-m]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var m = +b.getAttribute('data-m'), fbx = CX.utils.$('lab1-fb');
+          if (m === items[idx].ans) { okCnt++; fbx.textContent = '✅ 对：' + items[idx].why; fbx.className = 'lab-feedback ok'; }
+          else { fbx.textContent = '❌ 你选了' + names[m] + '。先问四个问题：系统坏了吗？外部变了吗？用户要吗？自己在投资吗？——' + items[idx].why; fbx.className = 'lab-feedback bad'; }
+          idx++; setTimeout(render, 900);
+        });
+      });
+    }
+    render();
+  })();
+
+  /* ---- 实验二：CMMI 五级排序 ---- */
+  (function () {
+    var expect = ['1 初始级（救火靠英雄）', '2 已管理级（项目级制度化）', '3 已定义级（全组织标准过程）', '4 量化管理级（度量与统计控制）', '5 优化级（持续改进）'];
+    var pool = CX.utils.$('cm-pool'), slot = CX.utils.$('cm-slot');
+    CX.shuffle(expect.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      pool.appendChild(d);
+    });
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = pool.querySelector('[data-t="' + t + '"]') || slot.querySelector('[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+    CX.utils.$('cm-check').addEventListener('click', function () {
+      var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+      var fb = CX.utils.$('lab2-fb');
+      if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+      var hints = ['一级没有纪律，成败靠个人英雄；', '二级把项目管理变成制度（CMMI 的「已管理」在 2 级）；', '三级组织级标准过程全队共用；', '四级用数据说话（量化管理）；', '五级过程本身持续进化。'];
+      for (var i = 0; i < 5; i++) {
+        if (got[i] !== expect[i]) {
+          fb.textContent = '第 ' + (i + 1) + ' 位放错了：你放了「' + got[i] + '」。提示：' + hints[i] + '（CMMI 口诀：初管定量优）';
+          fb.className = 'lab-feedback bad'; return;
+        }
+      }
+      fb.textContent = '✅ 排序正确：初、管、定、量、优。注意 CMM 的第 2 级叫「可重复级」、第 4 级叫「已管理级」。';
+      fb.className = 'lab-feedback ok';
+    });
+  })();
+
+  /* ---- 实验三：配置管理活动匹配 ---- */
+  (function () {
+    var pairs = [
+      ['配置项标识', '给图纸编号上架：每份受管对象有唯一编号'],
+      ['版本控制', '每次改版留痕：谁、何时、改了什么可回溯'],
+      ['基线', '盖章封存的图集：后续修改的惟一合法出发点'],
+      ['变更控制', '改图先打报告：申请→评估→CCB审批→改'],
+      ['配置审计', '竣工对账：交付物=基线+批准的变更']
+    ];
+    var lBox = CX.utils.$('sc-left'), rBox = CX.utils.$('sc-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它管的工地事务。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个活动。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+            CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab3-fb').textContent = '❌ 不对应。按时间线捋：先标识编号→再版本留痕→封存成基线→改动走变更控制→最后审计对账。';
+            CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('sc-reset').addEventListener('click', function () { build(); CX.utils.$('lab3-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

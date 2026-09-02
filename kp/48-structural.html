@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>48 · 结构型模式 · 架构师学堂</title>
+<meta name="description" content="结构型模式管拼接：适配器转换插头，装饰器层层加功能，代理隔门办事——结构像、意图不同。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">📐 标准图纸馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="46-principles-gof.html">前置 46</a></span>
+    <h1>48 · 结构型模式</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">结构型模式管拼接：适配器转换插头，装饰器层层加功能，代理隔门办事。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某网关要给核心下单服务叠加三个需求：①权限校验（不通过要<strong>拦下请求</strong>）；②热点商品缓存（第一次真实访问后加载，之前用壳对象挡着）；③审计日志（<strong>同接口透明叠加</strong>，还可能多层）。团队图省事，三个需求都写成「与下单服务同接口的包装类」，随便排了个顺序上线——结果某些请求路径上审计包在最外、权限包在内层，部分请求<strong>绕过了权限检查</strong>直接打到了下单服务。三个包装类长得几乎一样，为什么会出事？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>因为三个需求是<strong>三种意图</strong>，该用三种模式：日志是<strong>装饰器</strong>（同接口、透明加功能、可叠加）；权限是<strong>代理</strong>（控制访问，有权拒绝——它必须保证自己在外层且不可被绕过）；缓存是<strong>虚拟/缓存代理</strong>（控制访问：先挡门，必要时才放行到真实对象）。结构都是「包一层」，判类只看<strong>意图</strong>：加功能？控访问？转接口？——这正是本页的三辨析主线。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>46 · 设计原则与GoF总览</b>：结构型 7 将是三柜中的第二柜，判柜口诀还记得吗？</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>结构型模式（7 个）</strong>管「<strong>怎么把类与对象拼成更大的结构</strong>」：接口对不上就转换（适配器）、功能不够就层层包（装饰）、访问要管就设门房（代理）、两维变化就拆开（桥接）、树形层次就同接口（组合）、子系统太乱就开前台（外观）、对象太碎就共享（享元）。</p>
+      <h3>解决什么问题</h3>
+      <p>拼接中的四类麻烦：接口不兼容、功能要动态增减、访问要受控、结构维度互相纠缠。不加管理的拼接会变成「泥球」：改一处动全身（46 页耦合问题在类结构层的重现）。</p>
+      <h3>核心机制：七张图各记「意图 + 城市比喻 + 适用场景」</h3>
+      <table class="tbl">
+        <tr><th>模式</th><th>意图</th><th>城市比喻</th><th>适用场景</th></tr>
+        <tr><td><b>适配器</b> Adapter</td><td>把一个类的接口<strong>转换</strong>成客户期望的另一个接口</td><td><strong>转换插头</strong>：国标插欧洲座</td><td>复用已有类但接口不兼容（老系统、第三方 SDK）</td></tr>
+        <tr><td><b>桥接</b> Bridge</td><td>把<strong>抽象与实现分离</strong>，两维可各自独立变化</td><td><strong>遥控器 × 电视机</strong>：遥控型号与电视品牌互不牵连</td><td>两个变化维度（形状×颜色、消息类型×传输方式）避免类爆炸</td></tr>
+        <tr><td><b>组合</b> Composite</td><td>把对象组成<strong>树形部分-整体</strong>层次，叶与容器<strong>同一接口</strong></td><td><strong>树形组织架构/文件目录</strong>：点谁都是「员工/节点」</td><td>可递归的层次结构：目录、组织架构、UI 容器</td></tr>
+        <tr><td><b>装饰器</b> Decorator</td><td><strong>同接口动态加职责</strong>，比继承更灵活，可多层叠加</td><td><strong>奶茶加料层层包</strong>：珍珠→奶盖→芋圆</td><td>功能动态组合、叠加顺序有意义、避免继承膨胀</td></tr>
+        <tr><td><b>外观</b> Facade</td><td>为复杂子系统提供<strong>统一的高层入口</strong></td><td><strong>装修一站式前台</strong>：你只对接一个前台</td><td>简化对外接口、分层解耦（不阻止绕过前台直达子系统）</td></tr>
+        <tr><td><b>享元</b> Flyweight</td><td><strong>共享细粒度对象</strong>，支撑大量对象而不爆内存</td><td><strong>共享单车</strong>：车是共享的，骑行记录是你的</td><td>海量相似对象：棋子、粒子、地图树木、字符字形</td></tr>
+        <tr><td><b>代理</b> Proxy</td><td>为对象提供占位者以<strong>控制对它的访问</strong></td><td><strong>隔门办事的中间人</strong>：见不见、何时见由他挡</td><td>延迟加载（虚拟）、权限校验（保护）、远程调用、缓存</td></tr>
+      </table>
+      <h3>关键细节 1：装饰 vs 代理 vs 适配器 三辨析表（全站级高频）</h3>
+      <table class="tbl">
+        <tr><th></th><th>装饰器</th><th>代理</th><th>适配器</th></tr>
+        <tr><td>结构</td><td>同接口包一层，可层层叠</td><td>同接口包一层（常一层）</td><td>接口<strong>不同</strong>，做转换</td></tr>
+        <tr><td><b>意图</b></td><td><strong>加功能</strong>（透明增强）</td><td><strong>控制访问</strong>（拦/放/延迟/远程）</td><td><strong>转接口</strong>（协议翻译）</td></tr>
+        <tr><td>客户感知</td><td>察觉不到，行为变强</td><td>可能被拒绝/等待（拦截是可感知的）</td><td>察觉不到，但调的是「另一套接口」</td></tr>
+        <tr><td>典型问句</td><td>能不能叠加好几层？</td><td>要不要拦下请求/推迟创建？</td><td>两边接口长得一样吗？</td></tr>
+      </table>
+      <p><strong>判类三问</strong>（先问再判，考题就是拿意图设陷阱）：①包装类与目标接口<strong>相同吗</strong>？不同 → 适配器。②包装是<strong>为了拦下或推迟</strong>对真实对象的访问吗？是 → 代理。③只是<strong>透明加功能、还能叠加</strong>吗？是 → 装饰器。</p>
+      <p><strong>桥接 vs 适配器</strong>：桥接是<strong>事先设计</strong>——把两个变化维度拆成两条独立继承树、用组合连接；适配器是<strong>事后补救</strong>——接口已经对不上了才去翻译。一个治未病，一个治已病。</p>
+      <h3>关键细节 2：享元的内部状态与外部状态</h3>
+      <p><strong>内部状态</strong>：可共享、不随场景变（棋子的形状颜色、树的纹理、字符字形）→ 存进共享对象；<strong>外部状态</strong>：随场景变（棋子的坐标、树的位置）→ 由客户<strong>作为参数传入</strong>。享元 = 共享内部状态 + 外部状态外置。分不清这两者，共享就会串状态。</p>
+      <h3>关键细节 3：三张代表模式类图（空心三角=泛化/实现，空心菱形=聚合）</h3>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="装饰器类图">
+            <rect x="105" y="14" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="180" y="30" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="180" y="46" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">饮品组件</text>
+            <line x1="105" y1="52" x2="255" y2="52" stroke="var(--line)"/>
+            <text x="180" y="66" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ price() / + make()</text>
+            <polyline points="89,150 89,88 131,88" fill="none" stroke="var(--text)"/>
+            <polygon points="140,70 131,88 149,88" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polyline points="273,150 273,110 231,110 231,88" fill="none" stroke="var(--text)"/>
+            <polygon points="240,70 231,88 249,88" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <rect x="14" y="150" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="89" y="168" text-anchor="middle" font-size="12" fill="var(--text)">奶茶本体</text>
+            <line x1="14" y1="175" x2="164" y2="175" stroke="var(--line)"/>
+            <text x="89" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ price()=8元（被装饰）</text>
+            <rect x="200" y="150" width="146" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="273" y="166" text-anchor="middle" font-size="12" fill="var(--text)">加料装饰（抽象）</text>
+            <line x1="200" y1="173" x2="346" y2="173" stroke="var(--line)"/>
+            <text x="273" y="190" font-size="10" fill="var(--accent-2)">- comp: 饮品组件（被装饰者）</text>
+            <text x="273" y="203" font-size="10" fill="var(--text-dim)">+ price() 转调 comp</text>
+            <text x="180" y="228" text-anchor="middle" font-size="11" fill="var(--accent)">装饰器 is-a 组件，又 has-a 组件——才能层层套</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 A · 装饰器：既是组件的子类，又持有一个组件——珍珠包奶茶，奶盖再包珍珠</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="代理模式类图">
+            <rect x="105" y="14" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="180" y="30" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="180" y="46" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">下单主题</text>
+            <line x1="105" y1="52" x2="255" y2="52" stroke="var(--line)"/>
+            <text x="180" y="66" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ request()</text>
+            <polyline points="89,150 89,88 131,88" fill="none" stroke="var(--text)"/>
+            <polygon points="140,70 131,88 149,88" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polyline points="273,150 273,110 231,110 231,88" fill="none" stroke="var(--text)"/>
+            <polygon points="240,70 231,88 249,88" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polygon points="273,150 281,141 273,132 265,141" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <polyline points="273,132 273,110 296,110 296,70 255,70" fill="none" stroke="var(--text)"/>
+            <rect x="14" y="150" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="89" y="166" text-anchor="middle" font-size="12" fill="var(--text)">真实下单服务</text>
+            <line x1="14" y1="173" x2="164" y2="173" stroke="var(--line)"/>
+            <text x="89" y="190" font-size="10" fill="var(--text-dim)">+ request() 真干活（重）</text>
+            <rect x="200" y="150" width="146" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="273" y="166" text-anchor="middle" font-size="12" fill="var(--text)">权限/延迟代理</text>
+            <line x1="200" y1="173" x2="346" y2="173" stroke="var(--line)"/>
+            <text x="273" y="190" font-size="10" fill="var(--accent-2)">- subject: 下单主题（聚合）</text>
+            <text x="273" y="203" font-size="10" fill="var(--text-dim)">+ request() 先检查再放行</text>
+            <text x="180" y="228" text-anchor="middle" font-size="11" fill="var(--accent)">代理与真实对象同接口，但它有权说「不」或「等等」</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 B · 代理：实现同一主题接口（三角），并聚合持有主题（菱形在代理端）</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="适配器类图">
+            <rect x="14" y="16" width="150" height="60" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="89" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="89" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">目标接口（新标准）</text>
+            <line x1="14" y1="56" x2="164" y2="56" stroke="var(--line)"/>
+            <text x="89" y="72" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ request()（JSON）</text>
+            <polygon points="89,76 79,94 99,94" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="89" y1="94" x2="89" y2="150" stroke="var(--text)"/>
+            <rect x="14" y="150" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="89" y="166" text-anchor="middle" font-size="12" fill="var(--text)">适配器</text>
+            <line x1="14" y1="173" x2="164" y2="173" stroke="var(--line)"/>
+            <text x="89" y="190" font-size="10" fill="var(--text-dim)">+ request()：翻译成老调用</text>
+            <polygon points="164,178 172,173 180,178 172,183" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="180" y1="178" x2="196" y2="178" stroke="var(--text)"/>
+            <text x="188" y="168" text-anchor="middle" font-size="9" fill="var(--text-dim)">持有</text>
+            <rect x="196" y="150" width="150" height="56" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="271" y="166" text-anchor="middle" font-size="12" fill="var(--text)">被适配者（老系统）</text>
+            <line x1="196" y1="173" x2="346" y2="173" stroke="var(--line)"/>
+            <text x="271" y="190" font-size="10" fill="var(--text-dim)">+ specificRequest()（XML）</text>
+            <text x="180" y="228" text-anchor="middle" font-size="11" fill="var(--accent)">接口不同才有适配器：新标准进来，老接口干活</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 C · 适配器：实现目标接口（三角），聚合/关联被适配者——两头翻译</figcaption>
+        </figure>
+      </div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①<strong>装饰 vs 代理</strong>是本站级高频陷阱：两者同接口包一层，判据只有意图——可叠加透明加功能=装饰，控制访问（拒绝/延迟/远程/缓存）=代理；代理误写成装饰、顺序随意排列，就会出现开场那种<strong>绕过权限</strong>的事故；②桥接 vs 适配器：桥接是事先把两维拆开（设计），适配器是事后接口补救（翻译）；③外观是「简化入口」<strong>不拦不挡</strong>，想绕过前台直接找子系统照样可以——这点与代理有本质区别；④享元必须把<strong>外部状态外置</strong>，否则共享对象互相串状态；⑤组合模式要求叶与容器<strong>同一接口</strong>，让客户对单个对象和组合对象用起来无差别（透明性），这是它和普通树形封装的区别。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>adapter（适配器）· decorator（装饰器）· proxy（代理）。英语题常用句式：The decorator pattern attaches additional responsibilities to an object dynamically without changing its interface.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在 <b>📐 标准图纸馆</b>的结构型抽屉里：出国的电器要带<strong>转换插头</strong>（适配器）；奶茶<strong>层层加料</strong>珍珠、奶盖、芋圆一路包上去（装饰）；政务大厅里<strong>隔门办事的中间人</strong>决定你的材料能不能递进去、什么时候递（代理）；<strong>遥控器×电视机</strong>两个型号系列各自升级互不牵连（桥接）；<strong>文件目录</strong>里点文件夹和点文件都是「打开」（组合）；装修只对接<strong>一站式前台</strong>（外观）；全城<strong>共享单车</strong>——车共享，骑行记录各是各的（享元）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>国标插头插欧洲插座</td><td>适配器：转换不兼容接口</td><td>成立</td></tr>
+      <tr><td>珍珠→奶盖→芋圆层层包</td><td>装饰器：同接口层层加功能</td><td>成立</td></tr>
+      <tr><td>中间人决定见不见、何时见</td><td>代理：控制访问（权限/延迟/远程）</td><td>成立</td></tr>
+      <tr><td>遥控器与电视各自换代</td><td>桥接：两维独立变化</td><td>成立</td></tr>
+      <tr><td>共享单车人人骑、记录各自记</td><td>享元：内部状态共享、外部状态外置</td><td>成立</td></tr>
+      <tr><td>中间人和加料小妹是同一个职业</td><td>代理=装饰器</td><td><b>失效</b>：结构像、意图不同——加料是增强（装饰），挡驾是管控（代理）；考试按意图判类</td></tr>
+    </table>
+    <div class="rhyme">适配转插头，桥接两维走；<br>组合树同口，装饰层层抖；<br>外观一站式，享元共享久；<br>代理把门守，意图定敌友。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示装饰器的<strong>层层包裹</strong>：播放先看珍珠、奶盖、芋圆逐帧包上奶茶本体，再看一次「点单调用」如何从最外层一路穿透到本体再逐层返回；拖动滑块改变装饰层数。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>装饰层数 <input type="range" id="layer-slider" min="0" max="4" value="3"> <span id="layer-out">3</span></label>
+      <span class="kf-caption">每层都是「is-a 组件 + has-a 组件」：外层价格 = 内层价格 + 自己的加料价——这就是装饰器同接口叠加的数学。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（模式判类）：这个场景该选哪个结构型模式？</h4>
+      <p class="foreshadow">先点一条场景，再点模式名；选错会指出你把哪个意图弄混了。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-m="adapter">适配器</button>
+        <button class="btn" data-m="bridge">桥接</button>
+        <button class="btn" data-m="composite">组合</button>
+        <button class="btn" data-m="decorator">装饰器</button>
+        <button class="btn" data-m="facade">外观</button>
+        <button class="btn" data-m="flyweight">享元</button>
+        <button class="btn" data-m="proxy">代理</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（三辨析专练）：装饰 / 代理 / 适配器，按意图判</h4>
+      <p class="foreshadow">六条包装类描述，判它该叫什么。先默念三问：接口同不同？拦不拦？叠不叠？</p>
+      <div id="lab2-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-d="decorator">装饰器</button>
+        <button class="btn" data-d="proxy">代理</button>
+        <button class="btn" data-d="adapter">适配器</button>
+      </div>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：享元到底省多少？</h4>
+      <p class="foreshadow">地图上有大量树：每棵树的纹理是 2MB 的内部状态，坐标是几字节的外部状态。调数量、切共享，看内存对比：</p>
+      <label>树的棵数 <input type="range" id="fw-n" min="1" max="50" step="1" value="10"> <span id="fw-n-out">10000</span> 棵</label><br>
+      <label>是否享元共享 <input type="range" id="fw-share" min="0" max="1" step="1" value="1"> <span id="fw-share-out">共享</span></label>
+      <button class="btn" id="lab3-calc">计算内存占用</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（三辨析）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>46 · 设计原则与GoF总览 给了三柜口诀与总纲：装饰器是开闭原则最漂亮的示范——加功能不改老类，一层层「新增」上去；代理与适配器则是依赖倒置的落地——客户依赖抽象主题接口，门后是谁客户不必知道。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>49 · 行为型模式：结构拼好后轮到协作——代理把请求交给真实对象「怎么交」（同步回调/通知）就涉及行为型的选择；</li><li>40 · 中间件与事件驱动：远程代理与本地桩的思想，放大到服务级就是 RPC 框架与消息中间件的「透明调用」；</li><li>43 · 质量属性战术：给核心服务包一层缓存代理/限流装饰，正是「引入并发与缓存」「限制请求」等性能战术的类级实现。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>装饰器</th><th>代理</th><th>适配器</th></tr>
+      <tr><td>差异点</td><td>同接口，透明<strong>加功能</strong>，刻意支持多层叠加</td><td>同接口，<strong>控制访问</strong>：检查、拒绝、延迟加载、远程转发</td><td><strong>接口不同</strong>，把旧/外部接口翻译成客户期望的接口</td></tr>
+      <tr><td>易错点</td><td>以为所有「包装类」都是装饰——权限包装就不是</td><td>以为代理只为性能（延迟/缓存）——权限保护代理才是考题常客</td><td>以为适配器能替代重构——它是过渡手段，长期该收敛接口</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">判类三问：接口同不同（不同→适配器）？拦不拦（拦→代理）？叠不叠（叠→装饰器）。结构像、意图定敌友。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——去国外旅行要带转换插头（适配器）；奶茶可以一层层加珍珠加奶盖（装饰器）；政务大厅门口有个中间人决定你的材料能不能递进去（代理）……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 结构型 7 个管「拼」：适配器（转接口）、桥接（两维独立变化）、组合（树形同接口）、装饰器（层层加功能）、外观（一站式前台）、享元（内部状态共享/外部状态外置）、代理（控制访问）。</li><li>② 三辨析只看意图：接口不同转协议=适配器，拦下或推迟访问=代理，同接口透明可叠加加功能=装饰器；桥接治未病（事先拆两维），适配器治已病（事后翻译）。</li><li>③ 享元分内外：可共享的内部状态进共享池，随场景变的外部状态由客户传入——分不清就会串状态。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '48', domain: 'pt', loc: 'blueprint', root: '..',
+  title: '结构型模式', prev: '47-creational.html', prevTitle: '47 · 创建型模式',
+  next: '49-behavioral.html', nextTitle: '49 · 行为型模式',
+  keywords: ['适配器', '桥接', '组合', '装饰器', '外观', '享元', '代理']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 46） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·46】GoF 23 个模式按「干什么」分成三柜：创建型、结构型、行为型。「代理 Proxy」属于哪一柜？',
+    opts: [
+      { t: '结构型：管类与对象的组合拼接', why: '对。代理在结构柜——本页马上展开它的「隔门办事」。' },
+      { t: '创建型：管对象怎么生出来', why: '创建柜是单例、工厂、建造者那一批（上一页）。' },
+      { t: '行为型：管对象之间怎么协作', why: '行为柜是观察者、策略、责任链那一批（下一页）。' }
+    ],
+    ans: 0, tag: '回忆:46', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '「给核心下单服务叠加审计日志：包装类与下单服务同接口，记录耗时后转调内层，且可以连续叠加多层（日志→脱敏→审计）」——该包装类应判为？',
+      opts: [
+        { t: '代理：因为它包住了真实对象', why: '只看「包住了」就判代理是结构误判——代理的标志是控制访问（拦/放/延迟），审计日志不拦不挡。' },
+        { t: '装饰器：同接口透明加功能、可多层叠加', why: '对。判类三问：接口相同→不是适配器；不拦截不推迟→不是代理；透明加功能且刻意可叠加→装饰器。' },
+        { t: '适配器：因为对调用方隐藏了内部实现', why: '适配器的标志是「两边接口不同做翻译」，这里接口完全相同。' },
+        { t: '外观：因为给复杂过程一个统一入口', why: '外观是给「多个子系统」一个简化入口，不叠加、不转调单个对象的同接口。' }
+      ],
+      ans: 1, tag: '三辨析', src: '仿真题' },
+    { q: '「消息发送有两个独立变化维度：消息类型（文本/语音）×传输方式（云端/局域网），组合数量还在增长」——为避免类爆炸应选？',
+      opts: [
+        { t: '装饰器', why: '装饰器管同接口加功能，不是拆两维；它反而会沿着一个维度继续膨胀。' },
+        { t: '桥接：消息类型抽象与传输实现两条继承树，用组合连接', why: '对。两维各自独立变化、组合连接——M×N 个类缩成 M+N 个，这正是桥接（遥控器×电视机）。' },
+        { t: '适配器', why: '适配器是接口不兼容的事后翻译，与两维变化无关。' },
+        { t: '组合', why: '组合管树形部分-整体层次，不是两维解耦。' }
+      ],
+      ans: 1, tag: '桥接', src: '仿真题' },
+    { q: '某文字编辑器要支持百万级字符：若每个字符都 new 一个含「字形图像」的对象会内存爆炸。按享元模式重构，正确的状态划分是？',
+      opts: [
+        { t: '字形图像与坐标都放进共享对象', why: '坐标每个字符都不同，放进共享对象会导致所有同字形字符叠在同一位置——串状态。' },
+        { t: '字形图像作内部状态共享，字符坐标作外部状态由客户传入', why: '对。内部状态=可共享不变（字形），外部状态=随场景变（坐标）外置传入——共享单车：车共享、骑行记录各是各的。' },
+        { t: '每个字符保留独立对象，只压缩图像内存', why: '那是数据压缩优化，没有改变对象数量级，享元的「共享细粒度对象」没有发生。' },
+        { t: '改用单例，全场只留一个字符对象', why: '单例是全局唯一一份，无法表示百万个不同字符的形态差异。' }
+      ],
+      ans: 1, tag: '享元', src: '仿真题' },
+    { q: '【交错复习:46】装饰器模式给对象叠加职责时从不修改已有类源码、只新增装饰子类——它体现 46 页哪条原则最直接？',
+      opts: [
+        { t: '开闭原则：对扩展开放、对修改关闭', why: '对。加职责=新增装饰类（扩展开放），奶茶本体一行不改（修改关闭）；「层层包」的结构正是为把扩展做成加法。' },
+        { t: '接口隔离', why: '接口隔离管胖接口强加无用方法，装饰器没有此诉求。' },
+        { t: '迪米特法则', why: '迪米特管跨层深挖内部，包装反而保持了同接口的「只和朋友说话」。' },
+        { t: '单一职责', why: '每种加料确实职责单一（顺带收益），但「不改老码加功能」的直接对应仍是开闭——这也是 46 页说它是总纲的原因。' }
+      ],
+      ans: 0, tag: '交错复习:46', src: '仿真题' },
+    { q: '【交错复习:30】关于代理模式类图的关系画法，正确的是？',
+      opts: [
+        { t: 'Proxy 与 Subject 之间画空心三角实线（Proxy 指向 Subject），Proxy 持有 Subject 用空心菱形（菱形在 Proxy 端）', why: '对。同接口=实现/泛化（三角虚线亦可表接口实现），持有=聚合（菱形在整体即 Proxy 端）；30 页的箭头规则在结构型类图里天天用。' },
+        { t: 'Proxy 与 RealSubject 之间画实心三角指向 Proxy', why: '实心三角不是 UML 类图标准画法；Proxy 与 RealSubject 之间通常是「无直接泛化关系」，各自指向 Subject。' },
+        { t: 'Proxy 持有 Subject 画成虚线开箭头依赖即可，不能用菱形', why: '代理把 Subject 作为长期字段持有，属于聚合/关联，用菱形更准确；虚线依赖只适于临时使用（如创建）。' },
+        { t: 'RealSubject 必须继承 Proxy 才能被代理', why: '方向反了：RealSubject 与 Proxy 是「并列实现同一接口」，互相之间没有继承关系。' }
+      ],
+      ans: 0, tag: '交错复习:30', src: '仿真题' }
+  ], { kpId: '48', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '延续开场场景：网关要对核心下单服务叠加三个需求——权限校验（不通过必须拦下）、热点商品缓存（首次真实访问后才创建/加载真实服务，之前由壳对象挡门）、审计日志（同接口透明记录且可多层叠加）。团队把三者都实现为「与下单服务同接口的包装类」并随意排序上线，出现部分请求绕过权限校验直达下单服务的事故。',
+    q: '(1) 三个包装类各应判定为哪个模式？逐一给出判据（意图而非结构）；(2) 用文字给出三模式融合后的类图要素：类/接口名、关系类型与箭头方向；(3) 分析「权限包装被绕过」的根因，并给出编排（顺序）约束。',
+    ref: '(1) 权限→保护代理：意图是控制访问（有权拒绝请求），不是加功能；缓存→虚拟/缓存代理：控制访问（延迟创建真实对象、命中则不放行到底层）；日志（含脱敏/审计多层）→装饰器：同接口透明增强、刻意支持叠加，不拦不挡。判据口诀：拦不拦（代理）、叠不叠（装饰）、接口同不同（都同，排除适配器）。(2) 类图要素：定义「下单主题接口」（request()）；真实下单服务与「权限代理」「缓存代理」均实现该接口（空心三角实线/虚线指向接口）；两个代理各自以聚合持有「下单主题」引用（空心菱形在代理端，指向接口而非具体类）；日志装饰器同样实现接口并聚合持有组件引用，可叠加多个装饰实例（如审计装饰→脱敏装饰→内层）；新增缓存/权限对「接口」编程，客户只依赖接口（依赖倒置）。(3) 根因：三个包装类被当成同质装饰随意排列，权限代理被放在内层或被条件分支跳过——代理的拦截语义依赖「它在访问路径的最外层且不可绕过」。编排约束：权限代理必须位于整条包装链最外层；缓存代理次之（先鉴权再查缓存）；装饰器（日志/脱敏）置于权限之内任意叠加；并禁止业务代码绕过包装链直接持有真实服务引用。',
+    points: ['三包装类判定正确且判据落在「意图」（拦/延迟/叠加），而非「都包一层」', '类图要素完整：接口+三角实现关系+代理/装饰聚合持有（菱形方向）+可叠加说明', '根因分析点出「代理的拦截语义依赖位置」而非笼统说「顺序不对」', '给出可执行的编排约束（权限最外层、缓存次之、装饰在内、禁旁路）'],
+    frame: '答题框架：逐包装类「特征→意图→模式」→ 类图要素（接口/三角/菱形方向逐一交代）→ 事故根因（语义依赖位置）→ 编排规则与防旁路措施。',
+    kpId: '48'
+  });
+  CX.renderCase('#case2', {
+    stem: '某地图应用在城区渲染行道树：每棵树 new 一个 TreeObject，内部持有 2MB 纹理图集与树种信息；密集商圈 10 万棵树导致内存溢出（OOM）。开发改为「把纹理压缩到 512KB」缓解，收效有限；且偶发出现「A 街的树显示到 B 街」的串位 bug（另一同事尝试共享树对象但把坐标也存进了共享对象）。',
+    q: '(1) 指出原设计的本质问题并选择合适模式；(2) 给出内部状态/外部状态的划分与各自存放位置，并解释串位 bug 的成因；(3) 估算共享后内存量级的变化（数量级估算即可），并说明享元与单例、对象池的区别。',
+    ref: '(1) 本质问题：海量细粒度对象的「不变部分（纹理/树种）」被重复存储，对象数量级与树的数量相同——应采用享元模式，用享元工厂维护共享池（按树种键取用）。(2) 内部状态：纹理图集、树种形状——不随位置变，进入共享享元对象；外部状态：每棵树的坐标、缩放——随场景变，由渲染器作为参数传入 draw(x,y)。串位 bug 成因：把外部状态（坐标）误存进共享对象，同树种全部共享一份坐标，后写的坐标覆盖先写——正是「内外不分」的典型事故；修复即把坐标从享元中剥离为调用参数。(3) 估算（教学口径）：共享前 ≈10万 × 2MB = 200GB 量级（即原设计必然 OOM）；共享后 ≈ 若干树种 × 2MB（如 2 种=4MB）+ 10万 × 几十字节坐标 ≈ 几 MB～几十 MB——内存下降 3~4 个数量级。区别：单例保证全局唯一实例；对象池复用后「独占租借」（借出期间别人不能用）；享元对象「同时被多方共享且无状态冲突」（状态冲突靠外部状态外置化解）。',
+    points: ['指出「不变部分被海量重复」的本质并选享元+享元工厂', '内外状态划分正确，且把串位 bug 精确归因到「外部状态被存入共享对象」', '给出数量级估算（GB级→MB级）体现共享收益', '说清享元与单例/对象池的区别（共享无冲突 vs 唯一 vs 租借独占）'],
+    frame: '答题框架：本质问题（重复的不变状态）→ 模式与结构（享元工厂+共享池）→ 内外状态划分+事故归因 → 收益估算（数量级）→ 与近邻模式划界。',
+    kpId: '48'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成图片查看器场景：「查看器打开文档时，大图位置先显示占位框；用户滚动到该图才真正加载渲染，对外调用入口完全不变」——这个「壳对象」应判为？',
+    opts: [
+      { t: '装饰器：它给文档加了占位功能', why: '占位不是「加功能」，是推迟/控制对真实大图的访问——功能反而要等门后才提供。' },
+      { t: '虚拟代理：控制访问，推迟昂贵对象的创建与加载', why: '对。同接口、挡门、必要时才放行到真实对象——虚拟代理的标准场景（判类三问：同接口✓、拦截✓、非叠加✓）。' },
+      { t: '适配器：它转换了图片接口', why: '对调用方而言接口完全一致，没有任何协议翻译。' },
+      { t: '享元：它共享了图片对象', why: '这里没有「一份被多方共享」的诉求，是「何时真正加载」的访问控制。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '48', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['46'], 'prev');
+  CX.depChain('#bridge-next', ['49'], 'next');
+
+  /* ---- 动画：装饰器层层包裹 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var LAYERS = 3, LNAME = ['珍珠', '奶盖', '芋圆', '奶油'], LPRICE = [2, 3, 2, 1];
+  function draw(t) {
+    var wrap;      /* 当前已包裹层数 */
+    var phase;     /* 0=包裹中 1=调用量 */
+    if (t < 0.5) { phase = 0; wrap = Math.min(LAYERS, Math.floor((t / 0.5) * (LAYERS + 0.0001))); }
+    else { phase = 1; wrap = LAYERS; }
+    var cx0 = 350, cy0 = 150;
+    var s = '<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="350" y="24" text-anchor="middle" font-size="14" fill="var(--text-dim)">' + (phase === 0 ? '第一阶段：逐层包裹（每层 is-a 组件 + has-a 组件）' : '第二阶段：点单调用——由外向内穿透，再逐层返回') + '</text>';
+    /* 本体 */
+    s += '<circle cx="' + cx0 + '" cy="' + cy0 + '" r="42" fill="var(--accent)" opacity=".9"/>';
+    s += '<text x="' + cx0 + '" y="' + (cy0 + 5) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">奶茶本体</text>';
+    /* 环层 */
+    var colors = ['var(--warn)', 'var(--ok)', 'var(--accent-2)', 'var(--bad)'];
+    var total = 8 + LAYERS * 14;
+    for (var i = 0; i < wrap; i++) {
+      var r = 52 + i * 14;
+      s += '<circle cx="' + cx0 + '" cy="' + cy0 + '" r="' + r + '" fill="none" stroke="' + colors[i % 4] + '" stroke-width="7" opacity=".75"/>';
+      s += '<text x="' + cx0 + '" y="' + (cy0 - r + 16) + '" text-anchor="middle" font-size="11" fill="' + colors[i % 4] + '">' + LNAME[i] + ' +' + LPRICE[i] + '元</text>';
+    }
+    /* 侧栏：结构说明 */
+    s += '<rect x="20" y="60" width="180" height="' + (40 + wrap * 22 + 12) + '" rx="8" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<text x="110" y="80" text-anchor="middle" font-size="12" fill="var(--text)">包装链（外→内）</text>';
+    for (var j = wrap - 1; j >= 0; j--) {
+      s += '<text x="110" y="' + (102 + (wrap - 1 - j) * 22) + '" text-anchor="middle" font-size="12" fill="var(--text)">' + (wrap - j) + '. ' + LNAME[j] + '装饰 → 内层</text>';
+    }
+    s += '<text x="110" y="' + (102 + wrap * 22) + '" text-anchor="middle" font-size="12" fill="var(--accent)">' + (wrap + 1) + '. 奶茶本体</text>';
+    /* 右栏：价格叠加 */
+    var price = 8; for (var k = 0; k < wrap; k++) price += LPRICE[k];
+    s += '<rect x="500" y="60" width="180" height="120" rx="8" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<text x="590" y="82" text-anchor="middle" font-size="12" fill="var(--text)">价格透明叠加</text>';
+    s += '<text x="590" y="106" text-anchor="middle" font-size="12" fill="var(--text)">本体 8 元</text>';
+    for (var k2 = 0; k2 < wrap; k2++) {
+      s += '<text x="590" y="' + (126 + k2 * 18) + '" text-anchor="middle" font-size="12" fill="var(--text-dim)">+ ' + LNAME[k2] + ' ' + LPRICE[k2] + ' 元</text>';
+    }
+    s += '<text x="590" y="' + (162 + Math.max(0, wrap - 1) * 14) + '" text-anchor="middle" font-size="14" font-weight="bold" fill="var(--accent-2)">= ' + price + ' 元</text>';
+    /* 第二阶段：穿透箭头 */
+    if (phase === 1 && wrap > 0) {
+      var pp = (t - 0.5) / 0.5;
+      var hiLevel = wrap - Math.min(wrap - 1, Math.floor(pp * wrap));  /* 当前高亮层（从外向内） */
+      var hiR = 52 + (hiLevel - 1) * 14;
+      s += '<circle cx="' + cx0 + '" cy="' + cy0 + '" r="' + (hiR + 4) + '" fill="none" stroke="var(--text)" stroke-width="2" stroke-dasharray="4 4"/>';
+      var ax = cx0 - 200 - Math.min(120, pp * 240);
+      s += '<line x1="' + ax + '" y1="' + cy0 + '" x2="' + (cx0 - (52 + wrap * 14) - 6) + '" y2="' + cy0 + '" stroke="var(--accent-2)" stroke-width="3"/>';
+      s += '<text x="' + ((ax + cx0) / 2) + '" y="' + (cy0 - 12) + '" text-anchor="middle" font-size="12" fill="var(--accent-2)">点单 request()</text>';
+    }
+    s += '<text x="350" y="284" text-anchor="middle" font-size="13" fill="var(--text)">' + (phase === 0 ? '已包裹 ' + wrap + ' 层——每一层都与本体实现同一「饮品接口」，所以能继续被下一层包住' : '调用顺序：' + callChain(wrap)) + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (phase === 0) cap = wrap === 0 ? '起点：一杯 8 元的奶茶本体——它实现「饮品接口」。' : '第 ' + wrap + ' 层：' + LNAME[wrap - 1] + '装饰包住内层——它既是饮品（is-a），又持有一杯饮品（has-a），所以能一直包下去。';
+    else cap = '点单调用由外向内逐层穿透：' + callChain(wrap) + '——每层先做自己的事（加料/计价），再转调内层；返回路上再补自己的后置处理。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  function callChain(wrap) {
+    var parts = [];
+    for (var i = wrap - 1; i >= 0; i--) parts.push(LNAME[i]);
+    parts.push('本体');
+    return parts.join(' → ') + ' → 逐层返回';
+  }
+  var animObj = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+  var ls = CX.utils.$('layer-slider');
+  ls.addEventListener('input', function () { LAYERS = +ls.value; CX.utils.$('layer-out').textContent = LAYERS; draw(animObj.t || 0); });
+
+  /* ---- 实验一：结构型判类 ---- */
+  var M1 = [
+    { t: '老系统只吐 XML 接口，新平台要 JSON——写一个类两头翻译', k: 'adapter', why: '适配器：接口不兼容做转换（转换插头）。' },
+    { t: '消息的「类型维度」与「传输维度」要各自独立扩展互不牵连', k: 'bridge', why: '桥接：两维拆成两条继承树用组合连接（遥控器×电视机）——别和适配器混：这是事先设计不是事后补救。' },
+    { t: '文件夹和单个文件都实现「大小()」，文件夹递归聚合子项', k: 'composite', why: '组合：部分-整体树形层次，叶与容器同接口。' },
+    { t: '给下单服务透明叠加日志、脱敏，接口不变、可连续叠多层', k: 'decorator', why: '装饰器：同接口层层加功能，可叠加——判据是「加功能」不是「包一层」。' },
+    { t: '新人只需记住「一键装修」入口，背后水电泥瓦油漆十个子系统', k: 'facade', why: '外观：为子系统集合提供统一高层入口，不拦不挡。' },
+    { t: '10 万棵树共享同一份纹理对象，坐标作为参数传入', k: 'flyweight', why: '享元：内部状态共享、外部状态外置（共享单车）。' },
+    { t: '重型报表对象第一次用到才真正加载，之前由壳对象挡在门口', k: 'proxy', why: '代理（虚拟代理）：控制访问、推迟创建——判据是「拦/延迟」不是「包一层」。' }
+  ];
+  var m1Sel = null, m1Correct = 0, m1Done = 0;
+  var m1Pool = CX.utils.$('lab1-pool');
+  M1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选这条场景，点上方模式名作答。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var MNAMES = { adapter: '适配器', bridge: '桥接', composite: '组合', decorator: '装饰器', facade: '外观', flyweight: '享元', proxy: '代理' };
+  CX.utils.$$('.lab button[data-m]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m1Sel) { fb1('先点选一条场景。', 'bad'); return; }
+      var item = null;
+      M1.forEach(function (x) { if (x.t === m1Sel.textContent) item = x; });
+      m1Done++;
+      if (btn.getAttribute('data-m') === item.k) {
+        m1Correct++;
+        m1Sel.style.borderColor = 'var(--ok)'; m1Sel.style.opacity = .5;
+        m1Sel.classList.remove('sel'); m1Sel.dataset.done = '1'; m1Sel = null;
+        fb1('✅ 正确：' + item.why + '（' + m1Correct + '/' + m1Done + '）', 'ok');
+      } else {
+        fb1('❌ 你选了「' + MNAMES[btn.getAttribute('data-m')] + '」，意图混淆点：' + item.why + ' 判类口诀：转插头=适配、两维走=桥接、树同口=组合、层层抖=装饰、一站式=外观、共享久=享元、把门守=代理。', 'bad');
+        m1Sel.classList.remove('sel'); m1Sel = null;
+      }
+      if (m1Correct === M1.length) fb1('✅ 7 条全对！结构型判类先看意图再看结构——七个比喻各认领一个模式。', 'ok');
+    });
+  });
+  CX.utils.$('lab1-reset').addEventListener('click', function () {
+    m1Correct = 0; m1Done = 0; m1Sel = null;
+    CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：三辨析专练 ---- */
+  var M2 = [
+    { t: '包装类与目标同接口、可无限叠加，只为透明加功能（如逐层加日志）', k: 'decorator', why: '装饰器：叠加+透明增强是它的签名。' },
+    { t: '包装类与目标同接口，但要拦下请求做权限检查，可能直接拒绝', k: 'proxy', why: '保护代理：控制访问——有权说不，装饰器从不说不。' },
+    { t: '目标接口与新系统接口不一致，包装类做协议翻译（XML↔JSON）', k: 'adapter', why: '适配器：接口不同才有它；同接口的包装别选它。' },
+    { t: '大图第一次显示先给占位图，点开才加载原图，调用入口不变', k: 'proxy', why: '虚拟代理：推迟昂贵对象的创建/加载——控制访问的另一形态。' },
+    { t: '给输入框先加滚动条、再加边框、再加悬浮提示，层层套还能继续套', k: 'decorator', why: '装饰器：UI 组件的加料奶茶，叠加是硬特征。' },
+    { t: '第三方 SDK 回调签名与内部消息总线接口不同，写个中转类对齐', k: 'adapter', why: '适配器：对内统一、对外翻译，接口差异是它的领地。' }
+  ];
+  var m2Sel = null, m2Correct = 0, m2Done = 0;
+  var m2Pool = CX.utils.$('lab2-pool');
+  M2.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m2Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m2Sel = d;
+      fb2('已选这条描述，先默念三问再作答：接口同不同？拦不拦？叠不叠？');
+    });
+    m2Pool.appendChild(d);
+  });
+  function fb2(msg, cls) { var f = CX.utils.$('lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var DNAMES = { decorator: '装饰器', proxy: '代理', adapter: '适配器' };
+  CX.utils.$$('.lab button[data-d]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m2Sel) { fb2('先点选一条描述。', 'bad'); return; }
+      var item = null;
+      M2.forEach(function (x) { if (x.t === m2Sel.textContent) item = x; });
+      m2Done++;
+      if (btn.getAttribute('data-d') === item.k) {
+        m2Correct++;
+        m2Sel.style.borderColor = 'var(--ok)'; m2Sel.style.opacity = .5;
+        m2Sel.classList.remove('sel'); m2Sel.dataset.done = '1'; m2Sel = null;
+        fb2('✅ 正确：' + item.why + '（' + m2Correct + '/' + m2Done + '）', 'ok');
+      } else {
+        fb2('❌ 你选了「' + DNAMES[btn.getAttribute('data-d')] + '」。重走三问：①包装类与目标接口相同吗？不同→适配器。②存在拦下/推迟/拒绝吗？有→代理。③只剩「透明加功能可叠加」吗？是→装饰器。本题：' + item.why, 'bad');
+        m2Sel.classList.remove('sel'); m2Sel = null;
+      }
+      if (m2Correct === M2.length) fb2('✅ 6 条全对！结构像、意图定敌友——考题永远拿「同接口包一层」设陷阱，用三问破它。', 'ok');
+    });
+  });
+  CX.utils.$('lab2-reset').addEventListener('click', function () {
+    m2Correct = 0; m2Done = 0; m2Sel = null;
+    CX.utils.$$('.match-opt', m2Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb2('已重置。', '');
+  });
+
+  /* ---- 实验三：享元参数实验 ---- */
+  function fb3(msg, cls) { var f = CX.utils.$('lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  var fwN = CX.utils.$('fw-n'), fwShare = CX.utils.$('fw-share');
+  function refreshLabel() {
+    CX.utils.$('fw-n-out').textContent = (+fwN.value) * 1000;
+    CX.utils.$('fw-share-out').textContent = fwShare.value === '1' ? '共享' : '不共享';
+  }
+  fwN.addEventListener('input', refreshLabel);
+  fwShare.addEventListener('input', refreshLabel);
+  CX.utils.$('lab3-calc').addEventListener('click', function () {
+    refreshLabel();
+    var n = (+fwN.value) * 1000;
+    var MB = 1024 * 1024;
+    if (fwShare.value === '0') {
+      var mem = n * (2 * MB + 8) / MB;
+      fb3('不共享：' + n.toLocaleString() + ' 棵树 × 每棵(2MB 纹理 + 8B 坐标) ≈ ' + (mem / 1024).toFixed(1) + ' GB——纹理被重复存了 ' + n.toLocaleString() + ' 份，这就是 OOM 的来源。', 'bad');
+    } else {
+      var shared = 4 + n * 8 / MB;
+      fb3('享元共享：纹理只存 2 份（两种树种）≈ 4MB；每棵树只留自己的外部状态坐标 8B，' + n.toLocaleString() + ' 棵合计才约 ' + shared.toFixed(1) + ' MB——从 GB 降到 MB，下降 3 个数量级。注意：坐标必须作为 draw(x,y) 参数传入，谁把它存进共享对象谁就复现「串位 bug」。', 'ok');
+    }
+  });
+  refreshLabel();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>42 · 质量属性与质量场景 · 架构师学堂</title>
+<meta name="description" content="质量属性要落成六要素场景：源、激、环、器、响应、度量，度量必须带数字才算数。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🔍 质检评估院</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="41-adl-docs.html">前置 33</a></span>
+    <h1>42 · 质量属性与质量场景</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">属性喊口号没用，写成六要素场景、度量带数字才算数。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某支付平台需求评审会上，业务方说：「系统必须高可用，主库挂了要快速切换，绝对不能丢数据。」架构师反问：切换多少秒算「快」？丢多少条记录算「不丢」？「高可用」到底是几个 9？会议室安静了——这三句话没法写进任何一份验收报告。</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>问题出在：口号不是指标。把话翻译成<strong>质量场景</strong>才算数——「运维人员在系统正常运行时（环境）向数据库主从集群（制品）发起主从切换（刺激），系统自动完成切换且服务不中断（响应），切换 30 秒内完成、期间成功率不低于 99.9%、数据零丢失 RPO=0（响应度量）」。本页给你两件工具：<strong>六大属性的度量口径</strong>和<strong>场景六要素</strong>——这是案例分析必答题最常考的落笔格式。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>33 · 软件架构概念与4+1视图</b>：架构是难以更改的早期决策，所以质量属性必须在决策前说清楚。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>质量属性（quality attribute）是系统在「功能正确」之外表现出来的可观测特性：跑得快不快（性能）、挂不挂（可用性）、好不好改（可修改性）、防不防得住（安全性）……。在质检评估院里，它就是楼房的<strong>验收指标</strong>：抗震等级、消防达标、隔音分贝——每一条都必须能拿仪器测出来，而不是宣传海报上的形容词。</p>
+      <h3>解决什么问题</h3>
+      <p>业主说「要快、要稳、要安全」，设计师没法设计、测试没法验收、评估没有依据。质量场景把口号翻译成<strong>可测量的验收单</strong>：谁在什么条件下对哪个部件做了什么，系统如何响应、响应到什么程度。没有这张单子，后面两页的战术选型（43）与架构评估（44）都是空转。</p>
+      <h3>核心机制</h3>
+      <p><strong>质量场景六要素</strong>——每一条都必须逐项写全，案例答题按这个顺序落笔：</p>
+      <table class="tbl">
+        <tr><th>#</th><th>要素</th><th>回答的问题</th><th>主从切换范例</th></tr>
+        <tr><td>1</td><td>刺激源 source of stimulus</td><td>谁引发的？（人/外部系统/内部构件）</td><td>运维人员</td></tr>
+        <tr><td>2</td><td>刺激 stimulus</td><td>发生了什么事件？</td><td>发起主从切换</td></tr>
+        <tr><td>3</td><td>环境 environment</td><td>发生时系统处于什么状态？</td><td>系统正常运行时</td></tr>
+        <tr><td>4</td><td>制品 artifact</td><td>作用在系统的哪个部件？</td><td>数据库主从集群</td></tr>
+        <tr><td>5</td><td>响应 response</td><td>系统做了什么活动？</td><td>完成切换，服务保持可用</td></tr>
+        <tr><td>6</td><td>响应度量 response measure</td><td>做到什么程度？<b>必须量化</b></td><td>200ms 内完成、数据零丢失（RPO=0）</td></tr>
+      </table>
+      <h3>关键细节</h3>
+      <p><strong>六大常用属性的度量口径</strong>（教材主流口径，属性还有可移植性、互操作性等扩展项）：</p>
+      <table class="tbl">
+        <tr><th>属性</th><th>关注什么</th><th>常用度量口径</th><th>阶段</th></tr>
+        <tr><td>性能</td><td>事件处理的速度与容量</td><td>吞吐量（TPS）、响应时间/延迟、截止期满足率、并发容量</td><td>运行期</td></tr>
+        <tr><td>可用性</td><td>故障与恢复</td><td>A = MTBF ÷ (MTBF + MTTR)；n 个 9 对应年停机时长；恢复时间</td><td>运行期</td></tr>
+        <tr><td>可修改性</td><td>变更的代价</td><td>修改成本（人时）、影响构件数（波及范围）、变更生效时间</td><td>开发期</td></tr>
+        <tr><td>安全性</td><td>抵御攻击</td><td>攻击被<b>抵抗</b>（resist）/被<b>检测</b>（detect）/从攻击中<b>恢复</b>（recover）三段，各自的时间与概率</td><td>运行期</td></tr>
+        <tr><td>可测试性</td><td>发现缺陷的难度</td><td>发现一个缺陷的平均成本（人时）、测试覆盖率、测试准备时间</td><td>开发期</td></tr>
+        <tr><td>易用性</td><td>人的使用体验</td><td>完成任务的时间/步数、学习时间、操作出错率</td><td>运行期</td></tr>
+      </table>
+      <p><strong>可用性换算速查</strong>（一年 = 365 天 = 8760 小时，教材常用口径）：</p>
+      <table class="tbl">
+        <tr><th>可用性</th><th>俗称</th><th>年停机预算</th></tr>
+        <tr><td>90%</td><td>一个 9</td><td>876 小时 ≈ 36.5 天</td></tr>
+        <tr><td>99%</td><td>两个 9</td><td>87.6 小时 ≈ 3.65 天</td></tr>
+        <tr><td>99.9%</td><td>三个 9</td><td>8.76 小时</td></tr>
+        <tr><td>99.99%</td><td>四个 9</td><td>52.6 分钟</td></tr>
+        <tr><td>99.999%</td><td>五个 9</td><td>5.26 分钟</td></tr>
+      </table>
+      <p><strong>运行期 vs 开发期质量属性</strong>（案例高频分类题，教材主流口径）：运行期属性是系统<strong>跑起来后</strong>用户/运维能感知的——性能、可用性、安全性、易用性（可靠性、互操作性亦属此列）；开发期属性只有<strong>开发/维护时</strong>才体现——可修改性、可测试性（可移植性、可复用性亦属此列）。2023 年案例真题方向就考过这组分类。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①案例失分重灾区：六要素写不全（最常漏「环境」「制品」），响应度量不量化（「快速」「高可用」不是度量，直接丢分）；②可用性公式口径：A = MTBF/(MTBF+MTTR)，注意 MTBF = MTTF + MTTR，所以也有等价写法 A = MTTF/(MTTF+MTTR)——审题看清给的是哪个量；③别把可用性和可靠性混为一谈：可靠性关注「不坏的时长」（MTTF），可用性关注「可用时间比例」，还要算上修复时间；④「响应」与「响应度量」是两回事：一个说做什么，一个说做到什么程度。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>quality attribute（质量属性）· availability（可用性）· response measure（响应度量）。英语题常用句式：An availability of 99.99% means the system may be down for about 52.6 minutes per year.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把质量属性想象成<strong>楼房验收指标</strong>：抗震几级、消防是否达标、隔音多少分贝——每一条都写在验收单上，由质检评估院拿仪器测。质量场景就是<strong>验收单的栏目</strong>：谁提出试验、做什么试验、在什么工况、验哪个部位、楼表现如何、指标是多少分贝。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>验收指标（抗震等级）</td><td>质量属性</td><td>成立</td></tr>
+      <tr><td>验收单栏目</td><td>场景六要素</td><td>成立</td></tr>
+      <tr><td>报告上带单位的数字</td><td>响应度量</td><td>成立：没有数字的验收单无效</td></tr>
+      <tr><td>隔音、水电（入住后能体验）</td><td>运行期质量属性</td><td>成立</td></tr>
+      <tr><td>改户型方不方便（施工/改造才体现）</td><td>开发期质量属性</td><td>成立</td></tr>
+      <tr><td>楼房隔音值恒定不变</td><td>属性恒定</td><td><b>失效</b>：软件性能随负载剧烈变化，度量必须写明环境（如「高峰期 95% 请求 ≤ 800ms」）</td></tr>
+    </table>
+    <div class="rhyme">质量属性别空喊，写进场景六格单；<br>谁在何时何部件，系统响应做什么全；<br>度量量化才过关，数字面前不空谈；<br>快稳安全运行见，改测留给开发圈。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示可用性公式：拖动 MTBF/MTTR 滑块，看「9 的位数」如何换算成年停机预算；播放看一年时间线上故障格的疏密。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>MTBF <input type="range" id="mtbf-slider" min="50" max="10000" step="50" value="1000"> <span id="mtbf-out">1000 h</span></label>
+      <label>MTTR <input type="range" id="mttr-slider" min="0.5" max="72" step="0.5" value="10"> <span id="mttr-out">10 h</span></label>
+      <span class="kf-caption">把 MTBF 调大、MTTR 调小，看可用性与年停机预算怎么变：每多一个 9，停机预算缩为十分之一。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽组场景）：把 6 块内容放进场景验收单的正确栏位</h4>
+      <p class="foreshadow">场景原文：「运维人员在系统正常运行时，向数据库主从集群发起主从切换，系统完成切换且服务不中断，200ms 内完成、数据零丢失。」这句话被拆成了 6 块，请拖到对应栏位：</p>
+      <div id="lab1-pool" style="min-height:46px"></div>
+      <div id="lab1-slots"></div>
+      <button class="btn" id="lab1-check">检查验收单</button>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（分类实验）：运行期 vs 开发期质量属性</h4>
+      <p class="foreshadow">先点一个属性卡，再点它应归入的筐；放错会告诉你错在哪一步。</p>
+      <div id="lab2-pool"></div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+        <div class="drag-slot" id="lab2-run" style="flex:1;min-width:220px"><b>🏃 运行期质量属性</b><div class="lab2-items"></div></div>
+        <div class="drag-slot" id="lab2-dev" style="flex:1;min-width:220px"><b>🛠️ 开发期质量属性</b><div class="lab2-items"></div></div>
+      </div>
+      <button class="btn" id="lab2-check">检查分类</button>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：属性 ↔ 度量口径</h4>
+      <p class="foreshadow">先点左列一个属性，再点右列它的常用度量：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="lab3-left"></div>
+        <div id="lab3-right"></div>
+      </div>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（六要素的判别）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>33 · 软件架构概念与4+1视图告诉我们「架构是难以更改的早期决策集」——正因为难改，质量属性必须在决策之前写成可验收的场景，本页就是那支笔。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>43 · 质量属性战术：场景的「响应度量」是选战术的靶子——200ms 的靶子对应缓存/并发这类招式；</li><li>44 · 架构评估：ATAM 效用树的叶子就是本页的质量场景，六要素写不全的树评不动；</li><li>案例必答题常把六要素改写与评估方法拼在同一道题里——先有验收单，才有抗震评估会。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>响应（response）</th><th>响应度量（response measure）</th></tr>
+      <tr><td>差异点</td><td>系统受刺激后<strong>做了什么活动</strong>（完成切换、拒绝请求、记录日志）</td><td>该活动要<strong>达到的可测标准</strong>（200ms 内、RPO=0、检测率 99.9%）</td></tr>
+      <tr><td>易错点</td><td>把「快速」「可靠」这类定性词当成响应</td><td>漏写数字=不可验收，案例直接丢分；最常被并进响应里一笔带过</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">响应说「做什么」，响应度量说「做到什么程度、带单位、可复测」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——盖一栋楼不能只说『要结实』，验收单上要写清楚……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 质量属性=验收指标：性能、可用性、安全性、易用性是运行期属性，可修改性、可测试性是开发期属性。</li><li>② 可用性 A=MTBF/(MTBF+MTTR)：三个 9 一年停 8.76 小时，四个 9 停 52.6 分钟，五个 9 只停 5.26 分钟。</li><li>③ 场景六要素「源、激、环、器、响应、度量」逐条写全、度量带数字——这是案例必答题的落笔格式。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '42', domain: 'qa', loc: 'inspection', root: '..',
+  title: '质量属性与质量场景', prev: '41-adl-docs.html', prevTitle: '41 · ADL与架构文档',
+  next: '43-quality-tactics.html', nextTitle: '43 · 质量属性战术',
+  keywords: ['质量属性', '质量场景', '刺激源', '响应度量', '可用性', '可修改性', '运行期质量属性', '开发期质量属性']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 33） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·33】「4+1 视图」中，用「+1」统摄其余四个视图的是？',
+    opts: [
+      { t: '逻辑视图', why: '逻辑视图描述功能模块分解，是被统摄的视图之一。' },
+      { t: '场景视图（用例）', why: '对。场景（用例）把逻辑、进程、开发、物理四个视图串起来验证，是「+1」。' },
+      { t: '进程视图', why: '进程视图关注并发与同步，也是被统摄的视图之一。' },
+      { t: '物理视图', why: '物理视图描述部署，同样是被统摄的视图之一。' }
+    ],
+    ans: 1, tag: '回忆:33', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某系统平均无故障时间 MTTF = 999 小时，平均修复时间 MTTR = 1 小时，其年停机时长最接近（一年按 8760 小时）？',
+      opts: [
+        { t: '8.76 小时', why: '对。A = 999/(999+1) = 99.9%，对应三个 9：8760 × 0.1% = 8.76 小时。' },
+        { t: '87.6 小时', why: '这是 99%（两个 9）的停机时长，可用性算错了一位。' },
+        { t: '0.876 小时', why: '这是 99.99%（四个 9）的停机时长，注意本题 A 只有 99.9%。' },
+        { t: '5.26 分钟', why: '这是 99.999%（五个 9）的年停机预算，本题达不到。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '「用户在高峰期提交订单，系统很快完成扣款」——作为质量场景，最致命的缺陷是？',
+      opts: [
+        { t: '缺少刺激源', why: '不缺：用户就是刺激源。' },
+        { t: '缺少环境', why: '不缺：「高峰期」正是环境要素。' },
+        { t: '响应度量不可量化', why: '对。「很快」无法验收，必须写成如「95% 请求 ≤ 800ms」这样的度量——响应度量不量化是案例最常见丢分点。' },
+        { t: '缺少制品', why: '勉强有：订单/扣款服务即制品，但表述含糊；相比之下「很快」不可量化才是致命伤。' }
+      ],
+      ans: 2, tag: '六要素', src: '仿真题' },
+    { q: '下列全部属于「开发期质量属性」的一组是？',
+      opts: [
+        { t: '性能、安全性', why: '两者都是运行期属性：跑起来才能感知快慢与攻防。' },
+        { t: '可修改性、可测试性', why: '对。好不好改、好不好测只在开发/维护阶段体现，是开发期属性。' },
+        { t: '可用性、易用性', why: '两者都是运行期属性：宕机与操作体验发生在系统运行时。' },
+        { t: '性能、可测试性', why: '性能是运行期属性，混入了一项。' }
+      ],
+      ans: 1, tag: '分类', src: '仿真题' },
+    { q: '在 4+1 视图中，与并发、同步等运行期质量属性关系最密切的视图是？',
+      opts: [
+        { t: '逻辑视图', why: '逻辑视图管功能分解，不表达并发。' },
+        { t: '进程视图', why: '对。进程视图描述进程/线程的并发与同步，性能、可用性这类运行期属性主要落在这里分析。' },
+        { t: '开发视图', why: '开发视图面向代码组织与程序员，与运行期并发无关。' },
+        { t: '场景视图', why: '场景视图负责串联验证各视图，本身不专门表达并发。' }
+      ],
+      ans: 1, tag: '交错复习:33', src: '仿真题' },
+    { q: '下列哪组全部是「可修改性」的合理度量口径？',
+      opts: [
+        { t: '吞吐量、延迟', why: '这是性能的度量口径，张冠李戴。' },
+        { t: '修改成本（人时）、影响构件数、变更生效时间', why: '对。可修改性回答「改起来贵不贵、波及多大、多久生效」。' },
+        { t: 'MTBF、MTTR', why: '这是可用性的口径，与修改无关。' },
+        { t: '测试覆盖率、缺陷发现成本', why: '这是可测试性的口径。' }
+      ],
+      ans: 1, tag: '度量口径', src: '仿真题' }
+  ], { kpId: '42', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某支付平台需求评审会记录：「我们要求系统高可用，主库出问题要快速切换，而且绝对不能丢数据。」架构师小李说：这句话无法直接指导设计与验收。',
+    q: '(1) 说明该记录作为质量需求为何不可验收（至少三点）；(2) 以主从切换为例，把它改写成一条完整的可用性质量场景，逐要素标注六要素并量化；(3) 指出改写后的场景可以直接用于哪些后续架构工作。',
+    ref: '(1) 「高可用」「快速」「不能丢」均无度量口径；缺少环境（什么条件下切换）与制品（作用在哪个部件）等要素；无法转化为验收测试用例与设计决策。(2) 刺激源=运维人员/监控进程；刺激=主库失效触发主从切换；环境=业务高峰期系统正常运行时；制品=支付数据库主从集群；响应=自动完成主从切换并保持交易服务可用；响应度量=切换在 30 秒内完成、切换期间交易成功率不低于 99.9%、切换后数据零丢失（RPO=0）。(3) 可用于：指导战术选型（心跳/备件/冗余，见 43 页）；作为架构评估的场景输入（ATAM 效用树叶子，见 44 页）；作为上线验收测试的量化依据。',
+    points: ['指出至少三处不可验收原因：无度量口径、缺环境、缺制品等要素缺失', '六要素逐条齐全，且响应度量量化（时限+成功率+RPO 三件套）', '环境与制品没有张冠李戴（高峰期=环境，主从集群=制品）', '说出场景的下游用途：战术选型、评估输入、验收用例'],
+    frame: '答题框架：先判不可验收（逐句找量化缺口）→ 按「源-激-环-器-响-度」逐条改写 → 度量三件套（时间/成功率/数据损失）→ 说明用途闭环（设计、评估、验收）。',
+    kpId: '42'
+  });
+  CX.renderCase('#case2', {
+    stem: '某合同约定：核心交易服务可用性不低于 99.99%。年终运维报告显示：全年发生非计划故障 4 次，每次平均修复 12 分钟；另有一次计划内停机维护 30 分钟。',
+    q: '(1) 计算 99.99% 对应的年停机预算；(2) 判断本报告是否达标，给出计算过程；(3) 写出验收该指标的质量场景「响应度量」要素（至少三条）。',
+    ref: '(1) 8760 小时 × 0.01% = 0.876 小时 ≈ 52.6 分钟。(2) 非计划故障停机 4 × 12 = 48 分钟；若计划内维护计入不可用，总计 78 分钟 > 52.6 分钟，不达标；若合同口径仅计非计划故障停机，48 分钟 < 52.6 分钟，达标——结论取决于验收口径，必须在场景里写明「是否含计划内维护」。(3) 响应度量示例：全年非计划停机 ≤ 52.6 分钟；单次故障平均修复时间 MTTR ≤ 10 分钟；故障自动检测时间 ≤ 1 分钟；是否计入计划内维护需明确声明。',
+    points: ['会算 8760 小时与 52.6 分钟的换算关系', '区分计划内维护与非计划故障两种口径，并说明对验收结论的影响', '计算过程完整列式，不能只给结论', '响应度量写成可量化的验收条款'],
+    frame: '答题框架：换算（年=8760h）→ 列式计算 → 口径讨论（计划/非计划）→ 分口径给结论 → 响应度量量化成验收条款。',
+    kpId: '42'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成车载场景：「安全气囊控制器在高速行驶中收到碰撞传感器发出的碰撞信号，30ms 内点爆气囊」。其中「高速行驶中」属于六要素的？',
+    opts: [
+      { t: '刺激源', why: '刺激源是碰撞传感器——谁引发的。' },
+      { t: '刺激', why: '刺激是「碰撞信号」这一事件，不是行驶状态。' },
+      { t: '环境', why: '对。高速行驶是事件发生时系统所处的状态条件，属于环境要素。' },
+      { t: '响应度量', why: '响应度量是「30ms 内点爆、误爆率达标」这类带数字的口径。' }
+    ],
+    ans: 2, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '42', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['33'], 'prev');
+  CX.depChain('#bridge-next', ['43', '44'], 'next');
+
+  /* ---- 动画：可用性 n 个 9 与年停机预算 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var MTBF = 1000, MTTR = 10; /* 小时 */
+  function avail() { return MTBF / (MTBF + MTTR); }
+  function nines(A) {
+    if (A >= 0.99999) return '五个 9';
+    if (A >= 0.9999) return '四个 9';
+    if (A >= 0.999) return '三个 9';
+    if (A >= 0.99) return '两个 9';
+    if (A >= 0.9) return '一个 9';
+    return '不足一个 9';
+  }
+  function fmtHours(h) {
+    if (h >= 48) return h.toFixed(0) + ' 小时（约 ' + (h / 24).toFixed(1) + ' 天）';
+    if (h >= 1) return h.toFixed(2) + ' 小时';
+    var m = h * 60;
+    if (m >= 1) return m.toFixed(1) + ' 分钟';
+    return (m * 60).toFixed(0) + ' 秒';
+  }
+  function draw(t) {
+    var A = avail(), dtYear = 8760 * (1 - A);
+    var x0 = 40, W = 620, yBar = 118, hBar = 34;
+    var px = function (h) { return x0 + (h / 8760) * W; };
+    var cur = t * 8760;
+    var downSoFar = Math.floor(cur / MTBF) * MTTR + Math.min(MTTR, cur % MTBF);
+    var s = '<svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="270" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="350" y="30" text-anchor="middle" font-size="15" fill="var(--text)">一年的运行时间线（365 天 = 8760 小时）</text>';
+    s += '<rect x="' + x0 + '" y="' + yBar + '" width="' + W + '" height="' + hBar + '" rx="6" fill="var(--ok)" opacity=".28" stroke="var(--line)"/>';
+    var i = 1, marks = '';
+    while (i * MTBF < 8760 && i <= 240) {
+      var ox = px(i * MTBF), ow = Math.max(2, px(MTTR) - x0);
+      marks += '<rect x="' + ox + '" y="' + yBar + '" width="' + ow + '" height="' + hBar + '" fill="var(--bad)"/>';
+      i++;
+    }
+    s += marks;
+    var cx = px(Math.min(cur, 8760));
+    s += '<line x1="' + cx + '" y1="' + (yBar - 14) + '" x2="' + cx + '" y2="' + (yBar + hBar + 14) + '" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="' + cx + '" y="' + (yBar - 20) + '" text-anchor="middle" font-size="12" fill="var(--accent)">第 ' + Math.floor(cur / 24) + ' 天</text>';
+    s += '<text x="350" y="200" text-anchor="middle" font-size="14" fill="var(--text)">A = MTBF ÷（MTBF + MTTR）= ' + MTBF + ' ÷ ' + (MTBF + MTTR) + ' ≈ ' + (A * 100).toFixed(A >= 0.999 ? 3 : 2) + '%（' + nines(A) + '）</text>';
+    s += '<text x="350" y="230" text-anchor="middle" font-size="16" font-weight="bold" fill="' + (dtYear > 8.76 ? 'var(--bad)' : 'var(--ok)') + '">全年停机预算 ≈ ' + fmtHours(dtYear) + '</text>';
+    s += '<text x="350" y="256" text-anchor="middle" font-size="12" fill="var(--text-dim)">累计停机约 ' + fmtHours(downSoFar) + ' · 红色格 = 故障修复时段（宽度 = MTTR，间隔 = MTBF）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '第 ' + Math.floor(cur / 24) + ' 天：可用性 ' + (A * 100).toFixed(3) + '%。从 99.9% 提到 99.999%，年停机从 8.76 小时缩到 5.26 分钟——每多一个 9，代价高一个数量级。');
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var sb = CX.utils.$('#mtbf-slider'), so = CX.utils.$('#mtbf-out');
+  var sr = CX.utils.$('#mttr-slider'), ro = CX.utils.$('#mttr-out');
+  sb.addEventListener('input', function () { MTBF = +sb.value; so.textContent = MTBF + ' h'; draw(anim.t || 0); });
+  sr.addEventListener('input', function () { MTTR = +sr.value; ro.textContent = MTTR + ' h'; draw(anim.t || 0); });
+
+  /* ---- 实验一：六要素拖拽组场景 ---- */
+  var L1_SLOTS = [
+    { k: 'src', label: '① 刺激源（谁引发）', hint: '刺激源回答「谁引发的」——人或外部系统。你放的是事件、条件、部件或度量，不是引发者。' },
+    { k: 'stim', label: '② 刺激（发生了什么）', hint: '刺激是一个事件动作短语（发起切换/提交订单）。人、条件、部件、数字都不是刺激。' },
+    { k: 'env', label: '③ 环境（什么条件下）', hint: '环境回答「发生时系统处于什么状态」：正常运行/过载/受攻击。切换动作和数据库都不是环境。' },
+    { k: 'art', label: '④ 制品（作用在哪个部件）', hint: '制品是被作用的系统部件。人员、事件、指标都不是制品。' },
+    { k: 'resp', label: '⑤ 响应（系统做什么）', hint: '响应是系统的活动（完成切换且服务不中断）。带达标数字的标准属于响应度量。' },
+    { k: 'meas', label: '⑥ 响应度量（做到什么程度）', hint: '响应度量必须可量化：时间/比率/数量。定性词要换成 200ms、RPO=0 这样的口径。' }
+  ];
+  var L1_CHIPS = {
+    src: '运维人员', stim: '发起主从切换', env: '系统正常运行时',
+    art: '数据库主从集群', resp: '完成切换且服务不中断', meas: '200ms 内完成、数据零丢失（RPO=0）'
+  };
+  var l1Pool = CX.utils.$('#lab1-pool'), l1Slots = CX.utils.$('#lab1-slots');
+  var l1Chips = CX.shuffle(Object.keys(L1_CHIPS)).map(function (k) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = L1_CHIPS[k]; d.dataset.k = k;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', k); });
+    return d;
+  });
+  l1Chips.forEach(function (d) { l1Pool.appendChild(d); });
+  L1_SLOTS.forEach(function (sd) {
+    var wrap = document.createElement('div');
+    wrap.style.margin = '6px 0';
+    wrap.innerHTML = '<div style="font-size:13px;color:var(--text-dim)">' + sd.label + '</div>';
+    var area = document.createElement('div');
+    area.className = 'drag-slot'; area.dataset.k = sd.k; area.style.minHeight = '38px'; area.style.padding = '4px';
+    area.addEventListener('dragover', function (e) { e.preventDefault(); area.classList.add('hot'); });
+    area.addEventListener('dragleave', function () { area.classList.remove('hot'); });
+    area.addEventListener('drop', function (e) {
+      e.preventDefault(); area.classList.remove('hot');
+      var k = e.dataTransfer.getData('text');
+      if (area.children.length) { fb1('「' + sd.label + '」栏已有内容，先点「重置」再试。', 'bad'); return; }
+      var chip = l1Chips.filter(function (c) { return c.dataset.k === k; })[0];
+      if (chip) area.appendChild(chip);
+    });
+    wrap.appendChild(area);
+    l1Slots.appendChild(wrap);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('#lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('#lab1-check').addEventListener('click', function () {
+    var placed = {};
+    L1_SLOTS.forEach(function (sd) {
+      var area = l1Slots.querySelector('[data-k="' + sd.k + '"]');
+      placed[sd.k] = area.children.length ? area.children[0].dataset.k : null;
+    });
+    for (var i = 0; i < L1_SLOTS.length; i++) {
+      var sd = L1_SLOTS[i], got = placed[sd.k];
+      if (!got) { fb1('「' + sd.label + '」还没填——六要素必须逐条写全，缺一条案例就丢分。', 'bad'); return; }
+      if (got !== sd.k) { fb1('「' + sd.label + '」放错了：你放了「' + L1_CHIPS[got] + '」。' + sd.hint, 'bad'); return; }
+    }
+    fb1('✅ 六要素全部就位：源（谁）→ 激（何事）→ 环（何境）→ 器（何件）→ 响应（做何事）→ 度量（带数字）。这就是案例答题的落笔格式。', 'ok');
+  });
+  CX.utils.$('#lab1-reset').addEventListener('click', function () {
+    l1Chips.forEach(function (d) { l1Pool.appendChild(d); });
+    fb1('已重置，再拖一次。', '');
+  });
+
+  /* ---- 实验二：运行期 vs 开发期分类 ---- */
+  var L2_MAP = { '性能': 'run', '可用性': 'run', '安全性': 'run', '易用性': 'run', '可修改性': 'dev', '可测试性': 'dev' };
+  var L2_WHY = {
+    '性能': '运行期——用户在系统跑着时就能感知快慢。',
+    '可用性': '运行期——宕机与恢复发生在系统运行时。',
+    '安全性': '运行期——攻击发生在系统运行时。',
+    '易用性': '运行期——操作体验只在运行期被感知（教材主流口径）。',
+    '可修改性': '开发期——改起来贵不贵，只有开发/维护时才体现。',
+    '可测试性': '开发期——好不好测是开发/测试阶段的属性。'
+  };
+  var l2Pool = CX.utils.$('#lab2-pool');
+  var l2Sel = null;
+  Object.keys(L2_MAP).forEach(function (name) {
+    var d = document.createElement('button');
+    d.className = 'drag-item match-opt'; d.textContent = name; d.dataset.k = name;
+    d.style.margin = '4px';
+    d.addEventListener('click', function () {
+      if (d.parentElement !== l2Pool) { l2Pool.appendChild(d); d.classList.remove('sel'); l2Sel = null; return; }
+      CX.utils.$$('.match-opt', l2Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); l2Sel = d;
+      fb2('已选「' + name + '」，点下面的筐把它放进去；点筐里的卡片可放回。');
+    });
+    l2Pool.appendChild(d);
+  });
+  function fb2(msg, cls) { var f = CX.utils.$('#lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  [['lab2-run', 'run'], ['lab2-dev', 'dev']].forEach(function (p) {
+    CX.utils.$('#' + p[0]).addEventListener('click', function (e) {
+      if (e.target.classList.contains('drag-item')) return;
+      if (!l2Sel) { fb2('先在上方点选一个属性卡。', 'bad'); return; }
+      CX.utils.$('#' + p[0] + ' .lab2-items').appendChild(l2Sel);
+      l2Sel.classList.remove('sel'); l2Sel = null;
+    });
+  });
+  var lab2Root = CX.utils.$('#lab2');
+  function l2Chip(name) {
+    return CX.utils.$$('.match-opt', lab2Root).filter(function (x) { return x.dataset.k === name; })[0];
+  }
+  CX.utils.$('#lab2-check').addEventListener('click', function () {
+    var wrong = [], total = 0;
+    Object.keys(L2_MAP).forEach(function (name) {
+      total++;
+      var chip = l2Chip(name);
+      if (!chip) return;
+      var bucket = chip.closest('.drag-slot');
+      var got = bucket ? ((bucket.id === 'lab2-run') ? 'run' : ((bucket.id === 'lab2-dev') ? 'dev' : 'pool')) : 'pool';
+      if (got === 'pool') { wrong.push('「' + name + '」还没归类。'); return; }
+      if (got !== L2_MAP[name]) wrong.push('「' + name + '」放错：' + L2_WHY[name]);
+    });
+    if (!total) { fb2('没有可检查的卡片。', 'bad'); return; }
+    if (wrong.length) { fb2('有 ' + wrong.length + ' 处问题：' + wrong.join('；'), 'bad'); return; }
+    fb2('✅ 全部分类正确：性能/可用性/安全性/易用性=运行期，可修改性/可测试性=开发期。这正是 2023 年案例真题方向的分类口径。', 'ok');
+  });
+  CX.utils.$('#lab2-reset').addEventListener('click', function () {
+    Object.keys(L2_MAP).forEach(function (name) {
+      var chip = l2Chip(name);
+      if (chip) { l2Pool.appendChild(chip); chip.classList.remove('sel'); }
+    });
+    l2Sel = null; fb2('已重置。', '');
+  });
+
+  /* ---- 实验三：属性 ↔ 度量口径连线 ---- */
+  var L3_PAIRS = [
+    ['性能', '吞吐量 / 延迟 / 截止期满足率'],
+    ['可用性', 'MTBF ÷（MTBF+MTTR），n 个 9'],
+    ['可修改性', '修改成本 / 影响构件数 / 生效时间'],
+    ['安全性', '攻击被抵抗 / 被检测 / 被恢复'],
+    ['可测试性', '缺陷发现成本 / 测试覆盖率'],
+    ['易用性', '学习时间 / 操作步数 / 出错率']
+  ];
+  var l3L = CX.utils.$('#lab3-left'), l3R = CX.utils.$('#lab3-right'), l3Sel = null, l3Done = 0;
+  function buildL3() {
+    l3Sel = null; l3Done = 0; l3L.innerHTML = ''; l3R.innerHTML = '';
+    L3_PAIRS.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', l3L).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); l3Sel = d;
+        fb3('已选「' + p[0] + '」，请在右列点它的度量口径。');
+      });
+      l3L.appendChild(d);
+    });
+    CX.shuffle(L3_PAIRS).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!l3Sel) { fb3('先点左列一个属性。', 'bad'); return; }
+        if (l3Sel.dataset.k === d.dataset.v) {
+          l3Sel.style.opacity = .35; d.style.opacity = .35;
+          l3Sel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          l3Sel.classList.remove('sel'); l3Sel = null; l3Done++;
+          fb3('✅ 配对成功 ' + l3Done + '/6', 'ok');
+        } else {
+          fb3('❌ 「' + l3Sel.dataset.k + '」不对应「' + d.textContent + '」。想一想该属性回答什么问题：快慢（性能）、挂不挂（可用性）、好不好改（可修改性）……再试。', 'bad');
+        }
+      });
+      l3R.appendChild(d);
+    });
+  }
+  function fb3(msg, cls) { var f = CX.utils.$('#lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  buildL3();
+  CX.utils.$('#lab3-reset').addEventListener('click', function () { buildL3(); fb3(''); });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

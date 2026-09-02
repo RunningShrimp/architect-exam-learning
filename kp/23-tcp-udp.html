@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>23 · TCP与UDP · 架构师学堂</title>
+<meta name="description" content="UDP 是普通信件，TCP 是必须签收、丢了重发的挂号信。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机网络</span><span class="badge freq">考频 ★★★★</span><span class="badge diff">难度 ★★★</span>
+    <span class="badge dep"><a href="22-ip-subnet.html">前置 22 · IP地址、子网与路由</a></span>
+    <h1>23 · TCP与UDP</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">UDP 是普通信件，TCP 是必须签收、丢了重发的挂号信：可靠是用「提前商量 + 编号确认」换来的。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>你负责的 IM 应用在弱网地铁里消息频繁丢失，但直播弹幕团队却嫌 TCP 的「重传与排队」让画面延迟升高。同一张网，一个要可靠、一个要快——两份需求分别该用什么传输协议？为什么 TCP 连接建立要握手三次而不是两次？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>聊天消息不能丢 → 选 <b>TCP</b>（编号+确认+重传保证可靠有序）；弹幕丢几条无所谓、时延敏感 → 选 <b>UDP</b>（无连接、无重传、开销小），丢真不重要，实时性优先。三次握手的最小次数由「双方都要确认自己的发与收都正常」推出：两次握手无法让<b>服务端</b>确认「我发的确认客户端收到了」，历史重复连接请求也可能造成错误建连——这就是下一节动画演的东西。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>22 · IP地址、子网与路由</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>TCP 与 UDP 都是<b>传输层</b>协议：IP 负责把包裹送到城市（主机），它们负责送到门牌后的具体房间（<b>端口</b>→进程）。UDP 只加「端口 + 校验和」两个薄功能；TCP 在此之上加了一整套可靠交付机制。</p>
+      <h3>解决什么问题</h3>
+      <p>IP 层是「尽力而为」：丢包、乱序、重复都可能发生。需要可靠有序字节流的应用（网页/文件/邮件）靠 TCP；需要低开销低时延、容忍丢失的应用（DNS 查询、语音视频、直播）靠 UDP。<b>协议选择是架构决策</b>：可靠性与时延/开销是一对根本取舍。</p>
+      <h3>核心机制</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>UDP</th><th>TCP</th></tr>
+        <tr><td>连接</td><td>无连接，拿起就发</td><td>面向连接：三次握手建立、四次挥手释放</td></tr>
+        <tr><td>可靠性</td><td>不保证（丢了就丢了）</td><td>确认应答 + 超时重传 + 去重排序</td></tr>
+        <tr><td>有序性</td><td>不保证</td><td>序列号保证字节流有序</td></tr>
+        <tr><td>流量控制</td><td>无</td><td>滑动窗口：接收方通告剩余缓冲</td></tr>
+        <tr><td>拥塞控制</td><td>无</td><td>慢启动/拥塞避免/快重传/快恢复</td></tr>
+        <tr><td>传输单元</td><td>报文（保留边界）</td><td>字节流（无边界概念）</td></tr>
+        <tr><td>一对一</td><td>支持一对多（广播/组播）</td><td>仅一对一</td></tr>
+      </table>
+      <h3>关键细节</h3>
+      <p><b>三次握手</b>：①客户端发 SYN（seq=x）→ ②服务端回 SYN+ACK（seq=y, ack=x+1）→ ③客户端回 ACK（ack=y+1）。<b>四次挥手</b>：FIN → ACK → FIN → ACK；主动方最后进 <b>TIME_WAIT</b> 等 2MSL，确保最后的 ACK 丢失后对方重传 FIN 时还能应答，并让旧连接报文在网络中消亡。<b>流量控制</b>是「接收方」保护自己（窗口字段），<b>拥塞控制</b>是「发送方」保护网络（慢启动：窗口指数增长到 ssthresh，之后线性加性增；丢包后乘性减）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①「三次握手」中 SYN 洪泛攻击发生在握手阶段（半连接）；②拥塞窗口 cwnd 与接收窗口 rwnd 是两回事，实际发送窗口取二者较小值；③TIME_WAIT 出现在<b>主动关闭方</b>；④UDP 也有校验和，并非完全不可检错，只是不重传。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>城市邮政系统里：UDP 是<b>投递传单</b>——塞进信箱就走，丢了一张没关系；TCP 是<b>挂号信</b>——先打电话约好（三次握手），每页编号、对方签收回执（ACK），没收到回执就重寄（重传），对方家门快满了会喊「少寄点」（流量控制），发现整条路堵了就放慢投递节奏（拥塞控制）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>打电话约时间再寄挂号信</td><td>三次握手建立连接</td><td>成立</td></tr>
+      <tr><td>每页编号 + 签收回执</td><td>序列号 + ACK 确认</td><td>成立</td></tr>
+      <tr><td>没回执就重寄同一页</td><td>超时重传</td><td>成立</td></tr>
+      <tr><td>收件人家门快满喊少寄</td><td>滑动窗口流量控制</td><td>成立</td></tr>
+      <tr><td>挂号信的内容不会被邮局改写</td><td>TCP 防篡改</td><td><b>失效</b>：TCP 只有校验和，防不了恶意篡改，保密完整性要靠 TLS（伏笔→50 密码学）</td></tr>
+    </table>
+    <div class="rhyme">UDP 传单扔了就算数；<br>TCP 挂号：先握手、页页号、<br>没回执就重寄，门满少寄到；<br>路堵就减速，挥手要四次，<br>主动方 TIME_WAIT 两轮报文寿。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>左：三次握手逐帧建立连接；右：拥塞窗口随时间增长曲线（拖动 ssthresh 滑块看拐点变化）。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>阈值 ssthresh <input type="range" id="ss-slider" min="4" max="16" value="8"> <span id="ss-out">8</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把三次握手与首次数据发送排成正确顺序</h4>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：场景 → 协议/机制</h4>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>分层模型（20）给了 TCP/UDP 的层位；IP 与路由（22）负责主机到主机，本页负责进程到进程（端口）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>TCP 的明文问题在 <b>24 · 应用层协议</b> 由 HTTPS（TLS）解决；</li><li>「连接是有状态的」这一性质，正是 <b>37 · C/S、B/S 与多层架构</b> 中会话管理与负载均衡会话保持的根源。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>流量控制</th><th>拥塞控制</th></tr>
+      <tr><td>差异点</td><td>接收方保护自己（rwnd 窗口通告）</td><td>发送方保护网络（cwnd 慢启动等）</td></tr>
+      <tr><td>易错点</td><td>以为是全局行为</td><td>以为由接收方控制</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">流量控制怕「对方收不下」，拥塞控制怕「路上挤爆」；发送窗口 = min(rwnd, cwnd)。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——寄普通传单和寄挂号信的区别……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① UDP=薄（无连接不可靠、保留报文边界），TCP=厚（握手/确认重传/流控拥控），选择协议是可靠性与时延开销的架构取舍。</li><li>② 三次握手双方互相确认收发能力；四次挥手后主动方 TIME_WAIT 2MSL。</li><li>③ 发送窗口 = min(接收窗口 rwnd, 拥塞窗口 cwnd)：一个防收不下，一个防路挤爆。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '23', domain: 'net', loc: 'roads', root: '..',
+  title: 'TCP与UDP', prev: '22-ip-subnet.html', prevTitle: '22 · IP地址、子网与路由',
+  next: '24-app-protocols.html', nextTitle: '24 · 应用层协议与安全设备',
+  keywords: ['三次握手', '确认重传', '滑动窗口', '拥塞控制', 'TIME_WAIT', '无连接', '端口']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·22】子网掩码 255.255.255.192 对应的前缀长度与每子网可用主机数是？',
+    opts: [
+      { t: '/26，62 台', why: '对：192=11000000 借 2 位得 /26；主机位 6 位，2^6-2=62（去掉网络地址与广播地址）。' },
+      { t: '/26，64 台', why: '64 是地址总数，忘了减网络地址与广播地址两个。' },
+      { t: '/24，254 台', why: '那是掩码 255.255.255.0。' }
+    ],
+    ans: 0, tag: '回忆:22', src: '仿真题'
+  }], { mode: 'recall' });
+
+  CX.renderQuiz('#quiz-main', [
+    { q: 'TCP 三次握手不能改为两次，最主要的原因是？',
+      opts: [
+        { t: '省不了开销，纯粹是惯例', why: '不是惯例问题，是正确性问题。' },
+        { t: '两次无法防止历史重复的连接请求造成错误建连，且服务端无法确认客户端能收到自己的数据', why: '对：半连接下服务端白白分配资源；经典 RFC 场景——旧的迟到 SYN 会让服务端误建连接。' },
+        { t: '两次握手后客户端不知道服务端端口', why: '端口在报文里带着，与握手次数无关。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '慢启动阶段拥塞窗口从 1MSS 增长到阈值 ssthresh 的规律，以及之后的规律分别是？',
+      opts: [
+        { t: '先线性后指数', why: '说反了。' },
+        { t: '先指数（每 RTT 翻倍）后线性（每 RTT 加 1）', why: '对：慢启动指数增长到 ssthresh 转入拥塞避免线性加性增；丢包后乘性减。' },
+        { t: '一直线性', why: '那叫拥塞避免阶段。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '主动关闭 TCP 连接的一方在最后进入的状态与等待时长是？',
+      opts: [
+        { t: 'CLOSE_WAIT，1 个 MSL', why: 'CLOSE_WAIT 属于被动关闭方。' },
+        { t: 'TIME_WAIT，2 个 MSL', why: '对：保证最后的 ACK 丢失可补救、旧报文消亡。' },
+        { t: 'FIN_WAIT_1，无限等待', why: 'FIN_WAIT_1 是发出 FIN 后的过渡态。' }
+      ],
+      ans: 1, tag: '细节', src: '仿真题' },
+    { q: '【交错复习:20】在邮政分层比喻中，TCP 的「端口号」对应生活里的什么？',
+      opts: [
+        { t: '城市名', why: '城市名更像 IP 地址/主机。' },
+        { t: '门牌后的具体房间（收件人）', why: '对：IP 定位主机，端口定位主机内的进程。' },
+        { t: '邮编', why: '邮编还是地址范畴，不指向具体进程。' }
+      ],
+      ans: 1, tag: '交错复习:20', src: '仿真题' },
+    { q: '视频直播回传弹幕、网页下载大文件、DNS 域名查询三个场景，最合适的协议组合是？',
+      opts: [
+        { t: 'TCP/TCP/UDP', why: '弹幕要低时延，用 TCP 重传反而加延迟。' },
+        { t: 'UDP/TCP/UDP', why: '对：弹幕容忍丢失用 UDP；文件不能丢用 TCP；DNS 一问一答开销小用 UDP（超 512B 或区域传送用 TCP）。' },
+        { t: 'UDP/UDP/TCP', why: '文件下载用 UDP 就没法保证完整。' }
+      ],
+      ans: 1, tag: '决策', src: '仿真题' }
+  ], { kpId: '23', mode: 'test' });
+
+  CX.renderCase('#case1', {
+    stem: '某在线支付网关经公网调用银行渠道，偶发「请求超时但银行实际已扣款」，出现资金重复处理风险。',
+    q: '(1) 从 TCP 机制解释为何会「超时但实际成功」；(2) 给出应用层两条应对措施；(3) 说明为什么支付类系统不能用 UDP 直接承载扣款指令。',
+    ref: '(1) TCP 超时重传发生在「发出后未收到 ACK」时：若 ACK 在途中丢失，银行端其实已收到并处理请求，客户端重传造成重复扣款——TCP 可靠交付的是字节流，不保证「业务处理恰好一次」；(2) 措施一：为每笔请求加全局唯一幂等号（幂等性设计），银行端按幂等号去重；措施二：扣款前先查询状态或在网关侧做对账补偿（最终一致）；(3) 扣款指令必须不丢不重，UDP 无确认重传机制，丢包即资金差错；且需要连接级安全与有序性，均须 TCP+TLS 承载。',
+    points: ['能区分「字节流可靠」与「业务恰好一次」', '幂等号/对账补偿措施', '从可靠性与有序性论证必须用 TCP'],
+    frame: '答题框架：现象→机制归因（重传语义）→应用层补足（幂等/对账）→协议选型论证。',
+    kpId: '23'
+  });
+  CX.renderCase('#case2', {
+    stem: '视频会议系统上线后卡顿：高峰期丢包率 5%，团队 A 建议直接改用 TCP 重传保证画质完整。',
+    q: '评价该建议并给出更合适的方案。',
+    ref: '不建议：实时媒体对时延敏感，TCP 重传到达的帧已过期（有时效性），且拥塞退避会进一步加剧卡顿；一旦丢包引发队头阻塞，后续帧全部延迟。更合适方案：UDP 承载 RTP 媒体流 + 前向纠错 FEC/冗余包恢复 + 自适应码率（丢包时降码率）+ 关键帧请求（SLI/FIR）；信令与文字聊天仍走 TCP/TLS。',
+    points: ['指出 TCP 重传对实时流的时效性问题', '给出 UDP+FEC+自适应码率组合', '信令与媒体分离选型'],
+    frame: '答题框架：业务特性（时效vs完整）→协议语义匹配→补足机制（FEC/自适应）→分通道设计。',
+    kpId: '23'
+  });
+
+  CX.renderQuiz('#quiz-variant', [{
+    q: '游戏「帧同步对战」用 UDP 单独承载，但登录与商城走 TCP。让同一概念换个场景再考一次：UDP 在这里的最大价值是？',
+    opts: [
+      { t: '保证帧不丢', why: 'UDP 不保证不丢，那是 TCP 的活。' },
+      { t: '低时延低开销：不用握手与重传，过期帧直接丢', why: '对：实时对战宁可丢帧也不等重传，与直播弹幕同一逻辑。' },
+      { t: '加密更安全', why: '协议与加密无关，UDP 也可叠加 DTLS。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '23', mode: 'variant' });
+
+  CX.depChain('#bridge-prev', ['20', '22'], 'prev');
+  CX.depChain('#bridge-next', ['24', '37'], 'next');
+
+  /* ---- 动画：握手时序 + 拥塞窗口曲线 ---- */
+  var ssthresh = 8;
+  var stage = CX.utils.$('demo1-stage');
+  var hsSteps = [
+    { a: 'SYN seq=x', b: '', t: '客户端：我要建立连接（SYN）' },
+    { a: 'SYN seq=x', b: 'SYN+ACK seq=y, ack=x+1', t: '服务端：收到！我也准备好了（SYN+ACK）' },
+    { a: 'SYN seq=x', b: 'SYN+ACK ack=x+1', t: '客户端确认服务端能收能发' },
+    { a: 'SYN+ACK ack=y+1', b: 'SYN+ACK', t: '第三次握手：双方确认收发能力齐备，连接建立 ✅' }
+  ];
+  function draw(t) {
+    var hsIdx = Math.min(3, Math.floor(t * 8 / 2));
+    var cwnd = [], w = 1, round = 0;
+    while (round <= 16 && w <= 64) {
+      cwnd.push(w);
+      w = (w < ssthresh) ? w * 2 : w + 1;
+      round++;
+    }
+    var W = 680, H = 240, gx = 300, gy = 30, gw = 350, gh = 170;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="' + W + '" height="' + H + '" rx="12" fill="var(--bg-soft)"/>';
+    /* 左：握手时序 */
+    s += '<line x1="60" y1="30" x2="60" y2="210" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<line x1="230" y1="30" x2="230" y2="210" stroke="var(--bad)" stroke-width="2"/>';
+    s += '<text x="60" y="22" text-anchor="middle" font-size="12" fill="var(--accent)">客户端</text>';
+    s += '<text x="230" y="22" text-anchor="middle" font-size="12" fill="var(--bad)">服务端</text>';
+    var y = 55;
+    for (var i = 0; i <= hsIdx; i++) {
+      var st = hsSteps[i];
+      var toRight = i % 2 === 0;
+      var x1 = toRight ? 60 : 230, x2 = toRight ? 230 : 60;
+      s += '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + (y + 22) + '" stroke="var(--accent-2)" stroke-width="1.6" marker-end="url(#arrd)"/>';
+      s += '<text x="145" y="' + (y - 3) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + (toRight ? st.a : st.b) + '</text>';
+      y += 38;
+    }
+    s += '<defs><marker id="arrd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent-2)"/></marker></defs>';
+    /* 右：拥塞窗口曲线 */
+    s += '<rect x="' + gx + '" y="' + gy + '" width="' + gw + '" height="' + gh + '" fill="var(--card)" stroke="var(--line)" rx="8"/>';
+    var maxY = Math.max(ssthresh * 2, 16);
+    var pt = function (r, v) {
+      return [gx + r / 16 * gw, gy + gh - v / maxY * gh];
+    };
+    s += '<line x1="' + gx + '" y1="' + (gy + gh - ssthresh / maxY * gh) + '" x2="' + (gx + gw) + '" y2="' + (gy + gh - ssthresh / maxY * gh) + '" stroke="var(--bad)" stroke-dasharray="5 4" stroke-width="1.4"/>';
+    s += '<text x="' + (gx + gw - 4) + '" y="' + (gy + gh - ssthresh / maxY * gh - 4) + '" text-anchor="end" font-size="10" fill="var(--bad)">ssthresh=' + ssthresh + '</text>';
+    var poly = cwnd.map(function (v, r) { return pt(r, v).join(','); }).join(' ');
+    s += '<polyline points="' + poly + '" fill="none" stroke="var(--ok)" stroke-width="2.4"/>';
+    cwnd.forEach(function (v, r) { var p = pt(r, v); s += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="2.5" fill="var(--ok)"/>'; });
+    s += '<text x="' + (gx + gw / 2) + '" y="' + (gy + gh + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-dim)">传输轮次 →（指数段→阈值处拐为线性）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', (hsIdx < 3 ? '握手进行中：' + hsSteps[hsIdx].t : '连接已建立；右侧拥塞窗口：慢启动指数增长，越过 ssthresh 后线性爬升'));
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+  var ss = CX.utils.$('ss-slider');
+  ss.addEventListener('input', function () {
+    ssthresh = parseInt(ss.value, 10);
+    CX.utils.$('ss-out').textContent = ss.value;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var expect = ['① 客户端 SYN（seq=x）', '② 服务端 SYN+ACK（seq=y, ack=x+1）', '③ 客户端 ACK（ack=y+1）', '④ 客户端发送数据（PSH, seq=x+1）', '⑤ 服务端确认数据（ACK）'];
+  CX.shuffle(expect.slice()).forEach(function (tx) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = tx; d.dataset.t = tx;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', tx); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var tx = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + tx + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== expect[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：SYN 必须先于 SYN+ACK，第三次 ACK 完成后连接才建立，数据不能插队。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：SYN → SYN+ACK → ACK → 数据 → ACK。连接先建立，数据后通行。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [['直播弹幕', 'UDP：丢几条没关系，时延要低'], ['网银转账指令', 'TCP+TLS：不能丢不能重不能被看'], ['下载大文件', 'TCP：确认重传保证完整'], ['DNS 查询', 'UDP：一问一答开销小'], ['发送窗口大小', 'min(接收窗口, 拥塞窗口)']];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.style.borderColor = ''; });
+        d.style.borderColor = 'var(--accent)'; selL = { k: p[0] };
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点对应协议/机制。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个场景。'; return; }
+        if (selL.k === d.dataset.v) {
+          d.style.opacity = .35; d.style.borderColor = 'var(--ok)';
+          selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 不匹配——从「要可靠还是要快」重新想：丢不得的用 TCP，过期不如丢的用 UDP。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

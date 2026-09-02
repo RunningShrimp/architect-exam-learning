@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · 嵌入式与实时系统 · 架构师学堂</title>
+<meta name="description" content="嵌入式=专职小服务站；实时系统保证截止期内完成，晚到即失败。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="07-io-interrupt.html">前置 07</a></span>
+    <h1>08 · 嵌入式与实时系统</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">嵌入式=专职小服务站；实时系统保证截止期内完成，晚到即失败。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>车载团队评审方案：刹车监测任务每 50ms 必须出一次判定，日志任务每 200ms 写一次 SD 卡。新人提议：「用桌面 Linux，CPU 8 核随便跑，性能绰绰有余。」老工程师摇头：「这不是性能问题——普通分时系统的『平均很快』救不了刹车，我们要的是『<b>最坏情况也准时</b>』。」<b>为什么『平均快』不够？该用什么系统、什么调度策略？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>分时系统追求吞吐与公平，调度延迟不可预测：日志写卡一旦把内核拖住几毫秒，刹车判定就错过了<strong>截止期（deadline）</strong>——在硬实时系统里，晚到等于没做，是事故。答案是<strong>RTOS（实时操作系统）</strong>：可抢占、优先级驱动、中断延迟有界，调度「确定性」比「平均性能」优先。调度策略用<strong>速率单调（RM）</strong>这类静态优先级算法：周期越短（刹车 50ms）优先级越高，日志永远给它让路。本页把嵌入式开发方式、实时调度和软件容错（恢复块/N 版本）一次讲清。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>07 · 中断、DMA与总线</b>——RTOS 的「快」就建立在它的门铃上：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>嵌入式系统</strong>：以应用为中心、以计算机技术为基础，软硬件可裁剪，对功能、可靠性、成本、体积、功耗有严格约束的专用计算机系统（本域比喻：社区服务站——专职、小巧、就地上岗）。<strong>实时系统</strong>：必须在截止期内对外部事件作出响应的系统；分<strong>硬实时</strong>（错过截止期=失败，如安全气囊）与<strong>软实时</strong>（晚到降级仍可用，如视频偶尔丢帧）。</p>
+      <h3>解决什么问题</h3>
+      <p>通用操作系统追求「平均快」，实时场景要「最坏也准时」。RTOS 用<strong>确定性</strong>（可预测的最坏响应时间）、<strong>可抢占调度</strong>、短的中断延迟兑现这个承诺；嵌入式工程的<strong>交叉开发</strong>模式解决「目标机又小又没屏幕，怎么开发」的问题。</p>
+      <h3>核心机制</h3>
+      <p><strong>RTOS 特点</strong>：①确定性——最坏情况下的中断延迟与调度延迟有界；②可抢占——高优先级任务一到立刻抢占低优先级；③优先级驱动调度：<strong>RM（速率单调）</strong>静态优先级、周期越短优先级越高，n 个周期任务可调度的充分条件是总利用率 U &lt; n(2^(1/n)-1)（n=2 时约 0.828，教材口径）；<strong>EDF（最早截止期优先）</strong>动态优先级、离截止期近者先跑，理论利用率可达 1。<strong>交叉开发</strong>：宿主机（host）上编码、交叉编译，经 JTAG/串口下载到目标机（target）运行调试，最后固化。</p>
+      <h3>关键细节</h3>
+      <p><strong>软件容错两方案</strong>（案例分析高频）：</p>
+      <table class="tbl">
+        <tr><th>维度</th><th>恢复块（Recovery Block）</th><th>N 版本程序（N-Version Programming）</th></tr>
+        <tr><td>冗余类型</td><td>时间冗余（顺序重试）</td><td>空间冗余（并行多版本）</td></tr>
+        <tr><td>机制</td><td>主块先跑→<b>验收测试</b>→不过则回退到备份块</td><td>N 个团队按同一规格<b>独立开发</b>→输出<b>多数表决</b></td></tr>
+        <tr><td>开销</td><td>低（一套硬件）</td><td>高（N 套开发+N 份运行资源）</td></tr>
+        <tr><td>代价/风险</td><td>回退有延迟；验收测试本身可能漏判</td><td>开发成本高；版本间可能有相同错误（规格共性错误）</td></tr>
+        <tr><td>适用</td><td>允许短暂延迟的顺序处理</td><td>高可靠、要求即时正确输出的场合</td></tr>
+      </table>
+      <p><strong>嵌入式处理器谱系</strong>：MCU（单片机，集存储外设于一体）、MPU（应用处理器）、DSP（数字信号处理）、SoC（片上系统）；调试靠 JTAG/在线仿真，引导靠 Bootloader。常见 RTOS 有 VxWorks、FreeRTOS、μC/OS 等（教材举例）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①实时≠快：实时是「<b>按时</b>」，慢而准优于快而不准；②RM 的利用率界是<strong>充分条件</strong>——超过界只是「不保证」，需精确分析，不代表必然失败；③恢复块是「单通道+回退」，N 版本才是「并行表决」，两者机制常被互换着考；④交叉编译≠在本机编译运行：宿主机与目标机架构不同（如 x86 编译、ARM 运行）。</div>
+      <h3>专业英语小贴士</h3>
+      <p>RTOS = Real-Time Operating System（实时操作系统）；deadline（截止期）；deterministic（确定性的）；cross-development（交叉开发）；host / target（宿主机/目标机）；jitter（抖动，响应时间的波动）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>嵌入式是<strong>社区服务站</strong>：不求全能，只求水电燃气这几件事又快又稳地办好，营业厅大小（体积）、开销（功耗）都掐得死死的。实时承诺像<strong>消防出警</strong>：硬实时是「晚到 1 分钟楼就烧没了」，软实时是「外卖晚到 10 分钟，赔张券还能吃」。恢复块像<strong>主厨失手换备用厨师重做一盘</strong>（多花时间但不出错）；N 版本像<strong>三位医生独立会诊、意见投票</strong>（结果即时且稳，但养三个医生很贵）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>社区服务站专职小型</td><td>嵌入式可裁剪、专用性</td><td>成立</td></tr>
+      <tr><td>消防晚到即灾难</td><td>硬实时错过截止期即失败</td><td>成立</td></tr>
+      <tr><td>备用厨师重做一盘</td><td>恢复块回退（时间冗余）</td><td>成立（代价是等待）</td></tr>
+      <tr><td>系统越快越实时</td><td>性能强=实时性好</td><td><b>失效</b>：实时看最坏响应时间是否可预测，不看平均速度</td></tr>
+    </table>
+    <div class="rhyme">实时不是一味快，截止期内到才算；<br>硬到即败软可缓，抢占确定 RTOS 好；<br>周期短者优先高，RM 静态 EDF 动；<br>宿主编译目标跑，主块回退 N 版表决。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示 RM 调度与截止期：任务 A（周期 100ms、执行 30ms，周期短→优先级高）与任务 B（周期 200ms、执行时间可调，截止期 200ms）。拖动「B 执行时间」滑块，看 B 能否在截止期前做完——这就是「确定性与截止期」的直观感受。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>B 执行时间 C_B <input type="range" id="cb-slider" min="100" max="180" step="5" value="140"> <span id="cb-out">140 ms</span></label>
+      <span class="kf-caption" id="rm-cap"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：RM 可调度性判定器</h4>
+      <p class="foreshadow">拖滑块设任务数 n 与总利用率 U，看 RM 充分界 n(2^(1/n)-1) 的判定（充分条件口径）：</p>
+      <label>任务数 n <input type="range" id="rn-slider" min="2" max="4" value="2"> <span id="rn-out">2</span></label><br>
+      <label>总利用率 U <input type="range" id="ru-slider" min="10" max="100" value="80"> <span id="ru-out">0.80</span></label>
+      <p id="rm-out" class="foreshadow"></p>
+      <p class="foreshadow">快问快答：n=3、U=0.75，按充分界初判结论是？
+        <button class="btn" data-j="ok">满足界，可调度</button>
+        <button class="btn" data-j="no">超过界，不保证</button>
+      </p>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：概念 ↔ 机制</h4>
+      <p class="foreshadow">先点左列一个概念，再点右列对应机制：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：交叉开发流程</h4>
+      <p class="foreshadow">把卡片拖进槽，排出从编码到现场运行的顺序：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>07 页的门铃（中断）是 RTOS 响应性的物理基础：中断延迟有界+可抢占调度，才敢承诺「最坏情况也准时」。嵌入式外设成块搬运依然交给 DMA。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「任务、优先级、抢占」在 <b>09 · 进程、线程与调度</b> 升级为操作系统的进程线程世界——嵌入式任务与它是同构思想；</li>
+    <li>「边缘侧就地计算」的物联网架构（<b>61 · 物联网与边缘计算</b>）正是嵌入式系统的规模化舞台。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>硬实时</th><th>软实时</th></tr>
+      <tr><td>差异点</td><td>错过截止期=失败，结果不可用甚至有害</td><td>晚到降低服务质量但结果仍可用</td></tr>
+      <tr><td>易错点</td><td>以为硬实时要求「越快越好」</td><td>以为软实时可以没有 deadline 约束（只是违反后果轻）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">看「晚到的后果」：气囊晚开是事故=硬；直播晚到掉帧=软。快慢不是标准，按时才是。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——汽车弹安全气囊的程序，慢一点点都不行，因为它要的不是快，是准时……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 嵌入式=软硬件可裁剪的专用系统，交叉开发：宿主机编码编译、目标机运行调试、JTAG 下载。</li><li>② 实时看按时不看快：RTOS 确定性+可抢占，RM 静态优先级（充分界 n(2^(1/n)-1)）、EDF 动态优先级。</li><li>③ 软件容错：恢复块=验收测试不过就回退备份（时间冗余），N 版本=独立开发+多数表决（空间冗余）。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '08', domain: 'hw', loc: 'foundation', root: '..',
+  title: '嵌入式与实时系统',
+  prev: '07-io-interrupt.html', prevTitle: '07 · 中断、DMA与总线',
+  next: '09-process-thread.html', nextTitle: '09 · 进程、线程与调度',
+  keywords: ['嵌入式','实时','硬实时','RTOS','确定性','交叉开发','恢复块','N版本']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 07） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·07】RTOS 要「一有事件立刻响应」，直接依赖的硬件机制是？',
+    opts: [
+      { t: '中断：外设事件主动打断 CPU，响应延迟有界', why: '对。07 页的门铃是实时性的物理前提——门铃线路不通，再高的主频也「感觉」不到事件。' },
+      { t: 'DMA：数据不经过 CPU', why: 'DMA 管搬运效率，事件「通知」靠的还是中断。' },
+      { t: 'Cache：命中率决定平均速度', why: 'Cache 提升平均性能，与「事件响应延迟有界」是两回事。' }
+    ],
+    ans: 0, tag: '回忆:07', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '汽车安全气囊控制程序的实时属性是？',
+      opts: [
+        { t: '硬实时：错过截止期即失败，结果有害', why: '对。碰撞判定晚到几毫秒，气囊展开就失去保护意义甚至危险——「晚到即失败」是硬实时的定义。' },
+        { t: '软实时：晚到只是降级', why: '降级？气囊晚开不叫降级，叫事故。' },
+        { t: '非实时：能算对就行', why: '时间本身就是正确性的一部分，算得对但算得晚等于错。' },
+        { t: '取决于 CPU 主频高低', why: '主频高不等于准时；实时看最坏响应时间是否可预测。' }
+      ],
+      ans: 0, tag: '概念', src: '仿真题' },
+    { q: '与通用分时操作系统相比，RTOS 最本质的特征是？',
+      opts: [
+        { t: '界面更简洁', why: '界面不是操作系统内核属性。' },
+        { t: '调度确定性强：可抢占、最坏响应时间有界', why: '对。RTOS 卖的不是平均性能，是「最坏情况也准时」的确定性承诺。' },
+        { t: '一定比通用系统吞吐量更高', why: '为确定性让路（如关中断区间、静态优先级），吞吐量反而可能让步。' },
+        { t: '不需要文件系统与网络', why: '很多 RTOS 也有文件系统与协议栈；有无组件不是「实时」的定义。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '关于 RM（速率单调）与 EDF（最早截止期优先）调度，正确的说法是？',
+      opts: [
+        { t: 'RM 动态调整优先级，EDF 静态固定', why: '正好相反：RM 静态（按周期定死），EDF 动态（按最近截止期变）。' },
+        { t: 'RM 静态优先级按周期越短越高，EDF 动态优先级按截止期越近越高', why: '对。RM 实现简单可预测，EDF 理论利用率可达 1，但动态开销与过载行为更复杂。' },
+        { t: 'EDF 只能用于软实时系统', why: 'EDF 同样用于硬实时，理论可调度界比 RM 更宽松。' },
+        { t: 'RM 的优先级随负载实时变化', why: 'RM 的「静态」就是优先级不随运行时状态变。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '某飞控软件由三个团队按同一规格独立开发，运行时三份结果同时产出并投票表决后输出。这是哪种容错结构？',
+      opts: [
+        { t: '恢复块：验收测试不过就回退', why: '恢复块是单通道顺序重试，没有并行投票环节。' },
+        { t: 'N 版本程序：设计多样性+多数表决（空间冗余）', why: '对。独立开发制造「设计多样性」，表决过滤单版本错误；代价是 N 倍开发与运行资源。' },
+        { t: 'RAID 1 镜像', why: '那是磁盘冗余；软件多版本表决是另一层思想，别混淆。' },
+        { t: '时间冗余重试', why: '重试是同一版本再跑一遍，此处是三个不同版本并行。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '【交错复习·07】嵌入式采集板上，磁盘与内存之间的大块数据搬运最适合交给？',
+      opts: [
+        { t: 'DMA 控制器：接管总线直达搬运，CPU 只做初始化与收尾', why: '对。07 页的「小时工」在小板子上同样上岗——嵌入式资源紧张，更省不起 CPU 陪跑。' },
+        { t: '程序查询逐字节搬', why: '嵌入式 CPU 最缺的就是时间，逐字节查询是最贵的搬法。' },
+        { t: '浮点协处理器', why: '协处理器管数值计算，不管数据搬运。' }
+      ],
+      ans: 0, tag: '交错复习:07', src: '仿真题' }
+  ], { kpId: '08', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某民机飞控计算机要求：主控制律算法若因异常产生错误输出，系统必须仍能给出正确控制量。架构组提出两种方案：方案甲「恢复块」：主算法输出经验收测试校验，不过则恢复现场并切换到备用算法重算；方案乙「N 版本程序」：三个团队按同一规格独立实现，三份结果并行计算、多数表决输出。',
+    q: '(1) 从冗余类型、运行方式、错误掩盖机制三方面对比两方案；(2) 说明飞控场景更倾向哪个方案及理由；(3) 指出所选方案仍残留的风险并各给一条对策。',
+    ref: '(1) 甲：时间冗余；单通道顺序执行，主块→验收测试→失败回退备份块，靠「测试+重试」掩盖错误，恢复期间输出延迟；乙：空间冗余；三版本并行执行，多数表决瞬时掩盖单版本错误，无重试延迟。(2) 倾向乙：飞控要求输出即时且持续——回退重算的延迟窗口在控制律场景可能不可接受，表决能在同一周期内给出正确结果；代价是三倍开发与运行资源，安全关键领域可承受。(3) 残留风险一：规格错误是共性错误，三版本一起错、表决照错——对策：规格本身做形式化验证与多方评审，必要时加入简单版「多样性内核」互查；风险二：表决器本身是单点——对策：表决逻辑做极简化设计并独立验证（甚至硬件实现），避免表决器成为新的单点失效源。',
+    points: ['三维度对比完整（时间/空间冗余、顺序回退/并行表决、延迟/即时）', '选乙的理由扣住「不能承受重试延迟」，并承认代价', '残留风险点出「共性规格错误」与「表决器单点」并各配对策'],
+    frame: '答题框架：机制对比（列三要素表）→用场景约束（延迟容忍度/资源预算）做选型→主动暴露所选方案残余风险与对策，体现工程闭环。',
+    kpId: '08'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '某车身控制器有三个周期任务（截止期=周期）：A 刹车监测 T=50ms、C=20ms；B 通信收发 T=100ms、C=25ms；C1 日志记录 T=200ms、C=50ms。拟采用 RTOS + RM 调度。',
+    q: '(1) 计算总利用率并用 RM 充分界（n=3 时约 0.780）初判；(2) 初判不满足时，是否必须放弃 RM？给出两条继续推进的工程路径；(3) 说明为什么「加 CPU 核数」不一定是首选。',
+    ref: '(1) U=20/50+25/100+50/200=0.40+0.25+0.25=0.90 > 0.780，充分界不满足——RM 按界「不保证可调度」。（注意：不满足界≠必然错过截止期，需精确可调度性分析确认，教材口径强调界是充分条件。）(2) 路径一：精确分析（响应时间分析）逐任务算最坏响应时间，若各任务 R≤T 则 RM 仍可用；路径二：优化任务参数或换策略——压缩关键任务 C（算法/IO 优化）、调整周期（与被控对象协商）、改用 EDF（利用率界更宽松）或将日志任务降级为非实时的后台/软实时。(3) 加核会引入共享资源竞争、锁与迁移开销，最坏响应时间的「确定性」反而更难论证；实时性设计优先「少而可预测」，先在调度与任务参数上做文章，多核作为最后手段且需选用支持分区/绑核的实时方案。',
+    points: ['U=0.90 算对，并正确引用充分界 0.780', '点明「不满足界≠必死，需精确分析」并给两条路径', '多核的确定性代价说清（竞争/锁/迁移）'],
+    frame: '答题框架：先算 U→对照界初判→声明界的含义（充分非必要）→给「优化任务/换算法/精确分析」的升级路径→对硬件方案辨析。',
+    kpId: '08'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '外卖平台承诺 30 分钟送达、超时赔券；而救护车调度要求 8 分钟内抵达，否则危及生命。两者的实时属性分别是？',
+    opts: [
+      { t: '都是硬实时', why: '外卖超时的后果是「赔券降级」，不是不可接受的失败。' },
+      { t: '软实时 / 硬实时：看晚到后果——降级可用为软，失败有害为硬', why: '对。同一概念换到服务业：判据始终是「晚到的后果」，不是行业或速度。' },
+      { t: '都是软实时', why: '救护车晚到的后果不可降级，属于典型硬实时。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '08', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['07'], 'prev');
+  CX.depChain('#bridge-next', ['09', '61']);
+
+  /* ---- 动画：RM 调度与截止期 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var cb = 140;                       /* B 执行时间 100~180 */
+  var CA = 30, TA = 100, TB = 200, TEND = 260;
+  function draw(t) {
+    /* RM 调度段：A 高优先级 */
+    var segs = [];   /* [start, end, task] */
+    segs.push([0, CA, 'A']);
+    var remB1 = cb - 70;              /* B 在 0~100 已跑 70ms */
+    segs.push([CA, 100, 'B']);
+    segs.push([100, 130, 'A']);
+    var done1 = Math.min(remB1, 70);
+    if (remB1 <= 70) {
+      segs.push([130, 130 + remB1, 'B']);
+      segs.push([130 + remB1, 200, 'idle']);
+    } else {
+      segs.push([130, 200, 'B']);
+    }
+    segs.push([200, 230, 'A']);
+    if (remB1 > 70) {
+      var b2 = Math.min(TEND, 230 + (cb - 140));
+      segs.push([230, b2, 'B']);
+      if (b2 < TEND) segs.push([b2, TEND, 'idle']);
+    } else {
+      segs.push([230, TEND, 'idle']);
+    }
+    var x0 = 80, x1 = 720, y0 = 90, hh = 30;
+    var scale = (x1 - x0) / TEND;
+    var now = t * TEND;
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="20" y="34" font-size="13" fill="var(--text)">RM 调度：A(T=' + TA + ',C=' + CA + ') 周期短→优先级高；B(T=' + TB + ',C=' + cb + ')</text>';
+    /* 时间轴 */
+    s += '<line x1="' + x0 + '" y1="' + (y0 + 120) + '" x2="' + x1 + '" y2="' + (y0 + 120) + '" stroke="var(--line)"/>';
+    var i;
+    for (i = 0; i <= TEND; i += 50) {
+      var tx = x0 + i * scale;
+      s += '<line x1="' + tx + '" y1="' + (y0 + 120) + '" x2="' + tx + '" y2="' + (y0 + 126) + '" stroke="var(--line)"/>';
+      s += '<text x="' + tx + '" y="' + (y0 + 142) + '" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + i + '</text>';
+    }
+    /* B 释放与截止期标记 */
+    s += '<text x="' + (x0 + 0 * scale) + '" y="' + (y0 + 66) + '" font-size="11" fill="var(--text-dim)">B 释放</text>';
+    var miss = cb > 140;
+    s += '<text x="' + (x0 + TB * scale) + '" y="' + (y0 + 66) + '" text-anchor="middle" font-size="12" font-weight="700" fill="' + (miss ? 'var(--bad)' : 'var(--ok)') + '">▼ B 截止期 ' + TB + 'ms' + (miss ? '（错过！）' : '（赶上）') + '</text>';
+    s += '<line x1="' + (x0 + TB * scale) + '" y1="' + (y0 - 6) + '" x2="' + (x0 + TB * scale) + '" y2="' + (y0 + 120) + '" stroke="' + (miss ? 'var(--bad)' : 'var(--ok)') + '" stroke-width="2" stroke-dasharray="5 4"/>';
+    /* 任务条 */
+    var u = CA / TA + cb / TB;
+    var nowTxt = '进度 ' + Math.round(now) + 'ms · U=' + u.toFixed(2) + '（充分界 0.83）';
+    segs.forEach(function (sg) {
+      var st = sg[0], en = sg[1], task = sg[2];
+      var vis = Math.max(0, Math.min(en, now) - st);
+      if (vis <= 0) return;
+      var color = task === 'A' ? 'var(--bad)' : (task === 'B' ? 'var(--accent)' : 'transparent');
+      var yy = task === 'A' ? y0 : (y0 + 44);
+      s += '<rect x="' + (x0 + st * scale).toFixed(1) + '" y="' + yy + '" width="' + (vis * scale).toFixed(1) + '" height="' + hh + '" rx="4" fill="' + color + '" opacity=".85"/>';
+      if (task !== 'idle' && vis * scale > 40) s += '<text x="' + (x0 + (st + vis / 2) * scale).toFixed(1) + '" y="' + (yy + 21) + '" text-anchor="middle" font-size="12" font-weight="700" fill="var(--bg)">' + task + '</text>';
+    });
+    /* 行标签 */
+    s += '<text x="20" y="' + (y0 + 21) + '" font-size="13" fill="var(--text)">任务 A</text>';
+    s += '<text x="20" y="' + (y0 + 65) + '" font-size="13" fill="var(--text)">任务 B</text>';
+    /* A 的两次后续释放标记 */
+    [100, 200].forEach(function (r) {
+      s += '<text x="' + (x0 + r * scale) + '" y="' + (y0 - 6) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)">A释放</text>';
+    });
+    s += '<text x="380" y="' + (y0 + 178) + '" text-anchor="middle" font-size="13" fill="var(--text-dim)">' + nowTxt + (cb === 140 ? ' · 恰好满负荷边界：零余量，任何抖动都会迟到' : '') + (miss ? ' · B 第一周期差 ' + (cb - 140) + 'ms 没做完——硬实时下这就是失败' : (cb !== 140 ? ' · B 提前赶上截止期' : '')) + '</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.2) cap = 't=0：A 周期短优先级高先跑 30ms；随后 B 上场——RM 的规矩：周期越短，优先级越高。';
+    else if (t < 0.45) cap = 't=100：A 的第二个周期到点，立刻抢占 B——可抢占调度保证高频任务永不被拖住。';
+    else if (t < 0.8) cap = 't=130~200：B 想把活干完，但它第一周期能拿到的 CPU 最多 140ms（70+70）。';
+    else cap = miss ? 't=200 截止期到：B 只做了 140ms，还差 ' + (cb - 140) + 'ms——软实时降级，硬实时即失败。把 C_B 调回 ≤140 再看。' : 't=200 截止期到：B 已做完 ' + cb + 'ms，赶上！这就是「可调度」的直观含义。';
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#rm-cap').textContent = miss ? '错过：B 在截止期前最多拿到 140ms CPU' : '赶上：C_B=' + cb + ' ≤ 140';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 12, onTick: draw });
+  CX.utils.$('#cb-slider').addEventListener('input', function () {
+    cb = parseInt(this.value, 10);
+    CX.utils.$('#cb-out').textContent = cb + ' ms';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：RM 判定器 ---- */
+  var rnS = CX.utils.$('#rn-slider'), ruS = CX.utils.$('#ru-slider');
+  function bound(n) { return n * (Math.pow(2, 1 / n) - 1); }
+  function calcRM() {
+    var n = parseInt(rnS.value, 10), u = parseInt(ruS.value, 10) / 100;
+    CX.utils.$('#rn-out').textContent = n;
+    CX.utils.$('#ru-out').textContent = u.toFixed(2);
+    var b = bound(n);
+    CX.utils.$('#rm-out').textContent = 'n=' + n + '：充分界 n(2^(1/n)-1)=' + b.toFixed(3) + '；当前 U=' + u.toFixed(2) + ' → ' + (u < b ? 'U < 界，RM 可调度（充分条件满足）' : 'U ≥ 界，RM 不保证（需精确分析，不代表必败）');
+    return { u: u, b: b };
+  }
+  [rnS, ruS].forEach(function (x) { x.addEventListener('input', calcRM); });
+  calcRM();
+  CX.utils.$$('.lab button[data-j]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var fb = CX.utils.$('#lab1-fb');
+      var pick = b.getAttribute('data-j');
+      var n = 3, u = 0.75, bd = bound(3);
+      if (pick === 'ok' && u < bd) {
+        fb.textContent = '✅ 正确：先算界 n=3 时 n(2^(1/n)-1)≈0.780，U=0.75 < 0.780，充分条件满足——RM 可调度。';
+        fb.className = 'lab-feedback ok';
+      } else if (pick === 'no') {
+        fb.textContent = '❌ 选「不保证」错在这一步：先把界算准——n=3 时 n(2^(1/n)-1)≈0.780，而 U=0.75<0.780，充分条件是满足的。超过界才是「不保证」。';
+        fb.className = 'lab-feedback bad';
+      } else {
+        fb.textContent = '✅ 结论方向正确（0.75<0.780，可调度）。再进一步：界只是充分条件，即使 U 略超界也应做精确响应时间分析再下结论。';
+        fb.className = 'lab-feedback ok';
+      }
+    });
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['恢复块', '主块+验收测试，不过就回退备份块（时间冗余）'],
+    ['N 版本程序', '多团队独立开发，输出多数表决（空间冗余）'],
+    ['硬实时', '错过截止期即失败，结果不可用'],
+    ['交叉开发', '宿主机编码编译，目标机运行调试']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的机制。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个概念。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL.dataset.k;
+          var hint = (k === '恢复块' || k === 'N 版本程序') ? '❌ 容错两兄弟别混：看到「验收测试+回退」是恢复块（顺序重试），看到「独立开发+表决」是 N 版本（并行投票）——你点的这条属于哪路？'
+            : (k === '硬实时') ? '❌ 硬实时的判据是「晚到即失败」——你点的这条讲的是开发方式或容错机制，不是时间属性。'
+            : '❌ 交叉开发的关键是「宿主机与目标机分离」——你点的这条不是讲开发流程的。';
+          CX.utils.$('#lab2-fb').textContent = hint;
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：拖拽排序 ---- */
+  var order = [
+    '宿主机上编码与单元测试',
+    '交叉编译生成目标机可执行代码',
+    '经 JTAG/串口下载到目标机',
+    '目标机上在线调试（断点/跟踪）',
+    '固化到 Flash，现场独立运行'
+  ];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab3-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        var hint;
+        if (i === 1) hint = '第 2 步错了：宿主机上是普通编译，给目标机（如 ARM）的代码必须「交叉编译」——在下载之前完成。';
+        else if (i === 2) hint = '第 3 步错了：先「下载到目标机」才谈得上「目标机调试」——顺序颠倒。';
+        else if (i === 4) hint = '收尾是「固化现场运行」：调试通过后烧写 Flash，设备脱离宿主机独立工作。';
+        else hint = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。主线：宿主机编码 → 交叉编译 → 下载 → 目标机调试 → 固化运行。';
+        fb.textContent = hint; fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：宿主机编码 → 交叉编译 → 下载 → 在线调试 → 固化运行。宿主与目标分离是嵌入式的日常。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

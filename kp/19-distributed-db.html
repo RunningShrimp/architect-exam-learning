@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>19 · 分布式数据库与NoSQL · 架构师学堂</title>
+<meta name="description" content="分片分馆放数据，Redis 三件套撑缓存，反规范化是拿一致性换速度的明码交易。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">数据库</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="17-normalization.html">前置 17</a></span>
+    <span class="badge dep"><a href="18-transaction.html">前置 18</a></span>
+    <h1>19 · 分布式数据库与NoSQL</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">分片分馆放数据，反规范化拿一致性换速度。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>商城大促：商品详情页 QPS 涨 40 倍，数据库 CPU 打满；架构会上抛出三个待决问题——① 热点数据放 Redis，用什么数据结构存排行榜和库存？② Redis 重启数据不能全丢，持久化选 RDB 还是 AOF？③ 单机 Redis 挂了怎么办？另外订单库要按用户分片拆到 8 台机器，应用层还要不要感知「数据在哪台机器」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>这三个问题就是案例题考了三次的 <strong>Redis 三件套</strong>：① 数据结构——排行榜用 ZSet（能按分数排序）、库存计数用 String、请求去重用 Set、消息队列用 List、对象用 Hash；② 持久化——RDB 是定期快照（恢复快、可能丢最近几分钟），AOF 是追加命令日志（丢得少、文件大恢复慢），生产常用两者混合；③ 高可用——主从复制（分馆抄本）、哨兵（自动故障转移）、Cluster（分片+高可用）。而「要不要感知在哪台机器」是透明性问题：中间件提供分片透明，应用就不用知道。缓存还要防三灾：穿透、击穿、雪崩。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>17 · 规范化理论</b> 与 <b>18 · 事务与并发控制</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>分布式数据库</strong>把逻辑上完整的数据物理上分散到多个节点：按行/列切开叫<strong>分片</strong>（水平分片=按行、垂直分片=按列、混合两者），每个分片可再复制多份。<strong>NoSQL</strong>（Not only SQL）是放弃部分关系数据库约束换取扩展性的非关系库家族，分四类：键值（Redis）、文档（MongoDB）、列族（HBase/Cassandra）、图（Neo4j）。</p>
+      <h3>解决什么问题</h3>
+      <p>单机有天花板：容量到顶、读写到顶、故障即全站瘫痪。分片解决容量与吞吐（各管一片），复制解决高可用与读扩展（分馆抄本），透明性解决「应用要不要操心这些」；NoSQL 则在关系模型太重（强 schema、强一致、多表连接）的场景下，用更简单的模型换海量吞吐。</p>
+      <h3>核心机制一：透明性级别（考试爱排座次）</h3>
+      <table class="tbl">
+        <tr><th>透明性（从高到低）</th><th>应用无需知道什么</th><th>类比</th></tr>
+        <tr><td>分片透明（最高）</td><td>数据被切成了几片、按什么切</td><td>只管向档案馆总台借「某档案」</td></tr>
+        <tr><td>位置透明</td><td>该片存在哪个分馆</td><td>知道档案名，不必知道在哪个馆</td></tr>
+        <tr><td>局部数据模型（映射）透明</td><td>分馆内部用什么模型存</td><td>知道在几号馆，不管馆内排架方式</td></tr>
+        <tr><td>复制透明（常并列叙述）</td><td>数据复制了几份、同步到哪</td><td>不知道也不必知道抄本有几份</td></tr>
+      </table>
+      <p>跨节点的原子提交靠<strong>两阶段提交（2PC）</strong>：协调者先「预备」（各参与者表决能否提交），全票通过再「提交」，任一反对则全体回滚——它是 18 页事务原子性在分布式下的延伸。</p>
+      <h3>核心机制二：CAP 与 BASE</h3>
+      <p><strong>CAP</strong>：一致性 C、可用性 A、分区容错 P 三者不可兼得；网络分区（P）在分布式环境下无法回避，实际是在 P 的前提下做 <strong>CP</strong>（保一致拒服务，如 ZooKeeper 类协调组件）或 <strong>AP</strong>（保可用容旧值，如多数 NoSQL）的取舍。<strong>BASE</strong> 是 AP 的工程化表述：基本可用、软状态、最终一致。</p>
+      <h3>核心机制三：Redis 三件套（近 5 年案例考 3 次）</h3>
+      <table class="tbl">
+        <tr><th>数据结构</th><th>典型场景</th></tr>
+        <tr><td>String（字符串）</td><td>缓存对象、计数器（库存、点赞数）、分布式锁</td></tr>
+        <tr><td>Hash（哈希）</td><td>存对象的多字段（购物车：用户→商品→数量）</td></tr>
+        <tr><td>List（列表）</td><td>消息队列、最新列表（时间线）</td></tr>
+        <tr><td>Set（集合）</td><td>去重（抽奖去重）、共同好友（交集）</td></tr>
+        <tr><td>ZSet（有序集合）</td><td><b>排行榜</b>（按分数排序）、延迟队列</td></tr>
+      </table>
+      <table class="tbl">
+        <tr><th>持久化</th><th>机制</th><th>优点</th><th>缺点</th></tr>
+        <tr><td>RDB 快照</td><td>定期把内存数据二进制落盘</td><td>文件紧凑、恢复快</td><td>两次快照之间的数据宕机即丢</td></tr>
+        <tr><td>AOF 日志</td><td>追加每条写命令（可每秒刷盘）</td><td>最多丢 1 秒数据</td><td>文件大、恢复慢</td></tr>
+        <tr><td>混合持久化</td><td>RDB 做底 + 增量 AOF</td><td>恢复快且丢得少</td><td>配置略复杂（生产常用）</td></tr>
+      </table>
+      <table class="tbl">
+        <tr><th>模式</th><th>机制</th><th>定位</th></tr>
+        <tr><td>主从复制</td><td>主写从读，主异步同步从（分馆抄本）</td><td>读写分离 + 数据冗余；主挂需人工切换</td></tr>
+        <tr><td>哨兵 Sentinel</td><td>监控主从，主挂自动投票提升从库为新主并通知客户端</td><td>高可用（自动故障转移），不分片</td></tr>
+        <tr><td>Cluster 集群</td><td>数据按 16384 个 slot 分片到多主，每主可带从</td><td>分片 + 高可用一体，水平扩展</td></tr>
+      </table>
+      <h3>核心机制四：缓存三灾与对策</h3>
+      <p>口诀：<b>穿透库里无，击穿单个热，雪崩一大片</b>。穿透=查根本不存在的数据，缓存永远不命中、请求全砸到库（对策：<strong>布隆过滤器</strong>快速拦截「肯定没有」、对空结果也缓存短时间）；击穿=某一个热点 key 恰好过期，瞬时洪峰全打在这个 key 上（对策：<strong>互斥锁</strong>只放一个请求回源重建、热点 key 逻辑过期不过期）；雪崩=大批 key 同时过期或缓存整体宕机，请求山崩式砸向数据库（对策：<strong>过期时间加随机打散</strong>、多级缓存、限流熔断降级）。</p>
+      <h3>核心机制五：反规范化</h3>
+      <p>规范化拆表换来「事实只存一处」，但查询要多表连接；分布式下跨节点连接更贵。于是<strong>有意冗余</strong>（如订单表冗余用户名）减少连接——这就是反规范化：<b>拿一致性换速度的明码交易</b>。交易条款要写清：冗余字段的同步更新策略（应用层双写、变更消息异步刷新、定时校对）与容忍的不一致窗口。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 透明性级别排序：分片透明最高、局部映射透明最低——「最高」问法常考。② CAP 不是「三选二」随便丢 P：P 必选，实际选 CP 或 AP。③ 主从复制是「异步抄本」，主挂瞬间最近的写可能没同步——损害的是持久性/一致性，不是可用性。④ 击穿与雪崩的区别在「一个热点」还是「一大片」，穿透在「库里根本无」。⑤ 反规范化不是「不设计」，是注明代价的设计，案例要写同步策略才给分。</div>
+      <div class="callout"><span class="t">🇬🇧 专业英语小贴士</span>sharding / fragmentation（分片）、replica / replication（副本/复制）、NoSQL = Not only SQL，CAP = Consistency, Availability, Partition tolerance。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>本页是 <b>📚 中央档案馆</strong>的「开分馆」章节：一个馆装不下全城档案，就按区域<strong>分片</strong>开 8 个分馆（分片），每个分馆再抄一份<strong>副本</strong>藏于别处（主从复制=分馆抄本）；读者报档案名，总台自动路由到分馆（分片透明），连分馆烧了也能凭抄本接着服务（哨兵自动扶正）。缓存则是「总台旁的随手架」，随手架也有三灾，口诀专治。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>按区域开分馆</td><td>水平分片</td><td>成立</td></tr>
+      <tr><td>分馆抄本异地存放</td><td>主从复制 / 副本</td><td>成立；抄是「异步」的，主馆刚记的账可能还没抄过去</td></tr>
+      <tr><td>总台统一受理，读者不问分馆</td><td>分片/位置透明</td><td>成立</td></tr>
+      <tr><td>随手架没货就先记「无货」小牌</td><td>空值缓存 / 布隆过滤器</td><td>成立；<b>失效边界</b>：随手架再快也变不出库里没有的数据——「穿透」的本质是数据缺失，不是缓存失职</td></tr>
+      <tr><td>为图省事在多个馆复抄同一份档案</td><td>反规范化冗余</td><td>成立；<b>失效边界</b>：现实抄本改一处漏一处没人管，数据库必须靠同步策略兜住一致性——「明码交易」的价签</td></tr>
+    </table>
+    <div class="rhyme">分馆抄本主从备，哨兵盯梢自动替；<br>穿透库里无，击穿单个热，雪崩一大片；<br>布隆拦无、互斥护热、过期打散防连环；<br>反规范是笔交易，一致性换速度要写穿。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>动画演示键请求如何按分片路由到各馆、副本如何救场。拖动三个滑块：分片数、副本开关、故障节点，播放看每个请求的结局：</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>分片数 <input type="range" id="sk-shard" min="1" max="3" step="1" value="2"> <span id="sk-shard-out">2</span></label>
+      <label>副本 <input type="range" id="sk-replica" min="0" max="1" step="1" value="1"> <span id="sk-replica-out">开</span></label>
+      <label>故障节点 <input type="range" id="sk-fail" min="0" max="3" step="1" value="0"> <span id="sk-fail-out">无</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：缓存三灾 + 持久化 + 复制</h4>
+      <p class="foreshadow">先点左列现象/机制，再点右列口诀或要点：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽选型）：场景 → NoSQL 家族</h4>
+      <p class="foreshadow">把业务场景卡拖进最合适的家族槽（提示：先想数据形状与访问模式）：</p>
+      <div id="ns-pool" style="min-height:40px"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:170px"><b>键值 Key-Value</b><div class="drag-slot" id="slot-kv"></div></div>
+        <div style="flex:1;min-width:170px"><b>文档 Document</b><div class="drag-slot" id="slot-doc"></div></div>
+        <div style="flex:1;min-width:170px"><b>列族 Wide-column</b><div class="drag-slot" id="slot-col"></div></div>
+        <div style="flex:1;min-width:170px"><b>图 Graph</b><div class="drag-slot" id="slot-graph"></div></div>
+      </div>
+      <button class="btn" id="ns-check">检查选型</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：持久化策略与丢数据窗口</h4>
+      <p class="foreshadow">选择持久化策略与宕机时刻，看本次宕机最多丢多少秒的写入：</p>
+      <label>策略
+        <select id="pm-mode">
+          <option value="rdb">仅 RDB（每 300 秒快照）</option>
+          <option value="hybrid">混合：RDB + AOF（每秒刷盘）</option>
+        </select>
+      </label>
+      <label>宕机时刻 <input type="range" id="pm-t" min="0" max="300" step="10" value="150"> <span id="pm-t-out">150s</span></label>
+      <button class="btn" id="pm-crash">模拟宕机恢复</button>
+      <div class="kf-caption" id="pm-result">选好策略后点击模拟。</div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、4 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>17 页给规范化立了「事实只存一处」的规矩，本页的反规范化公然开倒车——但要写出补偿策略才算懂行；18 页的事务与锁，在跨节点后升级为 2PC 两阶段提交。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「分片+副本」的数据底座正是 <b>38 · SOA与微服务</b> 每个服务私有数据库的常见选型；</li><li>「批流双分片、湖仓管水」的大数据体系（<b>59 · 大数据架构</b>）把本页的列族存储与分片思想推向 EB 级。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>缓存穿透</th><th>缓存击穿</th><th>缓存雪崩</th></tr>
+      <tr><td>特征</td><td>查「库里也没有」的数据</td><td>单个热点 key 过期瞬间</td><td>大批 key 同时失效/缓存宕机</td></tr>
+      <tr><td>口诀</td><td>穿透库里无</td><td>击穿单个热</td><td>雪崩一大片</td></tr>
+      <tr><td>对策</td><td>布隆过滤器、空值缓存</td><td>互斥锁重建、热点逻辑过期</td><td>过期时间加随机、多级缓存、限流熔断</td></tr>
+      <tr><td>一句话区分</td><td colspan="3">无中生有是穿透，一热失守是击穿，集体倒下是雪崩。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——图书馆开分馆，每个分馆都有抄本，总台帮你找……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 分布式三板斧：分片扩容量、复制保可用、透明性让应用不操心（分片透明最高、局部映射透明最低）；跨节点原子性靠 2PC。</li><li>② CAP 中 P 必选，实际选 CP（一致优先拒服务）或 AP（可用优先容旧值）；BASE=基本可用、软状态、最终一致。</li><li>③ Redis 三件套（结构/持久化/主从哨兵集群）+ 缓存三灾口诀「穿透库里无，击穿单个热，雪崩一大片」；反规范化是拿一致性换速度的明码交易，必须写同步策略。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '19', domain: 'db', loc: 'archive', root: '..',
+  title: '分布式数据库与NoSQL',
+  prev: '18-transaction.html', prevTitle: '18 · 事务与并发控制',
+  next: '20-osi-tcpip.html', nextTitle: '20 · OSI与TCP/IP分层',
+  keywords: ['分片透明', 'CAP', '主从复制', '哨兵', 'RDB', 'AOF', '布隆过滤器', '反规范化']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置点：17 / 18） ---- */
+  CX.renderQuiz('#quiz-recall', [
+    {
+      q: '【回忆·17】订单表冗余了「用户名」列以减少连接查询，按规范化理论评价这一做法？',
+      opts: [
+        { t: '完全正确，符合 3NF', why: '恰恰相反：用户名随用户表变，冗余会引入更新异常。' },
+        { t: '有意的反规范化：以可控冗余换取查询速度，需配套同步策略', why: '对：这是「拿一致性换速度」的明码交易，本页会展开交易的完整条款。' },
+        { t: '冗余列不影响任何范式', why: '非主属性冗余且受别处决定，正是范式要消除的对象。' }
+      ],
+      ans: 1, tag: '回忆:17', src: '仿真题'
+    },
+    {
+      q: '【回忆·18】跨节点的分布式事务要保证「要么全提交要么全回滚」，18 页的哪种机制思想被继承？',
+      opts: [
+        { t: 'undo 日志回滚', why: 'undo 保证单机原子性；跨节点还需要先「表决」再统一行动。' },
+        { t: '两阶段提交：先预备表决，全票通过才统一提交', why: '对：2PC 把单机「要么全做」扩展到多机，第一阶段预备、第二阶段统一提交或回滚。' },
+        { t: '共享锁', why: '锁解决并发干扰，不解决跨节点统一提交。' }
+      ],
+      ans: 1, tag: '回忆:18', src: '仿真题'
+    }
+  ], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '分布式数据库的透明性级别中，最高的一级是？',
+      opts: [
+        { t: '位置透明', why: '位置透明之下还有分片透明更高。' },
+        { t: '分片透明', why: '对：分片透明时用户既不必知道分片也不必知道位置，直接对全局逻辑操作，是最高级别。' },
+        { t: '局部数据模型透明', why: '这是较低级别，只屏蔽分馆内部的存储模型差异。' },
+        { t: '并发透明', why: '不属于该透明性序列。' }
+      ],
+      ans: 1, tag: '透明性', src: '仿真题' },
+    { q: '关于 CAP，下列说法正确的是？',
+      opts: [
+        { t: '三者可以同时完全满足', why: '网络分区无法消除时，C 与 A 必有取舍。' },
+        { t: 'P 可选，先进系统都放弃 P', why: '反了：分布式环境下分区（P）无法回避，必须保留。' },
+        { t: 'P 必选，分区发生时选 CP（拒绝服务保一致）或 AP（返回旧值保可用）', why: '对：教材口径的标准表述；ZooKeeper 类偏 CP，多数 NoSQL 偏 AP。' }
+      ],
+      ans: 2, tag: 'CAP', src: '仿真题' },
+    { q: '【交错复习:17】为减少跨片连接，订单表冗余了「用户名」。按 17 页的范式语言，这笔交易的准确描述是？',
+      opts: [
+        { t: '反而更符合 BCNF 了', why: '冗余的非主属性受「用户」决定，是往低范式走。' },
+        { t: '主动破坏「事实一处存储」（2NF/3NF 精神），用冗余换连接开销，必须补一致性同步策略', why: '对：反规范化是明知故犯的「降范式」，案例答题要点是写明同步更新与校对手段。' },
+        { t: '只要加索引就不用冗余', why: '索引加速过滤，替代不了「少一次跨片连接」。' }
+      ],
+      ans: 1, tag: '交错复习:17', src: '仿真题' },
+    { q: '【交错复习:18】主从采用异步复制，主库提交后尚未同步到从库时突然宕机，最近一批写入永久丢失。用 18 页 ACID 的语言，这主要损害了？',
+      opts: [
+        { t: '原子性', why: '每笔写事务在主库上是完整提交的，不是「做一半」。' },
+        { t: '持久性（提交过的数据没能永久留存）', why: '对：已提交事务的修改应永久生效，异步副本还没抄走就丢，损害持久性，并连带造成读旧值的一致性问题。' },
+        { t: '隔离性', why: '隔离性管并发干扰，与副本丢失无关。' }
+      ],
+      ans: 1, tag: '交错复习:18', src: '仿真题' },
+    { q: '大促要在 Redis 里做「实时销量 Top 10 商品榜」，成员频繁加分、随时取前 10。最合适的结构是？',
+      opts: [
+        { t: 'List：每次加分后重排', why: 'List 不支持按分数排序，整体重排代价高。' },
+        { t: 'ZSet（有序集合）：score 累加，倒序取前 10', why: '对：ZSet 天然按分数有序，加分 O(logN)，取榜单一步到位——排行榜是 ZSet 的招牌场景。' },
+        { t: 'Set：无序去重集合', why: 'Set 无序，取不了 Top 10。' }
+      ],
+      ans: 1, tag: 'Redis选型', src: '仿真题' }
+  ], { kpId: '19', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '商城大促：商品详情页 QPS 涨 40 倍，数据库 CPU 打满。架构方案：引入 Redis 作为缓存层。待决事项：数据结构选型、持久化方案、高可用模式、缓存防护。',
+    q: '(1) 为「商品详情缓存 / 库存计数 / 秒杀请求去重 / 实时销量榜」分别选择 Redis 数据结构并说明理由；(2) 持久化选 RDB 还是 AOF？给出对比与生产建议；(3) 主从、哨兵、集群三种模式如何选，本场景推荐哪种；(4) 写出缓存穿透、击穿、雪崩的识别口诀与对策。',
+    ref: '(1) 商品详情→String 或 Hash（Hash 便于按字段读写对象）；库存计数→String 的原子自增命令；秒杀请求去重→Set（天然去重、可计数）；实时销量榜→ZSet（分数累加排序，取 Top10 一步完成）。(2) RDB：定期二进制快照，文件小恢复快，但两次快照间宕机会丢最近几分钟数据；AOF：追加写命令日志、每秒刷盘，最多丢 1 秒，但文件大恢复慢。生产建议混合持久化：RDB 做底加速恢复 + 增量 AOF 保住最近写入；缓存数据可容忍少量丢失，强账务数据不建议只放 Redis。(3) 主从：读写分离+冗余，但主挂需人工切换；哨兵：在主从之上加自动监控与故障转移，不分片；Cluster：数据按 16384 个 slot 分片+每片可带从，分片与高可用一体。本场景容量与 QPS 双高，推荐 Cluster；若暂不分片，先上哨兵保可用。(4) 口诀「穿透库里无，击穿单个热，雪崩一大片」：穿透=查库里也不存在的数据→布隆过滤器拦截+空值短缓存；击穿=单个热点 key 过期→互斥锁只放一个请求回源重建、热点逻辑过期；雪崩=大批 key 同时失效或缓存宕机→过期时间加随机打散、多级缓存、限流熔断降级。',
+    points: ['四种场景的数据结构选型正确且各自给了理由（ZSet 榜单是必答点）', 'RDB/AOF 对比准确（丢数据窗口 vs 文件与恢复成本）并给出混合建议', '主从/哨兵/集群定位区分清楚（冗余/自动转移/分片+高可用）并给出场景化推荐', '三灾口诀完整、三个对策一一对应'],
+    frame: '答题框架：按「数据形状+访问模式」选结构 → 持久化按「可容忍丢失窗口」定 → 高可用按「容量与故障自动恢复诉求」定 → 最后补缓存三灾的「识别+对策」清单。',
+    kpId: '19'
+  });
+  CX.renderCase('#case2', {
+    stem: '订单库单表 20 亿行，决定按「用户ID哈希」水平分片到 8 台 MySQL；配套把「用户名、收货地址」冗余进订单表，避免订单列表页跨片连接。应用通过中间件访问，SQL 里不出现分片条件以外的路由信息。',
+    q: '(1) 分片键选择「用户ID」的理由与潜在问题；(2) 「SQL 不感知分片」依靠什么机制实现，属于哪一级透明；(3) 评价冗余两列的利弊，并给出保证一致性的具体手段；(4) 说明本方案与 17 页规范化理论的取舍关系。',
+    ref: '(1) 理由：订单查询绝大多数带用户上下文（「我的订单」），按用户哈希可使同一用户的订单落在同一片，查询单片命中、无跨片连接。潜在问题：超级买家/商家等热点账号数据倾斜，需对热点单独打散；按时间/商家的全局统计要扫描全部 8 片。(2) 依靠中间件的路由与分片映射（哈希取模/一致性哈希+路由表）：中间件解析 SQL 中的分片键并改写路由。应用「只见逻辑表、不见分片」即分片透明（若进一步屏蔽物理节点则含位置透明）。(3) 利：订单列表页零连接、单片自洽、响应快。弊：用户改名/改地址后历史订单的冗余列变旧值。手段：写路径双写或「用户变更」消息异步刷新冗余列（注明容忍窗口）、定时对账校对、关键展示以用户表实时值为准。(4) 17 页规范化要求事实一处存储；本方案有意违反（反规范化），本质是拿一致性换速度的明码交易——分布式跨片连接昂贵，交易划算，但价签（同步策略与不一致窗口）必须写进方案，否则是隐患而非设计。',
+    points: ['分片键理由（与查询模式对齐）与倾斜/全局统计问题说全', '透明性由中间件路由实现，级别答「分片透明」', '冗余的利与弊成对出现，一致性手段具体（双写/异步刷新/对账）', '能站在规范化理论视角说明「明知故犯+补偿」的交易本质'],
+    frame: '答题框架：分片键（对齐查询模式→再挑毛病）→ 透明性（中间件+级别命名）→ 冗余（利弊对+同步策略）→ 理论定位（反规范化的交易表述）。',
+    kpId: '19'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '同城双活架构下：转账系统在网络分区时宁可暂停对外服务也要保证账不错；而直播平台的「点赞数」在分区时照常可点、事后补齐。两个系统分别选择了？',
+    opts: [
+      { t: '前者 CP，后者 AP——同一 CAP 理论在不同业务上的取舍', why: '对：换的是业务场景，交易结构相同：账务宁停不错（CP），点赞宁可旧值也要可用（AP、最终一致）。' },
+      { t: '前者 AP，后者 CP', why: '反了：暂停服务保一致是 CP，容旧值保可用是 AP。' },
+      { t: '两者都是 CA，因为都是同城', why: '同城也存在分区可能，P 不可假设消失。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['17', '18'], 'prev');
+  CX.depChain('#bridge-next', ['38', '59'], 'next');
+
+  /* ---- 动画：分片路由 + 副本救场 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var sShard = CX.utils.$('#sk-shard');
+  var sRep = CX.utils.$('#sk-replica');
+  var sFail = CX.utils.$('#sk-fail');
+  function syncLabels() {
+    CX.utils.$('#sk-shard-out').textContent = sShard.value;
+    CX.utils.$('#sk-replica-out').textContent = sRep.value === '1' ? '开（一主一从）' : '关';
+    var f = parseInt(sFail.value, 10);
+    CX.utils.$('#sk-fail-out').textContent = f === 0 ? '无' : ('分片' + f + '主库');
+  }
+  [sShard, sRep, sFail].forEach(function (s) {
+    s.addEventListener('input', function () { syncLabels(); draw(anim && anim.t || 0); });
+  });
+  syncLabels();
+  function draw(t) {
+    var shards = parseInt(sShard.value, 10);
+    var rep = sRep.value === '1';
+    var fail = parseInt(sFail.value, 10); /* 0无 1..3 指分片主库 */
+    var s = '<svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="330" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="350" y="26" text-anchor="middle" font-size="14" fill="var(--accent-2)">key 路由：hash(key) 取模 ' + shards + ' → 对应分片' + (rep ? '（一主一从=分馆抄本）' : '（无副本）') + '</text>';
+    var keys = ['k1', 'k2', 'k3'];
+    var w = 620 / shards;
+    keys.forEach(function (k, ki) {
+      var target = (ki % shards) + 1;
+      var segStart = ki / 3, segEnd = (ki + 1) / 3;
+      if (t < segStart) return;
+      var prog = Math.min(1, (t - segStart) / (1 / 3));
+      var cx = 60 + w * (target - 1) + w / 2;
+      var bx = 350, by = 64;
+      var x = bx + (cx - bx) * prog, y = by + (140 - by) * prog;
+      var downMaster = fail === target;
+      var saved = downMaster && rep;
+      var ok = !downMaster || saved;
+      s += '<circle cx="' + x + '" cy="' + y + '" r="9" fill="' + (ok ? 'var(--accent)' : 'var(--bad)') + '"/>';
+      if (prog >= 1) {
+        s += '<text x="' + cx + '" y="' + (y - 14) + '" text-anchor="middle" font-size="11.5" fill="' + (ok ? 'var(--ok)' : 'var(--bad)') + '">' + k + '→' + (ok ? (saved ? '从库接管' : '主库命中') : '分片不可用') + '</text>';
+      }
+    });
+    for (var i = 1; i <= shards; i++) {
+      var x0 = 60 + w * (i - 1) + 10, ww = w - 20;
+      var down = fail === i;
+      s += '<rect x="' + x0 + '" y="150" width="' + ww + '" height="54" rx="8" fill="var(--card)" stroke="' + (down ? 'var(--bad)' : 'var(--line)') + '" stroke-width="' + (down ? 2.5 : 1) + '"/>';
+      s += '<text x="' + (x0 + ww / 2) + '" y="172" text-anchor="middle" font-size="12" fill="' + (down ? 'var(--bad)' : 'var(--text)') + '">分片' + i + ' 主库' + (down ? '（宕机）' : '') + '</text>';
+      if (rep) {
+        var promoted = down;
+        s += '<rect x="' + (x0 + 10) + '" y="212" width="' + (ww - 20) + '" height="44" rx="8" fill="var(--card-2)" stroke="' + (promoted ? 'var(--ok)' : 'var(--line)') + '"/>';
+        s += '<text x="' + (x0 + ww / 2) + '" y="231" text-anchor="middle" font-size="11.5" fill="' + (promoted ? 'var(--ok)' : 'var(--text-dim)') + '">从库（抄本）</text>';
+        s += '<text x="' + (x0 + ww / 2) + '" y="248" text-anchor="middle" font-size="10.5" fill="' + (promoted ? 'var(--ok)' : 'var(--text-dim)') + '">' + (promoted ? '哨兵扶正为新主' : '异步同步中') + '</text>';
+        s += '<line x1="' + (x0 + ww / 2) + '" y1="204" x2="' + (x0 + ww / 2) + '" y2="212" stroke="var(--text-dim)" stroke-dasharray="3 3"/>';
+      }
+    }
+    var verdict;
+    if (!fail) verdict = rep ? '正常态：写主库、异步抄从库（分馆抄本），读可分流。' : '正常态：无副本单点支撑，容量与故障风险都扛在主库。';
+    else if (rep) verdict = '主库宕机：哨兵把从库扶正，服务继续；但异步抄本可能差最后几笔——持久性/一致性的小尾巴。';
+    else verdict = '主库宕机且无副本：该分片数据不可访问，服务中断——这就是「要不要副本」的可用性账。';
+    s += '<text x="350" y="292" text-anchor="middle" font-size="12.5" fill="' + (fail && !rep ? 'var(--bad)' : 'var(--ok)') + '">' + verdict + '</text>';
+    s += '<text x="350" y="314" text-anchor="middle" font-size="11.5" fill="var(--text-dim)">Cluster = 分片 + 每片带从 + 自动故障转移，一把全要但运维更重</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.33) cap = '请求1 路由：hash(k1) 落到分片' + (1 % shards + 1) + '。';
+    else if (t < 0.66) cap = '请求2 路由：不同 key 落到不同分片——数据被切开了。';
+    else if (t < 1) cap = '请求3 路由：' + (fail ? '注意宕机分片上请求的结局。' : '全部请求正常命中。');
+    else cap = '总结：分片扩容、副本救场；试试「主库宕机+副本关」的最坏组合。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 15, duration: 12, onTick: draw });
+
+  /* ---- 实验一：连线匹配 ---- */
+  var pairs = [
+    ['缓存穿透', '穿透库里无：布隆过滤器拦截 + 空值短缓存'],
+    ['缓存击穿', '击穿单个热：互斥锁只放一个请求回源重建'],
+    ['缓存雪崩', '雪崩一大片：过期时间加随机打散 + 限流熔断'],
+    ['RDB 持久化', '定期二进制快照：恢复快，宕机丢最近几分钟'],
+    ['AOF 持久化', '追加命令日志每秒刷盘：最多丢 1 秒，恢复慢'],
+    ['主从复制', '分馆抄本：读写分离 + 数据冗余，主挂需切换']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab1-fb').textContent = '已选「' + p[0] + '」，请在右列点对应条目。';
+        CX.utils.$('#lab1-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab1-fb').textContent = '先点左列一个条目。'; CX.utils.$('#lab1-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab1-fb').textContent = '配对成功 ' + donePairs + '/6';
+          CX.utils.$('#lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('#lab1-fb').textContent = '「' + selL.dataset.k + '」不对应这条——先背口诀：穿透库里无，击穿单个热，雪崩一大片；再分清 RDB 是快照、AOF 是日志、主从是抄本。';
+          CX.utils.$('#lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab1-fb').textContent = ''; });
+
+  /* ---- 实验二：NoSQL 选型拖拽 ---- */
+  var nsCards = [
+    { t: '秒杀库存计数与会话缓存', c: 'kv', why: '高频单键读写 → 键值（Redis）。' },
+    { t: '商品详情：字段多变、整篇读写', c: 'doc', why: '半结构化文档整存整取 → 文档型（MongoDB）。' },
+    { t: '全国电表每 15 秒一条海量时序读数', c: 'col', why: '写超多、按列压缩按范围扫 → 列族（HBase/Cassandra）。' },
+    { t: '社交好友链与三层人脉推荐', c: 'graph', why: '关系多跳遍历是核心 → 图库（Neo4j）。' },
+    { t: '内容管理：一篇图文含标题、正文、多标签', c: 'doc', why: '文档天然装嵌套结构 → 文档型。' },
+    { t: '排行榜实时按分数取 Top N', c: 'kv', why: 'Redis 的 ZSet 就在键值家族里。' }
+  ];
+  var pool2 = CX.utils.$('#ns-pool');
+  CX.shuffle(nsCards).forEach(function (c) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = c.t; d.dataset.c = c.c; d.dataset.t = c.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+    pool2.appendChild(d);
+  });
+  ['slot-kv', 'slot-doc', 'slot-col', 'slot-graph'].forEach(function (sid) {
+    var slot = CX.utils.$('#' + sid);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = document.querySelector('.drag-item[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('#ns-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab2-fb');
+    var placed = document.querySelectorAll('#slot-kv .drag-item, #slot-doc .drag-item, #slot-col .drag-item, #slot-graph .drag-item').length;
+    if (placed < nsCards.length) { fb.textContent = '还有 ' + (nsCards.length - placed) + ' 张场景卡没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    var wrong = null;
+    var slotMap = { 'slot-kv': 'kv', 'slot-doc': 'doc', 'slot-col': 'col', 'slot-graph': 'graph' };
+    Object.keys(slotMap).forEach(function (sid) {
+      if (wrong) return;
+      document.querySelectorAll('#' + sid + ' .drag-item').forEach(function (d) {
+        if (d.dataset.c !== slotMap[sid] && !wrong) {
+          var src = null;
+          nsCards.forEach(function (c) { if (c.t === d.dataset.t) src = c; });
+          wrong = { t: d.dataset.t, want: src.c, why: src.why };
+        }
+      });
+    });
+    if (wrong) {
+      var nameMap = { kv: '键值', doc: '文档', col: '列族', graph: '图' };
+      fb.textContent = '「' + wrong.t + '」放错了槽。正确思路：' + wrong.why + '（应属' + nameMap[wrong.want] + '家族）。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      fb.textContent = '选型全对：单键高频找 KV，整篇文档找文档型，海量写+列扫描找列族，关系遍历找图。';
+      fb.className = 'lab-feedback ok';
+    }
+  });
+
+  /* ---- 实验三：持久化参数实验 ---- */
+  var SNAP = 300; /* RDB 快照间隔（秒） */
+  CX.utils.$('#pm-t').addEventListener('input', function () {
+    CX.utils.$('#pm-t-out').textContent = this.value + 's';
+  });
+  CX.utils.$('#pm-crash').addEventListener('click', function () {
+    var mode = CX.utils.$('#pm-mode').value;
+    var crashAt = parseInt(CX.utils.$('#pm-t').value, 10);
+    var sinceSnap = crashAt % SNAP; /* 距上次快照的秒数 */
+    var res = CX.utils.$('#pm-result');
+    var fb = CX.utils.$('#lab3-fb');
+    if (mode === 'rdb') {
+      res.textContent = 'RDB：恢复到第 ' + (crashAt - sinceSnap) + 's 的快照，之后 ' + sinceSnap + ' 秒的全部写入丢失。';
+      fb.textContent = sinceSnap > 60 ? '丢失窗口超过 1 分钟——快照类持久化的固有代价：省空间、恢复快，但窗口内不设防。' : '丢失窗口尚可，但风险随宕机时刻波动——这是「运气型」保护。';
+      fb.className = sinceSnap > 60 ? 'lab-feedback bad' : 'lab-feedback ok';
+    } else {
+      res.textContent = '混合（RDB+AOF 每秒刷盘）：先按快照恢复到第 ' + (crashAt - sinceSnap) + 's，再重放 AOF 补到宕机前 1 秒内，最多丢 1 秒写入。';
+      fb.textContent = '恢复快（RDB 做底）且丢得少（AOF 兜尾）——这就是生产推荐混合持久化的算术理由。';
+      fb.className = 'lab-feedback ok';
+    }
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

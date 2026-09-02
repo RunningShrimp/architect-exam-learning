@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>35 · 架构风格：独立构件与虚拟机 · 架构师学堂</title>
+<meta name="description" content="事件驱动让组件听广播不点名，解释器在机器里再造一台机器，规则系统用 if-then 解不确定问题。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="34-styles-dataflow.html">前置 34</a></span>
+    <h1>35 · 架构风格：独立构件与虚拟机</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">独立构件听广播不点名，虚拟机造一台机器现场翻译。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某电商下单后要做 6 件事：扣库存、加积分、发短信、通知风控、推送仓储、更新报表。订单服务里写满了对 6 个服务的调用；现在要加第 7 件事「发给会员部门」，又要在订单服务里加一行代码、发一版；而且短信服务一旦卡顿，整个下单跟着卡。有没有办法让「新增订阅方」不用改订单服务一行代码？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>把「订单服务逐个点名调用」改成<b>事件驱动（隐式调用）</b>：订单服务只管发布一个「OrderPlaced」事件，谁需要谁订阅——像公众号发文，<b>作者不认识粉丝，粉丝自动收到</b>。新增会员部门=自己订阅即可，发布方零改动；订阅方卡顿也不阻塞发布方（配消息中间件，详见 40 页）。代价是：订单服务<b>放弃了控制权</b>——它不知道谁在听、先响应谁，这正是本页要吃透的取舍。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>34 · 架构风格：数据流与调用返回</b>（六大类总表与判别信号）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：两大类四种风格</h3>
+      <p>承接 34 页六大类总表，本页讲<b>独立构件</b>与<b>虚拟机</b>两大类。共同点：组件之间<b>没有直接的控制权传递</b>——独立构件靠「消息往来」，虚拟机靠「宿主解释执行」。</p>
+      <h3>独立构件风格（一）：进程通信</h3>
+      <p><b>进程通信（Communicating Processes）</b>：各构件是<b>独立进程</b>，通过消息传递（同步/异步）<b>点对点</b>交换数据。与主程序-子程序最大的区别：<b>没有中央控制者</b>，没有谁「点将」，各进程平级协作、各自调度。典型：分布式系统中的服务间 RPC/消息。</p>
+      <h3>独立构件风格（二）：事件系统 / 隐式调用（年年考）</h3>
+      <p><b>隐式调用（Implicit Invocation，事件驱动）</b>：组件不直接调用对方，而是<b>发布事件</b>；对事件感兴趣的组件<b>事先注册/订阅</b>，事件发生时被「广播」触发。城市隐喻：城市<b>广播电台/公众号</b>——发布者不认识订阅者，双方互不知道对方存在。</p>
+      <ul>
+        <li><b>优点</b>：发布者与订阅者<b>解耦</b>（互不知道对方），增删订阅者不用改发布方；天然支持一对多通知；组件可复用。</li>
+        <li><b>缺点</b>：组件<b>放弃了对计算的控制权</b>——不知道谁会响应、按什么顺序响应；事件携带的数据受约束；系统正确性难以推理、测试难。</li>
+        <li><b>典型</b>：数据库触发器、GUI 事件、编辑器语法高亮联动、消息中间件（40 页落地）。</li>
+      </ul>
+      <h3>虚拟机风格（一）：解释器（案例考过：给场景判断）</h3>
+      <p><b>解释器（Interpreter）</b>：用软件<b>模拟一台不存在的机器</b>——「机器中的机器」。用户用自定义语言/伪代码写程序，解释引擎<b>逐句翻译并立即执行</b>（现场翻译官）。组成：<b>被解释的伪代码/自定义语言 + 解释引擎 + 执行核心（含内存/状态）</b>。适用场景：<b>规则或流程频繁变化、需要让非程序员「编程」</b>——游戏脚本引擎、工作流引擎、规则引擎、SQL 解释器。若考案例：识别出解释器风格后，配套答案是「解释引擎 + 自定义 DSL + 编译/解析器结构」。</p>
+      <h3>虚拟机风格（二）：基于规则的系统</h3>
+      <p><b>基于规则的系统（Rule-based）</b>：解释器的特例与扩展，专为「知识推理」设计。组成三件套：<b>规则集（if-then）+ 工作内存（当前事实）+ 规则解释器（推理引擎：模式匹配→激活规则→执行动作）</b>。专家系统是典型：事实进了工作内存，推理引擎不断用规则匹配、推导出新事实，直到得出结论。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>event-driven architecture（事件驱动架构）· implicit invocation（隐式调用）· interpreter（解释器）· rule-based system（基于规则的系统）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 隐式调用 vs 显式调用：显式=A 点名调 B（调用返回风格），隐式=A 喊一嗓子谁订阅谁响应；② 解释器 vs 编译器：解释器<b>边解释边执行</b>不产出目标代码，编译器先整体翻译；③ 基于规则的系统<b>属于虚拟机风格</b>（不是独立构件），规则引擎本质是「解释 if-then 语言的机器」；④ 事件驱动是<b>架构风格</b>（图纸），观察者模式是<b>设计模式</b>（局部协作，49 页），层次不同、思想同源；⑤ 进程通信是<b>点对点</b>，事件系统是<b>广播订阅</b>，别混。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>事件驱动=公众号</b>：你关注了「城市美食号」，它发文你自动收到；号主根本不知道你是谁，取消关注它也照发不误——这就是发布-订阅的互不认识。<b>进程通信=两家店铺打电话对账</b>：点对点、有明确收件人。<b>解释器=现场翻译官</b>：外宾（自定义脚本）说一句，翻译官（引擎）翻一句、市政厅（机器）办一句，翻译官永远在场、随说随办。<b>基于规则=自动办事指南</b>：if 材料齐全 then 盖章，else 退回补件——窗口专员（推理引擎）拿指南（规则集）对照你的材料（工作内存）逐条核。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>公众号发文、粉丝自动收到</td><td>发布-订阅、隐式调用</td><td>成立</td></tr>
+      <tr><td>号主知道每个粉丝看完没有</td><td>发布者掌握响应顺序</td><td><b>失效</b>：发布者恰恰不知道谁订阅、按什么顺序响应——这是该风格的固有代价</td></tr>
+      <tr><td>翻译官随说随翻</td><td>解释器边解释边执行</td><td>成立</td></tr>
+      <tr><td>办事指南自动盖章</td><td>规则集+推理引擎</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">独立构件不串门，点对点来传消息；<br>隐式调用听广播，发布订阅两不识；<br>解耦灵活随意换，控制权交出去值不值；<br>解释器里造机器，伪代码进来现场译；<br>if-then 规则集，专家系统靠推理。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示隐式调用：订单服务发布一个事件到事件中心，事件中心把事件推给<b>所有订阅者</b>——发布者始终不知道谁在听。拖动「订阅者数」滑块增减订阅方，注意<b>发布方一侧永远不变</b>。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>订阅者数 <input type="range" id="sub-slider" min="1" max="5" step="1" value="3"> <span id="sub-out">3</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：场景 → 机制/风格</h4>
+      <p class="foreshadow">先点左列场景，再点右列答案；错了会指出你混淆的信号：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：机房环境规则引擎</h4>
+      <p class="foreshadow">规则集：R1 高温高湿预警（温度≥30 且 湿度≥60）；R2 高温预警（温度≥30）；R3 低温预警（温度&lt;10）；R4 空气污染预警（PM2.5&gt;100）。拖动事实值，点「运行推理」：</p>
+      <label>温度 <input type="range" id="r-temp" min="-10" max="40" value="25"> <span id="r-temp-out">25℃</span></label>
+      <label style="margin-left:12px">湿度 <input type="range" id="r-hum" min="0" max="100" value="40"> <span id="r-hum-out">40%</span></label>
+      <label style="margin-left:12px">PM2.5 <input type="range" id="r-pm" min="0" max="250" value="60"> <span id="r-pm-out">60</span></label>
+      <div><button class="btn primary" id="r-run">▶ 运行推理</button></div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（对比实验）：显式调用 vs 隐式调用的「改动账单」</h4>
+      <p class="foreshadow">订单服务 A 初始只通知库存 B。勾选新增通知对象，对比两种机制下 A 需要改多少处代码：</p>
+      <div>
+        <label><input type="radio" name="inv-mode" value="exp" checked> 显式调用（A 点名调用）</label>
+        <label style="margin-left:16px"><input type="radio" name="inv-mode" value="imp"> 隐式调用（A 发布事件）</label>
+      </div>
+      <div style="margin:8px 0">
+        <label><input type="checkbox" data-svc="B" checked> 库存 B（初始）</label>
+        <label style="margin-left:12px"><input type="checkbox" data-svc="C"> 积分 C</label>
+        <label style="margin-left:12px"><input type="checkbox" data-svc="D"> 短信 D</label>
+        <label style="margin-left:12px"><input type="checkbox" data-svc="E"> 会员 E</label>
+      </div>
+      <div class="kf-caption" id="inv-code"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考风格识别：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>34 · 数据流与调用返回</b>给了六大类总表——本页把「独立构件」「虚拟机」两类从表格里展开成四种风格，判别信号一脉相承。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>36 · MVC、微内核与SOA</b>：微内核的插件通信、MVC 的 View 观察 Model，用的都是事件思想；</li>
+      <li><b>40 · 中间件与事件驱动架构</b>：风格是图纸，消息中间件是把图纸建成的施工工具（Kafka/事务消息）；</li>
+      <li><b>49 · 行为型模式</b>：观察者模式是隐式调用在「类与对象」粒度的再现——风格与模式同源不同层。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>隐式调用（事件）</th><th>显式调用（方法调用）</th></tr>
+      <tr><td>耦合</td><td>发布者不认识订阅者，解耦</td><td>调用者必须知道被调者及其接口</td></tr>
+      <tr><td>控制权</td><td>交给事件中心与订阅者：不知谁响应、不知顺序</td><td>牢牢在调用者手里：调谁、何时调、按什么顺序</td></tr>
+      <tr><td>易错点</td><td>以为「事件驱动性能一定更高」——广播也带来额外开销与不可预测性</td><td>以为「解耦只有好处」——隐式调用的可观测性与事务性更难做</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">显式调用是点名办事（责任清楚），隐式调用是拉警报（谁有职责谁上，但指挥官不知道来了谁）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——班级群里老师说一句话，订阅了群的同学都能收到……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 独立构件两类：进程通信（点对点、无中央控制）与事件系统/隐式调用（发布订阅、双方互不认识）。</li><li>② 隐式调用的代价是放弃控制权：不知谁响应、不知顺序，测试与推理变难。</li><li>③ 虚拟机两类：解释器（引擎现场翻译自定义语言）与基于规则的系统（规则集+工作内存+推理引擎），「规则常变/专家推理」就选它们。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '35', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '架构风格：独立构件与虚拟机',
+  prev: '34-styles-dataflow.html', prevTitle: '34 · 架构风格：数据流与调用返回',
+  next: '36-styles-specific.html', nextTitle: '36 · 架构风格：MVC、微内核与SOA',
+  keywords: ['事件驱动','隐式调用','发布订阅','解释器','基于规则的系统','进程通信','规则引擎','解耦']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 34） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·34】六大类风格总表中，「解释器」属于哪一大类？',
+    opts: [
+      { t: '独立构件', why: '独立构件是进程通信与事件系统，解释器不在其中。' },
+      { t: '虚拟机', why: '对。虚拟机风格=解释器+基于规则的系统，本页就讲这两类。' },
+      { t: '以数据为中心', why: '那一类是数据库/黑板/超文本。' }
+    ],
+    ans: 1, tag: '回忆:34', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '采用事件驱动（隐式调用）风格后，系统最可能出现的「新麻烦」是？',
+      opts: [
+        { t: '发布事件的组件必须修改代码才能新增订阅者', why: '反了：新增订阅者无需改发布方，这正是它的优点。' },
+        { t: '难以确定事件触发后哪些组件被激活、以什么顺序执行', why: '对。这是「放弃控制权」的直接后果：正确性难以推理、调试排错难。' },
+        { t: '组件之间耦合度显著上升', why: '耦合是显著下降的，否则没人用它。' },
+        { t: '无法传递任何数据', why: '事件可以携带数据，只是形式受约束。' }
+      ],
+      ans: 1, tag: '隐式调用', src: '仿真题' },
+    { q: '某工作流平台允许业务人员用自定义的流程描述语言定义审批流，运行时由平台引擎逐句解析并执行。这最符合哪种架构风格？',
+      opts: [
+        { t: '管道-过滤器', why: '没有数据流站的形态；关键信号是「自定义语言+逐句执行」。' },
+        { t: '解释器', why: '对。自定义语言+解释引擎+执行核心=「机器中的机器」，虚拟机风格。' },
+        { t: '主程序-子程序', why: '主程序-子程序没有「自定义语言被解释」这一层。' },
+        { t: '事件系统', why: '场景里没有发布订阅关系。' }
+      ],
+      ans: 1, tag: '解释器', src: '仿真题' },
+    { q: '基于规则的系统（专家系统）的三个核心组成部分是？',
+      opts: [
+        { t: '过滤器、管道、缓冲区', why: '那是管道-过滤器的构件。' },
+        { t: '知识源、黑板、控制组件', why: '这是黑板系统的组成，与规则系统不同（虽同用于专家推理）。' },
+        { t: '规则集、工作内存、规则解释器（推理引擎）', why: '对。if-then 规则集+当前事实+模式匹配执行的引擎，三件套缺一不可。' },
+        { t: '视图、模型、控制器', why: '那是 MVC（36 页）。' }
+      ],
+      ans: 2, tag: '基于规则', src: '仿真题' },
+    { q: '【交错复习·34】「报表数据像水一样依次流过清洗站、统计站，两站互不认识、数据到了就加工」——按 34 页的判别信号，这属于？',
+      opts: [
+        { t: '数据流风格的管道-过滤器', why: '对。数据驱动、互不认识、增量加工三大信号齐了。' },
+        { t: '调用返回风格的分层', why: '分层是上层主动调用下层，箭头是调用不是数据流。' },
+        { t: '独立构件风格的事件系统', why: '事件系统是发布订阅广播，不是线性流水。' }
+      ],
+      ans: 0, tag: '交错复习:34', src: '仿真题' },
+    { q: '进程通信风格与主程序-子程序风格最关键的区别是？',
+      opts: [
+        { t: '是否使用网络', why: '进程通信可以在本机进程间进行，网络不是判据。' },
+        { t: '是否存在中央控制者：进程通信各进程平级、无中央控制', why: '对。「没有老板点将」是独立构件类区别于调用返回类的根本点。' },
+        { t: '是否处理数据', why: '两者都处理数据。' },
+        { t: '是否有构件和连接件', why: '任何架构风格都有构件与连接件（33 页三要素）。' }
+      ],
+      ans: 1, tag: '进程通信', src: '仿真题' }
+  ], { kpId: '35', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某保险公司理赔系统：赔款计算规则因地区、险种而异，每月随政策调整。当前规则硬编码在 Java 类里，每次调整都要开发改代码、测试、发版，平均滞后政策 3 周，业务部门强烈不满。',
+    q: '(1) 分析现状的架构问题；(2) 选择合适的架构风格并论证；(3) 给出新架构的组成构件与连接件；(4) 说明引入后的新风险与对策。',
+    ref: '(1) 「变化最频繁的部分（规则）」被焊死在「最稳定的部分（代码）」里，规则变更=代码变更，发布周期成了业务响应瓶颈。(2) 选基于规则的系统/解释器风格（虚拟机类）：规则外置为 if-then 规则集，由规则引擎（推理引擎）在运行时解释执行；规则改动只改「被解释的数据」不改程序——恰对应解释器「自定义语言+现场翻译」的本质，也符合案例中「规则频繁变化、非程序员参与维护」的特征。(3) 构件：规则集（按险种/地区分库）、工作内存（案件事实：出险时间、金额、条款版本）、规则解释器/推理引擎（模式匹配→冲突消解→执行动作）、规则管理端（业务人员维护规则并版本化）。连接件：事实注入接口、规则加载接口、结论回写接口。(4) 风险一：规则冲突与优先级混乱→对策：冲突消解策略（优先级/新近性）+规则上线前的冲突检测与回归用例；风险二：推理性能随规则数膨胀→对策：规则索引/预编译 RETE 类网络；风险三：规则错误导致错赔→对策：规则版本化+灰度生效+可回溯审计日志。',
+    points: ['点出「频繁变化的部分被固化在代码里」这一根因', '风格选型为基于规则的系统/解释器，且论证与「规则频繁变化、解释执行」挂钩', '构件三件套齐全（规则集/工作内存/推理引擎），能说清连接件', '风险至少两条且各配对策（冲突消解、性能、版本灰度）'],
+    frame: '答题框架：现状归因（变化性错配）→ 选型+定义回扣 → 构件连接件落图 → 风险辩证（每条配对策），体现「收益与代价同述」。',
+    kpId: '35'
+  });
+  CX.renderCase('#case2', {
+    stem: '电商订单服务在下单后顺序调用库存、积分、短信、风控、仓储、报表 6 个服务；新增通知对象必须改订单代码并发版，任一下游服务卡顿都会拖慢下单主流程，大促前最明显。',
+    q: '(1) 指出当前设计的两个架构问题；(2) 用事件驱动（隐式调用）改造，给出新构件与事件流；(3) 改造后订单服务「放弃了什么」，工程上如何补救？',
+    ref: '(1) 问题一：耦合——通知清单写死在订单服务里，增删下游都要动主流程（违反开闭精神）；问题二：同步链路把最慢的下游（短信）变成下单的瓶颈，可用性被最弱一环绑架。(2) 改造：订单服务只发布「OrderPlaced」事件到事件中心（消息中间件承载，见 40 页）；库存、积分、短信、风控、仓储、报表各自订阅并异步消费；新增「会员部门」=自行订阅，订单服务零改动。事件流：下单落库→发布事件→事件中心投递→各订阅方独立消费、各自重试。(3) 放弃了控制权：不知道谁订阅、消费顺序、消费成功与否。补救：①只把「最终一致可容忍」的通知类动作异步化，扣库存等强相关动作保留同步调用；②消费方幂等（防重复投递）+失败重试+死信队列；③链路追踪与对账任务兜底，监控订阅方积压。',
+    points: ['耦合与同步瓶颈两个问题都点到，且与案例现象对应', '改造方案体现「发布者不认识订阅者、新增订阅零改动」', '「放弃控制权」必须点出，并给出幂等/重试/死信/对账等补救措施', '能区分「可异步的通知类」与「需同步的强相关动作」'],
+    frame: '答题框架：问题（耦合+可用性）→ 改造（事件流图式描述）→ 代价与补救（控制权、幂等、顺序、对账），最后加一句取舍结论。',
+    kpId: '35'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某低代码平台让业务人员拖拽生成表单，并「编写」形如「if 申请金额>5万 then 需总经理审批」的规则，运行时由平台逐条解释执行这些规则。该平台核心最宜采用哪种风格？',
+    opts: [
+      { t: '批处理序列', why: '流程是交互式实时判断，不是整批处理。' },
+      { t: '解释器/基于规则的系统（虚拟机风格）', why: '对。业务人员用自定义「语言」描述逻辑，引擎解释执行——机器中的机器，规则可随时改而不改平台代码。' },
+      { t: '主程序-子程序', why: '规则若写死在代码里就回到了老问题。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '35', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['34'], 'prev');
+  CX.depChain('#bridge-next', ['36', '40', '49'], 'next');
+
+  /* ---- 动画：发布-订阅 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var NSUB = 3;
+  var subNames = ['库存', '积分', '短信', '风控', '仓储'];
+  var subActs = ['锁定库存', '累计积分', '发送短信', '风险扫描', '推送仓储'];
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="320" rx="12" fill="var(--bg-soft)"/>';
+    var i;
+    var send = Math.min(1, t / 0.2);
+    var fan = Math.max(0, (t - 0.25) / 0.7);
+    /* 发布者 */
+    s += '<rect x="30" y="130" width="120" height="60" rx="10" fill="var(--card)" stroke="var(--accent)"/>';
+    s += '<text x="90" y="155" text-anchor="middle" font-size="13" fill="var(--text)">订单服务</text>';
+    s += '<text x="90" y="175" text-anchor="middle" font-size="11" fill="var(--accent-2)">发布 OrderPlaced</text>';
+    /* 事件中心 */
+    s += '<rect x="290" y="120" width="140" height="80" rx="10" fill="var(--card-2)" stroke="var(--accent-2)" stroke-width="2"/>';
+    s += '<text x="360" y="150" text-anchor="middle" font-size="13" fill="var(--text)">事件中心</text>';
+    s += '<text x="360" y="170" text-anchor="middle" font-size="11" fill="var(--text-dim)">不知道谁在听</text>';
+    if (send > 0 && send < 1) {
+      var mx = 150 + send * 140;
+      s += '<circle cx="' + mx + '" cy="160" r="9" fill="var(--accent-2)"/>';
+      s += '<text x="' + mx + '" y="164" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--bg)">事</text>';
+    }
+    /* 订阅者 */
+    for (i = 0; i < NSUB; i++) {
+      var y = 30 + i * 58;
+      var litAt = i / NSUB;
+      var lit = fan >= litAt + 0.1;
+      var dot = Math.max(0, Math.min(1, (fan - litAt) * NSUB));
+      s += '<line x1="430" y1="160" x2="560" y2="' + (y + 20) + '" stroke="' + (lit ? 'var(--ok)' : 'var(--line)') + '" stroke-width="2" stroke-dasharray="5 5" opacity="' + (lit ? '.9' : '.35') + '"/>';
+      if (dot > 0 && dot < 1) {
+        s += '<circle cx="' + (430 + dot * 130) + '" cy="' + (160 + dot * (y + 20 - 160)) + '" r="6" fill="var(--ok)"/>';
+      }
+      s += '<rect x="560" y="' + y + '" width="130" height="40" rx="8" fill="' + (lit ? 'var(--ok)' : 'var(--card)') + '" opacity="' + (lit ? '.22' : '1') + '" stroke="' + (lit ? 'var(--ok)' : 'var(--line)') + '"/>';
+      s += '<text x="625" y="' + (y + 25) + '" text-anchor="middle" font-size="12" fill="var(--text)">' + subNames[i] + (lit ? ' · ' + subActs[i] : '') + '</text>';
+    }
+    s += '<text x="90" y="215" text-anchor="middle" font-size="11" fill="var(--text-dim)">发布方始终不知道</text>';
+    s += '<text x="90" y="232" text-anchor="middle" font-size="11" fill="var(--text-dim)">有多少订阅者、是谁</text>';
+    s += '</svg>';
+    var cap;
+    if (t < 0.2) cap = '第1步：订单服务发布事件——它只管「喊一嗓子」，不点名调用任何服务。';
+    else if (t < 0.25) cap = '第2步：事件到达事件中心；订阅关系是各组件事先注册的。';
+    else if (t < 0.95) cap = '第3步：事件中心把事件广播给全部订阅者，各自独立响应（互不影响）。';
+    else cap = '订阅者增减只动订阅名单，发布方代码零改动——这就是隐式调用的解耦；代价：发布方不知道谁响应、按什么顺序。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 18, duration: 10, onTick: draw });
+  var ss = CX.utils.$('sub-slider');
+  ss.addEventListener('input', function () {
+    NSUB = Math.max(1, Math.min(5, +ss.value || 1));
+    CX.utils.$('sub-out').textContent = NSUB;
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：场景→机制匹配 ---- */
+  var pairs = [
+    ['数据库里「订单超时未支付自动取消」由触发器触发', '隐式调用（事件）'],
+    ['两个服务点对点互发消息对账', '进程通信'],
+    ['游戏脚本由引擎逐句翻译执行', '解释器'],
+    ['专家系统按 if-then 规则推理诊断', '基于规则的系统'],
+    ['订单服务直接调用库存服务的接口方法', '显式调用（调用返回）']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('lab1-fb').textContent = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab1-fb').textContent = '已选场景，请在右列点它的机制/风格。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab1-fb').textContent = '先点左列一个场景。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab1-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab1-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab1-fb').textContent = '❌ 「' + d.textContent + '」不对——信号核对：广播订阅=隐式调用；点对点消息=进程通信；自定义语言被逐句执行=解释器；if-then 推理=基于规则；点名调用=显式调用。';
+          CX.utils.$('lab1-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', buildMatch);
+
+  /* ---- 实验二：规则引擎 ---- */
+  function ruleRun() {
+    var tp = +CX.utils.$('r-temp').value, hm = +CX.utils.$('r-hum').value, pm = +CX.utils.$('r-pm').value;
+    CX.utils.$('r-temp-out').textContent = tp + '℃';
+    CX.utils.$('r-hum-out').textContent = hm + '%';
+    CX.utils.$('r-pm-out').textContent = pm;
+    var fired = [], miss = [];
+    if (tp >= 30 && hm >= 60) fired.push('R1 高温高湿预警（温度≥30 且 湿度≥60 ✅）');
+    else miss.push('R1 未触发：' + (tp < 30 ? '温度 ' + tp + '<30 不满足；' : '') + (hm < 60 ? '湿度 ' + hm + '<60 不满足' : ''));
+    if (tp >= 30) fired.push('R2 高温预警（温度≥30 ✅）');
+    if (tp < 10) fired.push('R3 低温预警（温度<10 ✅）');
+    if (pm > 100) fired.push('R4 空气污染预警（PM2.5=' + pm + '>100 ✅）');
+    var fb = CX.utils.$('lab2-fb');
+    if (fired.length === 0) {
+      fb.textContent = '推理结果：无规则触发（事实：' + tp + '℃ / ' + hm + '% / PM2.5 ' + pm + '）。工作内存中没有事实命中任何 if 条件——' + miss.join('；');
+      fb.className = 'lab-feedback';
+    } else {
+      fb.textContent = '推理结果：工作内存（温度 ' + tp + '℃ / 湿度 ' + hm + '% / PM2.5 ' + pm + '）→ 引擎按优先级激活 ' + fired.length + ' 条规则：' + fired.join('；') + (miss.length ? '。另有未触发规则：' + miss.join('；') : '');
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  CX.utils.$('r-run').addEventListener('click', ruleRun);
+  ['r-temp', 'r-hum', 'r-pm'].forEach(function (id) {
+    CX.utils.$(id).addEventListener('input', function () {
+      CX.utils.$(id + '-out').textContent = CX.utils.$(id).value + (id === 'r-temp' ? '℃' : id === 'r-hum' ? '%' : '');
+    });
+  });
+
+  /* ---- 实验三：改动账单 ---- */
+  function invCalc() {
+    var exp = CX.utils.$$('input[name=inv-mode]')[0].checked;
+    var boxes = CX.utils.$$('#lab3 input[type=checkbox]');
+    var targets = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.dataset.svc; });
+    var changes = boxes.filter(function (b) { return b.checked && b.dataset.svc !== 'B'; }).length;
+    var code = CX.utils.$('inv-code'), fb = CX.utils.$('lab3-fb');
+    if (exp) {
+      code.textContent = 'A 的调用清单：A→' + (targets.length ? targets.join('，A→') : '（无人）') + '；A 需要修改 ' + changes + ' 处。';
+      code.style.color = changes > 0 ? 'var(--bad)' : 'var(--ok)';
+      fb.textContent = changes > 0 ? '❌ 每新增一个通知对象，订单服务 A 都要加一行点名调用并发版——改 ' + changes + ' 处。' : '初始状态：A 写死了对 B 的调用。';
+      fb.className = changes > 0 ? 'lab-feedback bad' : 'lab-feedback';
+    } else {
+      code.textContent = 'A 只有一行：发布 OrderPlaced 事件；当前订阅方：' + (targets.length ? targets.join('、') : '（无）') + '；A 需要修改 0 处。';
+      code.style.color = 'var(--ok)';
+      fb.textContent = '✅ 隐式调用下，勾选增减只是「订阅名单」变化，发布方 A 代码零改动——代价：A 不知道谁订阅、按什么顺序消费。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  CX.utils.$$('input[name=inv-mode], #lab3 input[type=checkbox]').forEach(function (inp) {
+    inp.addEventListener('change', invCalc);
+  });
+  invCalc();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

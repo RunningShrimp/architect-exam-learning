@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>62 · 区块链与前沿选型 · 架构师学堂</title>
+<meta name="description" content="区块链是全员记账不可涂改的总账本，联盟链适合多方协作的城市场景。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🌆 未来新城</span><span class="badge freq">考频 ★★☆☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="50-crypto.html">前置 50</a></span>
+    <span class="badge dep"><a href="19-distributed-db.html">前置 19</a></span>
+    <h1>62 · 区块链与前沿选型</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">区块链是全员记账的总账本，多方协作选联盟链。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某核心企业与 20 家供应商、3 家银行组成的供应链：每月人工对账要 3 天；纸质送货单据被查出伪造过；二级、三级供应商拿不到核心企业的信用背书，融资难。会上有人拍板：「上区块链，一切问题都解决！」你是架构师——区块链到底解决上面哪一条、不解决哪一条？如果上，选公链、联盟链还是私链？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>区块链解决的是：<b>多方互不完全信任时，共同维护一份不可涂改的记录</b>——对账单据上链后各方账本一致且无法单方篡改（解决对账慢、单据被改），凭证可拆分流转让核心企业信用沿链传递（解决融资难）。它<b>不</b>解决：<b>上链之前的数据是不是真的</b>——伪造的单据一旦上链，就成了「不可涂改的假记录」（预言机问题），要靠 IoT 自动采集、电子签、第三方质检背书来兜。选型：参与方是多家机构、需要准入与监管、要高性能——<b>联盟链</b>。公链完全开放但慢且无准入，私链只有一家说了算、退化成昂贵的数据库。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>50 · 密码学基础</b> 与 <b>19 · 分布式数据库与NoSQL</b>（前者给了哈希与签名的地基，后者给了多副本一致性的问题意识）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：全员记账的总账本</h3>
+      <p>区块链是一个<b>分布式账本</b>：网络里每 个参与节点都持有一份相同的账本（全员记账）；交易按时间顺序打包成「块」，每个块头里写着<b>上一块的哈希指纹</b>，块块相扣成链。三件套缺一不可：</p>
+      <table class="tbl">
+        <tr><th>三件套</th><th>解决什么</th><th>一句话机制</th></tr>
+        <tr><td><b>哈希链</b></td><td>防篡改</td><td>每页账的页脚写着上一页的指纹——改任何一页，后面所有页的指纹全对不上（呼应 50 页哈希特性：改动一点，摘要面目全非）</td></tr>
+        <tr><td><b>共识机制</b></td><td>谁来记账大家认</td><td>不靠某个人说了算，靠规则让多数节点对「下一页账」达成一致</td></tr>
+        <tr><td><b>智能合约</b></td><td>自动执行</td><td>写在链上的程序，「条款即代码」：条件满足自动执行（如到期自动清分货款）</td></tr>
+      </table>
+      <p>交易归属与防抵赖靠<b>非对称签名</b>（50 页）：发起方用私钥签名，全网用其公钥验证——身份真实、内容完整、不可否认。块内交易通常用 <b>Merkle 树</b>组织，可高效验证某笔交易是否在块中。</p>
+      <h3>共识机制对比</h3>
+      <table class="tbl">
+        <tr><th>机制</th><th>核心思想</th><th>能耗/性能</th><th>适用</th></tr>
+        <tr><td><b>PoW</b> 工作量证明</td><td>全网比拼算力解难题，先解出者记账</td><td>能耗大、吞吐低</td><td>完全开放的公链（如比特币）</td></tr>
+        <tr><td><b>PoS</b> 权益证明</td><td>按质押权益的比例/时长轮选记账者</td><td>节能，性能较好</td><td>公链主流演进方向</td></tr>
+        <tr><td><b>PBFT</b> 实用拜占庭容错</td><td>已知节点集合内多轮投票表决，容忍不超过约 (n-1)/3 的拜占庭（作恶/故障）节点</td><td>无算力消耗、确认快，但节点多时通信开销大</td><td>节点身份已知、数量有限的<b>联盟链</b></td></tr>
+      </table>
+      <p>背景知识一句话：拜占庭将军问题=部分节点可能「叛变」发假消息时如何达成一致——普通分布式一致性（19 页）假设节点不撒谎，共识机制处理的是「会撒谎」的更严苛环境。</p>
+      <h3>公链 / 联盟链 / 私链（选型主线）</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>公链</th><th>联盟链</th><th>私链</th></tr>
+        <tr><th>参与方</th><td>任何人可加入</td><td>若干机构共同管理，节点准入授权</td><td>单一组织内部</td></tr>
+        <tr><td>去中心化程度</td><td>完全</td><td>部分（多中心）</td><td>弱（偏中心化）</td></tr>
+        <tr><td>共识</td><td>PoW/PoS</td><td>PBFT 类</td><td>任意</td></tr>
+        <tr><td>性能</td><td>低</td><td>高</td><td>最高</td></tr>
+        <tr><td>典型场景</td><td>加密货币、公开存证</td><td><b>多方协作：供应链金融、对账、溯源</b></td><td>内部审计留痕</td></tr>
+      </table>
+      <p>选型口诀：看<b>参与方范围</b>与<b>准入要求</b>——面向公众选公链，机构协作选联盟链，单一组织防篡改用私链（或干脆哈希锚定到外部存证）。</p>
+      <h3>典型场景与共同点</h3>
+      <p>溯源（商品全链路流转记录）、存证（司法电子证据固化）、多方对账（供应链金融、跨境结算）、积分与数字凭证。共同点三条：<b>多方参与、互不完全信任、需要一份共同可信且不可涂改的记录</b>。三者缺一，就该先问「真的需要区块链吗」。</p>
+      <h3>边界与局限（架构师必须会说）</h3>
+      <p>① 吞吐与存储成本远低于中心化系统；② <b>上链前真实性不归它管</b>（预言机问题：假数据上链后也是「真记录」）；③ 隐私难——账本多方共享与商业保密天然矛盾（联盟链靠通道隔离、加密缓解）；④ 监管与合规要求。所以正确的表述永远是「区块链 + 配套手段」，而不是「区块链万能」。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>Blockchain（区块链）· Consensus Mechanism（共识机制）· Smart Contract（智能合约）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 区块链≠数据库：它牺牲性能换「互不信任环境下的防篡改一致」，能用的地方是多方互信不足，不是单方性能优化；② 「去中心化」是程度词——联盟链是「多中心」，私链基本是中心化的，考题里别把三者混为一谈；③ PBFT 容忍的作恶节点上界是不超过约 (n-1)/3，不是「任意比例」；④ 智能合约一旦部署难以修改——有 bug 也得走新版本迁移，写论文时这是治理风险点；⑤ 防篡改保证的是「账本不可改」，<b>不保证链下实物/单据为真</b>；⑥ 溯源场景的完整表述：链上防改 + 链下采集自动化（IoT）+ 多方背书，三件事合起来才可信。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>未来新城里，<b>区块链=全员记账的总账本</b>。全村每家都有一本一模一样的账本（分布式账本）；每页账写完，页脚都要盖上「<b>骑缝章</b>」——写上上一页的指纹（哈希链）。想偷偷改前面某一页？那这一页指纹就变了，后面<b>每一页</b>的章都对不上，等于整本账作废重来（防篡改）。谁来记下一页？三种规矩：<b>解题竞赛</b>——全村比算力，先解出难题的记（PoW，费灯）；<b>按出资轮流</b>——押的份子多优先记（PoS，省灯）；<b>理事会表决</b>——村里固定几家理事投票，超过三分之二同意才算数（PBFT，联盟链）。账本里还能写死自动条款：「到期不还，押品自动过户」（智能合约）。范围上：<b>全村都能记是公链，几家商号联合记账是联盟链，一家铺子自己记是私链</b>。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>页脚骑缝章写上一页指纹</td><td>哈希链防篡改</td><td>成立</td></tr>
+      <tr><td>理事会投票定账</td><td>PBFT 共识（联盟链）</td><td>成立：理事叛变不超过约三分之一仍能定账</td></tr>
+      <tr><td>账本没被改=账上记的事都是真的</td><td>区块链保证数据真实性</td><td><b>失效</b>：账本只保证「记上去的没被改」，假单据上链后同样「不可涂改」——上链前真实性要靠 IoT/电子签/第三方背书</td></tr>
+      <tr><td>每家都抄一本账很快</td><td>区块链存储与同步成本</td><td>部分失效：全量冗余存储与广播同步正是它比数据库贵的原因</td></tr>
+    </table>
+    <div class="rhyme">块块相连指纹锁，改我一页全线拖；<br>共识定夺谁来记，合约自动按章做；<br>公链开放联盟限，私链一家自己过；<br>多方互信不足处，才是上链好场合。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「出块—哈希链—篡改攻击—重算竞赛」全过程：交易广播、打包上链、攻击者试图改第 2 块（后续指纹全部断裂）、以及重算追赶为何失败。拖动「攻击者算力占比」滑块看追赶速度变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>攻击者算力占比 <input type="range" id="atk-slider" min="0" max="45" step="5" value="20"> <span id="atk-out">20%</span></label>
+      <span class="kf-caption">（诚实方占其余算力；占比低于 50% 时重算永远追不上主链）</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：一笔交易的上链之旅</h4>
+      <p class="foreshadow">把五步排对——提示：先有签名（50 页），再有广播；上链之前必须先过共识：</p>
+      <div id="k-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="k-slot"></div>
+      <button class="btn" id="k-check">检查顺序</button>
+      <button class="btn" id="k-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：机制 ↔ 本质</h4>
+      <p class="foreshadow">先点左列一个机制，再点右列对应本质：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="h-left"></div>
+        <div id="h-right"></div>
+      </div>
+      <button class="btn" id="h-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：上链选型决策器</h4>
+      <p class="foreshadow">三个滑块决定要不要链、上什么链——口诀：参与方范围是纲：</p>
+      <label>参与方 <input type="range" id="p-slider" min="0" max="2" step="1" value="1"> <span id="p-out">多家机构</span></label><br>
+      <label>参与方互信程度（1=高度互信，5=互不信任） <input type="range" id="t-slider" min="1" max="5" value="4"> <span id="t-out">4</span></label><br>
+      <label>性能（TPS，每秒处理交易数）要求 <input type="range" id="f-slider" min="1" max="5" step="1" value="3"> <span id="f-out">3</span></label>
+      <div class="kf-caption" id="sel-calc"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 4、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「参与方决定选型」：</p>
+    <div id="quiz-variant"></div>
+    <h3>📌 论文素材角</h3>
+    <div class="callout"><span class="t">✍️ 论文写作素材，需结合自身项目改写</span>
+      <ul>
+        <li>论点句式：「该场景涉及多方协作、参与方互不完全信任、凭证需防篡改流转，具备区块链适用三要素；我们选择联盟链：核心企业与金融机构作为记账节点，供应商以轻节点接入，智能合约实现应收账款确权、拆分流转与到期自动清分，对账周期由 3 天缩短至分钟级（数据请用你自己项目的）。」</li>
+        <li>论点句式：「我们明确技术边界：区块链保证『账不被改』，不保证『账是真的』。为此引入 IoT 设备自动采集（减少人工录入造假空间）与第三方质检机构节点背书，将上链前真实性交给传感器与多方签名解决——区块链只做它擅长的那一环。」</li>
+        <li>项目情景模板：供应链金融多方对账 / 商品溯源 / 司法电子存证。论证主线：背景痛点 → 适用性论证（多方、互不信任、共同可信记录）→ 选型（联盟链+理由）→ 合约与治理设计 → 边界与配套 → 量化收益。</li>
+        <li>论点句式：「选型以参与方范围与准入要求为纲：面向公众的开放场景选公链，机构间协作选联盟链（准入、高性能、可监管），单一组织内部防篡改用私链或哈希锚定即可——不为『链』而链，是前沿技术选型的基本纪律。」</li>
+        <li>备考提示：前沿技术论文的通用骨架——背景约束 → 传统方案为何不行 → 新技术如何解 → 代价与边界如何兜 → 效果如何验证。全站 62 个知识点都可作为素材库，考前到复习中心按方向重组。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>50 · 密码学基础</b>：哈希给了「骑缝章」（改动一点摘要面目全非），非对称签名给了「身份与不可否认」——没有这两样，链就是普通的链表；<b>19 · 分布式数据库与NoSQL</b>：多节点副本一致是老问题，区块链是在「节点可能作恶（拜占庭）」的更严苛前提下，用共识机制给出的强一致解。</p>
+    <h3>向后：旅程到此收官</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>本站是全站 62 站的<b>最后一站</b>——前沿域与前面的伏笔在此汇合：溯源场景里与 <a href="61-iot-edge.html">61 · 物联网与边缘计算</a> 的自动采集配合，才构成「链上防改 + 链下为真」的完整答案；</li>
+      <li>下一步请前往 <a href="../review.html">复习中心</a>：错题本、SM-2 记忆调度与跨域混卷都在那里等你；</li>
+      <li>论文冲刺建议：从「论文高频方向」（微服务、云原生、Lambda、湖仓一体、边云协同、区块链、事件驱动）各挑一个，用自己项目的素材按本页素材角的骨架各写一遍提纲。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>公链</th><th>联盟链</th></tr>
+      <tr><td>参与与准入</td><td>任何人可加入，无准入</td><td>若干机构共同管理，节点授权准入</td></tr>
+      <tr><td>共识与性能</td><td>PoW/PoS，吞吐低</td><td>PBFT 类，确认快、吞吐高，节点数不宜过多</td></tr>
+      <tr><td>易错点</td><td>以为企业场景也该用公链——无准入+低性能+不可监管，通常不适配</td><td>以为联盟链「完全去中心化」——它是多中心；治理与监管主体恰恰是它的优势</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">公链是全村都能记的账本，联盟链是几家商号联合记账——企业多方协作的答案几乎总是联盟链。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——村里每家都有一本一模一样的账本，每页页脚写着上一页的指纹……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 区块链三件套：哈希链防篡改（改一页后面全断）、共识机制定「谁记账大家认」（PoW 算力/PoS 权益/PBFT 联盟容错约三分之一）、智能合约让「条款即代码」自动执行；交易归属靠 50 页的私钥签名。</li><li>② 选型看参与方：公链开放无准入、性能低；联盟链机构协作、准入+高性能，是多方协作首选；私链单一组织，防内部篡改；互信充分的场景根本不必上链。</li><li>③ 边界必须会说：区块链保证「账不被改」不保证「账是真的」（预言机问题），吞吐/隐私/监管各有短板——正确的答案永远是「区块链+IoT 采集+多方背书」的组合拳。</li></ul>
+    <div class="callout"><span class="t">🎓 结业致辞</span>
+      <p>恭喜——62 站城市之旅到此走完。从地基电厂到未来新城，你已经把系统架构设计师的知识版图完整走过一遍。最后三件事送给你：① <b>论文先行</b>：论文高频方向（微服务、云原生、Lambda、湖仓一体、边云协同、区块链、事件驱动）各准备一个自己项目的素材，按各页「论文素材角」的骨架写成提纲；② <b>错题回收</b>：复习中心的错题本与 SM-2 记忆调度会告诉你该回哪几站；③ <b>案例口径</b>：答题永远「结论→论证链→代价→验证」，名词堆砌不得分。祝一次通过，考场上见。</p>
+    </div>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '62', domain: 'trend', loc: 'newtown', root: '..',
+  title: '区块链与前沿选型',
+  prev: '61-iot-edge.html', prevTitle: '61 · 物联网与边缘计算',
+  keywords: ['区块链', '哈希链', '共识机制', '智能合约', '联盟链', '防篡改']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 50 / 19） ---- */
+  CX.renderQuiz('#quiz-recall', [
+    {
+      q: '【回忆·50】交易发起者先对交易内容做「私钥签名」，全网节点再用其公钥验证。签名在这里同时证明了什么？',
+      opts: [
+        { t: '来源真实（对应私钥持有者）、内容完整（未被改）、不可否认（事后不能赖账）', why: '对。数字签名三重作用正是 50 页的重点，区块链靠它确认「这笔账是谁记的」。' },
+        { t: '加密了交易内容，别人看不到', why: '签名不加密内容——公链上交易通常是公开可见的，机密性要另外的加密手段。' },
+        { t: '证明了交易一定合法合规', why: '签名只证明「是谁发的、没被改」，合法性由共识验证规则与监管另行保证。' }
+      ],
+      ans: 0, tag: '回忆:50', src: '仿真题'
+    },
+    {
+      q: '【回忆·19】每个节点各持一份完整账本，如何让大家的账本保持一致？这与 19 页多副本复制的本质差别在哪？',
+      opts: [
+        { t: '一样的机制，没有差别', why: '差别在前提：19 页假设节点不撒谎（崩溃故障），区块链还要应对「会撒谎作恶」的拜占庭节点。' },
+        { t: '区块链还要应对可能作恶的节点（拜占庭环境），靠共识机制达成一致', why: '对。前提更严苛，所以代价（性能）也更高——这是它与普通复制的本质区别。' },
+        { t: '区块链不需要一致性', why: '恰恰相反，共识机制存在的目的就是一致性，且是恶意环境下的强一致。' }
+      ],
+      ans: 1, tag: '回忆:19', src: '仿真题'
+    }
+  ], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    {
+      q: '攻击者篡改了链上第 2 块中的某条交易记录，随后会发生什么？',
+      opts: [
+        { t: '只影响第 2 块，其他块不受影响', why: '恰恰相反：每块头存着上一块的哈希指纹，牵一发动全身。' },
+        { t: '第 2 块哈希变化，与第 3 块记录的指纹不符，后续块校验全部断裂，须重算其后所有块才可能被认可', why: '对。改一页，后面所有页的骑缝章全对不上——重算成本使篡改几乎不可行。' },
+        { t: '智能合约会自动修复被改的数据', why: '合约不修复数据，篡改块直接会被共识校验拒绝。' }
+      ],
+      ans: 1, tag: '防篡改', src: '仿真题'
+    },
+    {
+      q: '20 家银行组建对账网络：节点身份已知、准入审批、要求秒级确认、监管方可审计。共识机制最合适的是？',
+      opts: [
+        { t: 'PoW：算力解题，最安全', why: 'PoW 面向完全开放的网络，吞吐低能耗大，银行场景既无必要也不可接受。' },
+        { t: 'PBFT：节点集合已知，多轮投票快速确认，容忍约 (n-1)/3 作恶节点', why: '对。身份已知+数量有限+高性能要求，正是 PBFT 与联盟链的主场。' },
+        { t: '不需要共识，各家各记各的', why: '各记各的就回到对账难题了，共识正是为「一份共同账本」服务的。' }
+      ],
+      ans: 1, tag: '共识机制', src: '仿真题'
+    },
+    {
+      q: '供应链平台把「验收单确认后自动向供应商清分货款」写成链上程序。这体现了区块链的哪个组成要素？',
+      opts: [
+        { t: '哈希链', why: '哈希链管防篡改，不管业务逻辑执行。' },
+        { t: '智能合约：条件触发、自动执行的链上程序，「条款即代码」', why: '对。清分逻辑写进合约，满足条件自动执行，无需各方再对一次账。' },
+        { t: 'Merkle 树', why: 'Merkle 树用于块内交易的快速验证，不是业务执行机制。' }
+      ],
+      ans: 1, tag: '智能合约', src: '仿真题'
+    },
+    {
+      q: '【交错复习·50】供应商否认发过那笔对账单，区块链上如何「实锤」？',
+      opts: [
+        { t: '调出其私钥签名的记录：签名验证通过即证明来源真实且不可否认', why: '对。数字签名的不可否认性（50 页）在链上成为可全网验证的证据。' },
+        { t: '投票表决多数说是他发的就是他发的', why: '共识定「账本一致」，不替签名做身份认定。' },
+        { t: '把供应商账户冻结', why: '这是业务处置手段，不是技术上的证明。' }
+      ],
+      ans: 0, tag: '交错复习:50', src: '仿真题'
+    },
+    {
+      q: '【交错复习·19】从 CAP 与一致性的视角看，联盟链的取舍是？',
+      opts: [
+        { t: '为了强一致与防作恶，通常牺牲部分吞吐与可用性——确认要等共识 rounds', why: '对。联盟链普遍选「一致+分区容忍」，性能让位；这正是它与 AP 型 NoSQL 的分野。' },
+        { t: '为了可用性，允许各节点账本长期不一致', why: '账本不一致就失去了区块链的存在意义。' },
+        { t: '联盟链可以同时取满 CAP 三样', why: '19 页讲过：分区发生时三者不可兼得，区块链也不例外。' }
+      ],
+      ans: 0, tag: '交错复习:19', src: '仿真题'
+    }
+  ], { kpId: '62', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某核心企业与 20 家供应商、3 家银行的供应链：每月人工对账 3 天；曾查出货运单据伪造；应收账款确权靠纸质函证，二级三级供应商拿不到核心企业信用、融资难。会上提议「上区块链解决一切问题」。',
+    q: '(1) 论证该场景是否适用区块链，并给出链类型选择与理由；(2) 设计平台架构（节点部署、智能合约、权限隐私、与现有系统集成）；(3) 指出区块链不解决的问题及配套对策；(4) 给出可量化的收益指标。',
+    ref: '(1) 适用性论证：多方参与（企业+供应商+银行+监管）、互不完全信任（曾出伪造单据）、需要共同可信记录（确权凭证防篡改流转）——满足适用三要素，应上链；选联盟链：参与方是已知机构、需准入审批与监管接入、要求秒级确认与高吞吐——对应 PBFT 类共识的联盟链，公链无准入性能低不合适，私链单方控制不被多方信任。(2) 架构：核心企业、银行、监管方部署记账节点（共识节点），中小供应商以轻节点/API 接入；智能合约：应收账款确权、信用拆分流转、到期自动清分、单据哈希校验；权限与隐私：通道/按参与方隔离账本视图、敏感字段加密、私钥体系（U盾/托管）；集成：与企业 ERP（企业资源计划系统）、银行信贷系统的对账与放款接口对接，单据要素在链上、大文件原件哈希上链+链下存储。(3) 边界与对策：区块链保证「上链后不可改」，不保证「上链前为真」——伪造单据上链照样是「真记录」；对策：IoT/物流系统自动采集过磅与签收数据减少人工录入、银行与第三方质检多方交叉验证、电子签章、异常规则引擎复核。(4) 收益指标：对账周期 3 天→分钟级/小时级；单据纠纷率与造假损失下降（可统计）；确权时间从周级到天级；二级三级供应商融资可得率与放款时效提升；对账人力工时下降。',
+    points: ['适用性按三要素论证并明确选联盟链+理由（不是直接说「该上链」）', '架构四要素齐全：节点分级、合约、权限隐私、与既有系统集成', '明确说出区块链边界（上链前真实性/预言机问题）并给配套对策', '收益可量化（对账周期/确权时效/融资可得率等）'],
+    frame: '答题框架：适用性三要素 → 选型（链类型+共识）→ 架构分层 → 技术边界与配套（体现成熟度）→ 量化收益。否定「万能论」恰恰是高分信号。',
+    kpId: '62'
+  });
+  CX.renderCase('#case2', {
+    stem: '某农产品溯源平台上线后被媒体质疑「链是真的，菜未必是真的」：农户手工录入产地与施肥记录，录入环节造假无法发现；上传的照片也可以拿往年旧图充数。平台方坚持「数据上链了，不可篡改」。',
+    q: '(1) 分析质疑的本质问题；(2) 给出提升「上链前真实性」的工程对策；(3) 说明链上/链下数据的存储与校验设计；(4) 指出该方案的成本取舍。',
+    ref: '(1) 本质：预言机问题——区块链只保证上链后不可涂改，不保证上链前的数据真实；「链上真、链下假」戳中的正是上链前这一环，平台方把「不可篡改」偷换成了「真实」。(2) 对策：①用 IoT 自动采集替代人工录入：产地温湿度、施肥用药由传感器与农事系统直采直传，减少人工造假空间；②一物一码：RFID/二维码与批次绑定，流转扫码自动记录；③多方背书：第三方质检机构作为节点签名质检结果，收购方验收入链；④关键环节照片/视频的哈希上链+时间戳，结合现场采集元数据防「旧图新传」。(3) 存储设计：链上只存关键凭证与摘要（批次 ID、质检结论哈希、各节点签名），大文件（图片/视频/原始检测报告）存链下对象存储，其哈希上链锚定——需要时取原件验哈希即知是否被改。(4) 成本取舍：全量明细上链存储与共识成本高，故采用「链上锚定+链下存储」；质检背书增加第三方费用，可按批次抽检+高风险品类全检平衡；IoT 设备有部署与运维成本，按基地规模分批覆盖。',
+    points: ['准确点出预言机问题：上链后不可改≠上链前真实', '对策覆盖自动采集/一物一码/多方背书/时间戳至少三类', '链上链下混合存储+哈希锚定的设计正确', '成本取舍具体（抽样/分批/锚定），不回避代价'],
+    frame: '答题框架：先正名（技术边界）→ 分环节堵造假（采集/绑定/背书/时间戳）→ 存储校验设计 → 成本取舍收尾。',
+    kpId: '62'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '公司内部想防止运维人员偷偷改审计日志，只有一家公司参与、性能要求高。按本页选型思想，最合理的建议是？',
+      opts: [
+        { t: '上公链，让全网见证', why: '内部日志不面向公众，公链无准入、性能低、隐私暴露，完全不适配。' },
+        { t: '不必拉多方上链：私链或把日志定期哈希锚定到外部存证即可，配合权限与审计', why: '对。参与方只有一家时联盟链无意义——私链/哈希锚定+权限审计性价比最高，选型看参与方范围。' },
+        { t: '建一条 20 节点的联盟链', why: '只有一家参与方，联盟链的「多方互信」价值无从谈起，白白增加运维成本。' }
+      ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '62', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['50', '19'], 'prev');
+  /* 全站最后一站：没有「下一站知识点」，手工渲染向后胶囊（沿用引擎样式） */
+  (function () {
+    var elN = document.getElementById('bridge-next');
+    if (elN) {
+      elN.className = 'dep-chain';
+      elN.innerHTML = '<a class="dep-chip" href="61-iot-edge.html"><span class="n">61</span>物联网与边缘计算</a>' +
+        '<span class="dep-arrow">⮑</span><a class="dep-chip" href="../review.html"><span class="n">🔁</span>复习中心（全站收官）</a>';
+    }
+  })();
+
+  /* ---- 动画：出块与防篡改 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var ATK = 20; /* 攻击者算力占比 % */
+  function blk(x, y, w, h, title, stroke, fillOp, txt) {
+    var s = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="var(--card)" stroke="' + stroke + '" stroke-width="1.8" opacity="' + fillOp + '"/>';
+    s += '<text x="' + (x + w / 2) + '" y="' + (y + 20) + '" text-anchor="middle" font-size="12" fill="' + stroke + '" opacity="' + Math.min(1, fillOp + .1) + '">' + title + '</text>';
+    if (txt) s += '<text x="' + (x + w / 2) + '" y="' + (y + 40) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)" opacity="' + fillOp + '">' + txt + '</text>';
+    return s;
+  }
+  function draw(t) {
+    var s = '<svg viewBox="0 0 760 372" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="372" rx="12" fill="var(--bg-soft)"/>';
+    /* 节点网络 */
+    var nodes = [70, 185, 300, 415, 530, 645];
+    var i, nx;
+    for (i = 0; i < nodes.length; i++) {
+      nx = nodes[i];
+      s += '<circle cx="' + nx + '" cy="42" r="16" fill="var(--card)" stroke="var(--line)"/>';
+      s += '<text x="' + nx + '" y="47" text-anchor="middle" font-size="12" fill="var(--ok)">✓</text>';
+    }
+    if (t < 0.2) {
+      var pn = Math.min(8, Math.floor(t / 0.2 * 8) + 1);
+      for (i = 0; i < pn; i++) {
+        nx = 30 + ((i * 85 + t * 900) % 660);
+        s += '<circle cx="' + nx.toFixed(0) + '" cy="42" r="5" fill="var(--accent)"/>';
+      }
+      s += '<text x="380" y="88" text-anchor="middle" font-size="12" fill="var(--accent)">交易正在向全网广播…每个节点都会收到</text>';
+    } else {
+      s += '<text x="380" y="88" text-anchor="middle" font-size="11" fill="var(--text-dim)">6 个共识节点（联盟链理事会）已同步</text>';
+    }
+    /* 区块链主链 */
+    var bx = 34, by = 108, bw = 118, bh = 62, gap = 38;
+    var labels = ['#1 创世块', '#2 关键块', '#3', '#4', '#5 新块'];
+    var hashes = ['指纹:0x0', '指纹:0xA', '指纹:0xB', '指纹:0xC', '指纹:0xD'];
+    var p2 = Math.max(0, Math.min(1, (t - 0.2) / 0.3)); /* 出块进度 */
+    for (i = 0; i < 5; i++) {
+      var op = 1;
+      if (i === 4) op = 0.25 + 0.75 * p2;
+      var stroke = 'var(--accent)';
+      if (t >= 0.5 && i >= 1) stroke = 'var(--bad)';
+      if (i === 0) stroke = 'var(--accent)';
+      s += blk(bx + i * (bw + gap), by, bw, bh, labels[i], stroke, op, hashes[i]);
+      if (i < 4) {
+        var lx = bx + i * (bw + gap) + bw, ly = by + bh / 2;
+        var lcol = (t >= 0.5 && i >= 1) ? 'var(--bad)' : 'var(--accent-2)';
+        s += '<line x1="' + lx + '" y1="' + ly + '" x2="' + (lx + gap) + '" y2="' + ly + '" stroke="' + lcol + '" stroke-width="2"/>';
+        s += '<text x="' + (lx + gap / 2) + '" y="' + (ly - 6) + '" text-anchor="middle" font-size="9" fill="' + lcol + '">哈希</text>';
+        if (t >= 0.5 && i >= 1) s += '<text x="' + (lx + gap / 2) + '" y="' + (ly + 16) + '" text-anchor="middle" font-size="13" fill="var(--bad)">✗</text>';
+      }
+    }
+    var cap;
+    if (t >= 0.5) {
+      s += '<text x="380" y="196" text-anchor="middle" font-size="12" fill="var(--bad)">第 2 块被改 → 其指纹变化 → 第 3 块起所有「哈希」校验断裂</text>';
+    }
+    /* 重算竞赛 */
+    if (t >= 0.75) {
+      var pt = (t - 0.75) / 0.25;
+      var honest = Math.round(pt * 100);
+      s += '<text x="60" y="242" font-size="12" fill="var(--ok)">诚实链：继续出新块（100% 算力）</text>';
+      s += '<rect x="60" y="250" width="' + (400 * pt).toFixed(0) + '" height="14" rx="7" fill="var(--ok)" opacity=".8"/>';
+      s += '<text x="60" y="292" font-size="12" fill="var(--bad)">攻击者：重算 #2 起的全部块（' + ATK + '% 算力）</text>';
+      s += '<rect x="60" y="300" width="' + (400 * Math.min(1, pt * ATK / 50)).toFixed(0) + '" height="14" rx="7" fill="var(--bad)" opacity=".8"/>';
+      s += '<text x="500" y="262" font-size="11" fill="var(--text-dim)">进度 ' + honest + '%</text>';
+      s += '<text x="500" y="312" font-size="11" fill="var(--text-dim)">进度 ' + Math.min(100, Math.round(pt * 100 * ATK / 50)) + '%</text>';
+      s += '<text x="380" y="348" text-anchor="middle" font-size="13" fill="' + (ATK < 50 ? 'var(--ok)' : 'var(--bad)') + '">' + (ATK < 50 ? '算力不过半 → 攻击链永远短于主链 → 篡改失败' : '算力过半 → 攻击链可能追平（现实中被视为链被攻破）') + '</text>';
+    } else {
+      s += '<text x="380" y="248" text-anchor="middle" font-size="11" fill="var(--text-dim)">每块头都存着「上一块的指纹」——这就是骑缝章</text>';
+    }
+    s += '</svg>';
+    if (t < 0.2) cap = '一笔交易向全网广播：没有中心服务器，每个节点都会收到并验证——这是「全员记账」的第一步。';
+    else if (t < 0.5) cap = '节点把一批交易打包成新块（#5 正在上链），块头写入上一块指纹——块块相扣成链。';
+    else if (t < 0.75) cap = '攻击者篡改第 2 块的一条记录：该块指纹立刻变化，后面每一块的「哈希」校验全部断裂。';
+    else cap = '想让大家接受假账？必须重算第 2 块起的所有块并追平主链——' + ATK + '% 算力追不上，这就是防篡改的算力门槛（联盟链则由共识直接拒绝非法块）。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 14, onTick: draw });
+  var aS = CX.utils.$('#atk-slider');
+  aS.addEventListener('input', function () {
+    ATK = +aS.value;
+    CX.utils.$('#atk-out').textContent = ATK + '%';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：上链流程排序 ---- */
+  var stepsK = ['用户发起交易并用私钥签名', '交易广播到 P2P 网络', '节点打包交易成候选区块', '共识节点验证并达成共识', '区块上链，各节点同步账本'];
+  var kPool = CX.utils.$('#k-pool'), kSlot = CX.utils.$('#k-slot');
+  function buildK() {
+    kPool.innerHTML = ''; kSlot.innerHTML = '';
+    CX.utils.$('#lab1-fb').textContent = '';
+    CX.shuffle(stepsK.slice()).forEach(function (t) {
+      var d = document.createElement('div');
+      d.className = 'drag-item'; d.draggable = true; d.textContent = t;
+      d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+      kPool.appendChild(d);
+    });
+  }
+  buildK();
+  kSlot.addEventListener('dragover', function (e) { e.preventDefault(); kSlot.classList.add('hot'); });
+  kSlot.addEventListener('dragleave', function () { kSlot.classList.remove('hot'); });
+  kSlot.addEventListener('drop', function (e) {
+    e.preventDefault(); kSlot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = null;
+    var all = document.querySelectorAll('#k-pool .drag-item, #k-slot .drag-item');
+    for (var k = 0; k < all.length; k++) { if (all[k].textContent === t) { src = all[k]; break; } }
+    if (src) kSlot.appendChild(src);
+  });
+  CX.utils.$('#k-reset').addEventListener('click', buildK);
+  CX.utils.$('#k-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(kSlot.children, function (c) { return c.textContent; });
+    var fb = CX.utils.$('#lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== stepsK[i]) {
+        var hint;
+        if (i === 0) hint = '一切从签名开始（50 页）：不签名，谁知道这笔账是谁记的？';
+        else if (got[i] === '区块上链，各节点同步账本' && i < 4) hint = '上链是结果，共识没通过之前不能上链。';
+        else if (got[i] === '共识节点验证并达成共识' && i < 3) hint = '要先广播、打包成候选块，才有东西可供共识。';
+        else hint = '主线：签名 → 广播 → 打包 → 共识 → 上链同步。';
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。' + hint;
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 顺序正确！签名 → 广播 → 打包 → 共识 → 上链，缺一步都不算「记上账」。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairsH = [
+    ['哈希链', '每块记上一块指纹，改一页后面全断'],
+    ['PoW', '算力解题竞争记账，安全但耗电'],
+    ['PoS', '按质押权益轮选记账，节能'],
+    ['PBFT', '联盟链多轮投票，容忍约 (n-1)/3 作恶'],
+    ['智能合约', '条款即代码，条件触发自动执行']
+  ];
+  var lBox = CX.utils.$('#h-left'), rBox = CX.utils.$('#h-right');
+  var selL = null, doneN = 0;
+  function buildH() {
+    selL = null; doneN = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    CX.utils.$('#lab2-fb').textContent = '';
+    pairsH.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的本质。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairsH).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        var fb = CX.utils.$('#lab2-fb');
+        if (!selL) { fb.textContent = '先点左列一个机制。'; fb.className = 'lab-feedback'; return; }
+        if (selL.textContent === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; doneN++;
+          fb.textContent = '✅ 配对成功 ' + doneN + '/5'; fb.className = 'lab-feedback ok';
+        } else {
+          fb.textContent = '❌「' + selL.textContent + '」不对应「' + d.textContent + '」——三件套管「账」与「执行」，三种共识管「谁来记账」，别串行。';
+          fb.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildH();
+  CX.utils.$('#h-reset').addEventListener('click', buildH);
+
+  /* ---- 实验三：选型决策器 ---- */
+  var pS = CX.utils.$('#p-slider'), tS = CX.utils.$('#t-slider'), fS = CX.utils.$('#f-slider');
+  var pTxt = ['单一组织', '多家机构', '社会公众'];
+  function decide() {
+    var pt = +pS.value, tr = +tS.value, pf = +fS.value;
+    CX.utils.$('#p-out').textContent = pTxt[pt];
+    CX.utils.$('#t-out').textContent = tr;
+    CX.utils.$('#f-out').textContent = pf;
+    var fb = CX.utils.$('#lab3-fb'), rec, msg;
+    CX.utils.$('#sel-calc').textContent = '画像：参与方=' + pTxt[pt] + ' ｜ 互信程度=' + tr + '（5 最不信任） ｜ 性能要求=' + pf;
+    if (pt === 0) {
+      rec = '不上联盟链：私链或「哈希锚定外部存证」+权限审计';
+      msg = '只有一方参与，「多方互信不足」这个前提不成立——区块链的价值无从体现，防内部篡改用私链/锚定+权限审计性价比最高。';
+    } else if (pt === 2) {
+      rec = '公链（PoW/PoS）';
+      msg = '面向公众、无准入的开放场景才轮到公链；注意它的吞吐低，若性能要求拉满，先想想场景是否真需要完全开放。';
+      if (pf >= 4) msg += ' ⚠️ 你同时给了高 TPS 要求——公链性能是公认瓶颈，这是典型权衡点，论文里要正面回答。';
+    } else {
+      if (tr <= 2) {
+        rec = '先别急着上链：共享数据库/对账平台可能就够';
+        msg = '多家机构但互信程度高——区块链的「防作恶」溢价买不到多少收益，先用传统方案，把区块链留作信任恶化后的演进项。';
+      } else {
+        rec = '联盟链（PBFT 类共识）';
+        msg = '机构间协作、互信有限、需准入与监管——联盟链正对口：准入控制节点、性能满足业务、监管方可设观察节点。';
+      }
+    }
+    fb.textContent = '推荐：' + rec + '。' + msg;
+    fb.className = 'lab-feedback ok';
+  }
+  decide();
+  [pS, tS, fS].forEach(function (sl) { sl.addEventListener('input', decide); });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

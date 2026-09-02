@@ -1,0 +1,1088 @@
+{
+  "meta": {
+    "site": "架构师学堂 · 系统架构设计师学习站",
+    "metaphor": "软件系统 = 一座城市",
+    "version": 1,
+    "note": "NN 为拓扑排序学习序号；deps=向前依赖；rel=关联考点；freq=考频1-5；diff=难度1-5；loc=城市隐喻位置"
+  },
+  "domains": {
+    "hw": {
+      "name": "计算机系统与硬件",
+      "loc": "foundation",
+      "icon": "🏗️",
+      "blurb": "城市的地基、电厂与市政管网"
+    },
+    "os": {
+      "name": "操作系统",
+      "loc": "govhall",
+      "icon": "🏛️",
+      "blurb": "市政厅：调度全城资源的管理机构"
+    },
+    "db": {
+      "name": "数据库",
+      "loc": "archive",
+      "icon": "📚",
+      "blurb": "中央档案馆：全城数据的唯一可信来源"
+    },
+    "net": {
+      "name": "计算机网络",
+      "loc": "roads",
+      "icon": "🚦",
+      "blurb": "道路与邮政系统：把包裹送到该去的地方"
+    },
+    "se": {
+      "name": "软件工程",
+      "loc": "construction",
+      "icon": "🧱",
+      "blurb": "建设工地：从蓝图到竣工的施工流程"
+    },
+    "arch": {
+      "name": "软件架构设计",
+      "loc": "cityplan",
+      "icon": "🗺️",
+      "blurb": "城市规划馆：决定整座城市长什么样的总规"
+    },
+    "qa": {
+      "name": "质量属性与架构评估",
+      "loc": "inspection",
+      "icon": "🔍",
+      "blurb": "质检评估院：给建筑做验收和抗震评估"
+    },
+    "pt": {
+      "name": "设计模式",
+      "loc": "blueprint",
+      "icon": "📐",
+      "blurb": "标准图纸馆：历经检验的定型设计图"
+    },
+    "sec": {
+      "name": "信息安全与法律法规",
+      "loc": "citadel",
+      "icon": "🛡️",
+      "blurb": "城防与司法局：门禁、密码与产权证书"
+    },
+    "pm": {
+      "name": "项目管理与管理数学",
+      "loc": "command",
+      "icon": "📋",
+      "blurb": "建设指挥部：工期、预算与决策"
+    },
+    "trend": {
+      "name": "前沿技术架构",
+      "loc": "newtown",
+      "icon": "🌆",
+      "blurb": "未来新城：大数据、AI 与新城区"
+    }
+  },
+  "points": [
+    {
+      "id": "01",
+      "slug": "computer-overview",
+      "domain": "hw",
+      "freq": 3,
+      "diff": 2,
+      "deps": [],
+      "rel": [
+        "04",
+        "05"
+      ],
+      "title": "计算机系统组成与体系结构",
+      "oneliner": "一台计算机=把运算、存储、输入输出通过总线组织起来的城市基础设施系统。",
+      "file": "kp/01-computer-overview.html"
+    },
+    {
+      "id": "02",
+      "slug": "number-system",
+      "domain": "hw",
+      "freq": 4,
+      "diff": 3,
+      "deps": [],
+      "rel": [
+        "03"
+      ],
+      "title": "进制转换与数据表示",
+      "oneliner": "计算机只认电平高低，一切数字都要翻译成二进制并约定编码规则。",
+      "file": "kp/02-number-system.html"
+    },
+    {
+      "id": "03",
+      "slug": "error-check",
+      "domain": "hw",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "02"
+      ],
+      "rel": [
+        "06"
+      ],
+      "title": "校验码与纠错",
+      "oneliner": "数据在传输中会出错，靠冗余位发现甚至纠正错误——像信封上的校验编号。",
+      "file": "kp/03-error-check.html"
+    },
+    {
+      "id": "04",
+      "slug": "pipeline",
+      "domain": "hw",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "01"
+      ],
+      "rel": [
+        "06",
+        "05"
+      ],
+      "title": "指令系统与流水线",
+      "oneliner": "流水线让多条指令像装配线一样重叠执行，吞吐量取决于最慢的那一站。",
+      "file": "kp/04-pipeline.html"
+    },
+    {
+      "id": "05",
+      "slug": "cache-memory",
+      "domain": "hw",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "01"
+      ],
+      "rel": [
+        "12"
+      ],
+      "title": "存储层次与Cache",
+      "oneliner": "存储金字塔用小而快的缓存挡住大而慢的内存，局部性原理是它成立的根基。",
+      "file": "kp/05-cache-memory.html"
+    },
+    {
+      "id": "06",
+      "slug": "reliability",
+      "domain": "hw",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "03"
+      ],
+      "rel": [
+        "56"
+      ],
+      "title": "可靠性与RAID",
+      "oneliner": "串联靠每个人都不倒，并联靠有人兜底——MTBF 和 RAID 是冗余思想的量化。",
+      "file": "kp/06-reliability.html"
+    },
+    {
+      "id": "07",
+      "slug": "io-interrupt",
+      "domain": "hw",
+      "freq": 2,
+      "diff": 2,
+      "deps": [
+        "01"
+      ],
+      "rel": [
+        "09"
+      ],
+      "title": "中断、DMA与总线",
+      "oneliner": "外设不打电话催CPU（中断），大件行李自己搬运（DMA），公共道路就是总线。",
+      "file": "kp/07-io-interrupt.html"
+    },
+    {
+      "id": "08",
+      "slug": "embedded-realtime",
+      "domain": "hw",
+      "freq": 3,
+      "diff": 2,
+      "deps": [
+        "07"
+      ],
+      "rel": [
+        "09"
+      ],
+      "title": "嵌入式与实时系统",
+      "oneliner": "嵌入式=专职的小型市政服务站，实时系统保证在截止期内完成，晚到即失败。",
+      "file": "kp/08-embedded-realtime.html"
+    },
+    {
+      "id": "09",
+      "slug": "process-thread",
+      "domain": "os",
+      "freq": 4,
+      "diff": 3,
+      "deps": [],
+      "rel": [
+        "07",
+        "10"
+      ],
+      "title": "进程、线程与调度",
+      "oneliner": "进程是独立办事的市民，线程是同一市民手里的多个待办，调度员决定谁先用窗口。",
+      "file": "kp/09-process-thread.html"
+    },
+    {
+      "id": "10",
+      "slug": "pv-semaphore",
+      "domain": "os",
+      "freq": 4,
+      "diff": 4,
+      "deps": [
+        "09"
+      ],
+      "rel": [
+        "11",
+        "18"
+      ],
+      "title": "同步互斥与PV操作",
+      "oneliner": "信号量像一把带计数的车位钥匙，P 申请 V 归还，用错顺序就会撞车。",
+      "file": "kp/10-pv-semaphore.html"
+    },
+    {
+      "id": "11",
+      "slug": "deadlock",
+      "domain": "os",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "10"
+      ],
+      "rel": [
+        "18"
+      ],
+      "title": "死锁",
+      "oneliner": "四辆车在十字路口互不相让就是死锁：互斥、占有且等待、不剥夺、循环等待。",
+      "file": "kp/11-deadlock.html"
+    },
+    {
+      "id": "12",
+      "slug": "virtual-memory",
+      "domain": "os",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "05"
+      ],
+      "rel": [
+        "13"
+      ],
+      "title": "分页分段与虚拟内存",
+      "oneliner": "虚拟内存让每个程序以为独占整座城市，页表负责把假地址翻译成真地址。",
+      "file": "kp/12-virtual-memory.html"
+    },
+    {
+      "id": "13",
+      "slug": "fs-device",
+      "domain": "os",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "12"
+      ],
+      "rel": [
+        "05"
+      ],
+      "title": "文件系统与设备管理",
+      "oneliner": "文件的逻辑结构像书目录，物理结构像仓库货架，索引节点就是书的版权页。",
+      "file": "kp/13-fs-device.html"
+    },
+    {
+      "id": "14",
+      "slug": "db-schema",
+      "domain": "db",
+      "freq": 5,
+      "diff": 2,
+      "deps": [],
+      "rel": [
+        "19"
+      ],
+      "title": "三级模式与两级映射",
+      "oneliner": "外模式/概念模式/内模式加两级映射，让用户视图和物理存储互不打扰。",
+      "file": "kp/14-db-schema.html"
+    },
+    {
+      "id": "15",
+      "slug": "er-model",
+      "domain": "db",
+      "freq": 5,
+      "diff": 2,
+      "deps": [
+        "14"
+      ],
+      "rel": [
+        "16"
+      ],
+      "title": "ER模型与关系模式转换",
+      "oneliner": "实体是名词、联系是动词，ER 图最终都要翻译成一张张二维表。",
+      "file": "kp/15-er-model.html"
+    },
+    {
+      "id": "16",
+      "slug": "sql-relalg",
+      "domain": "db",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "15"
+      ],
+      "rel": [
+        "17"
+      ],
+      "title": "SQL与关系代数",
+      "oneliner": "选择挑行、投影挑列、连接拼表——SQL 是关系代数的人类可读版。",
+      "file": "kp/16-sql-relalg.html"
+    },
+    {
+      "id": "17",
+      "slug": "normalization",
+      "domain": "db",
+      "freq": 5,
+      "diff": 4,
+      "deps": [
+        "16"
+      ],
+      "rel": [
+        "18",
+        "19"
+      ],
+      "title": "规范化理论",
+      "oneliner": "规范化用函数依赖逐级消除冗余，从1NF到BCNF像给档案做断舍离。",
+      "file": "kp/17-normalization.html"
+    },
+    {
+      "id": "18",
+      "slug": "transaction",
+      "domain": "db",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "16"
+      ],
+      "rel": [
+        "10",
+        "11"
+      ],
+      "title": "事务与并发控制",
+      "oneliner": "事务必须要么全做要么全不做，锁协议决定多个转账互相干扰到什么程度。",
+      "file": "kp/18-transaction.html"
+    },
+    {
+      "id": "19",
+      "slug": "distributed-db",
+      "domain": "db",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "17",
+        "18"
+      ],
+      "rel": [
+        "38",
+        "59"
+      ],
+      "title": "分布式数据库与NoSQL",
+      "oneliner": "数据分片放多处是性能选择，反规范化是拿一致性换速度的明码交易。",
+      "file": "kp/19-distributed-db.html"
+    },
+    {
+      "id": "20",
+      "slug": "osi-tcpip",
+      "domain": "net",
+      "freq": 4,
+      "diff": 2,
+      "deps": [],
+      "rel": [
+        "22"
+      ],
+      "title": "OSI与TCP/IP分层",
+      "oneliner": "网络分层像邮政体系：写内容、装信封、写地址、运输，各层只管自己那道工序。",
+      "file": "kp/20-osi-tcpip.html"
+    },
+    {
+      "id": "21",
+      "slug": "lan-vlan",
+      "domain": "net",
+      "freq": 3,
+      "diff": 2,
+      "deps": [
+        "20"
+      ],
+      "rel": [
+        "22"
+      ],
+      "title": "局域网与以太网",
+      "oneliner": "交换机按门牌号转发、路由器按城市转发，VLAN 把一台交换机隔成几个院子。",
+      "file": "kp/21-lan-vlan.html"
+    },
+    {
+      "id": "22",
+      "slug": "ip-subnet",
+      "domain": "net",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "20"
+      ],
+      "rel": [
+        "23"
+      ],
+      "title": "IP地址、子网与路由",
+      "oneliner": "子网掩码划出院墙，路由协议是各个路口导航员的信息互通机制。",
+      "file": "kp/22-ip-subnet.html"
+    },
+    {
+      "id": "23",
+      "slug": "tcp-udp",
+      "domain": "net",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "22"
+      ],
+      "rel": [
+        "24"
+      ],
+      "title": "TCP与UDP",
+      "oneliner": "UDP 是普通信件，TCP 是必须签收、丢了重发的挂号信。",
+      "file": "kp/23-tcp-udp.html"
+    },
+    {
+      "id": "24",
+      "slug": "app-protocols",
+      "domain": "net",
+      "freq": 3,
+      "diff": 2,
+      "deps": [
+        "23"
+      ],
+      "rel": [
+        "50",
+        "51"
+      ],
+      "title": "应用层协议与安全设备",
+      "oneliner": "DNS 是查号台，HTTP 是窗口办事流程，HTTPS 给管道加上锁。",
+      "file": "kp/24-app-protocols.html"
+    },
+    {
+      "id": "25",
+      "slug": "process-models",
+      "domain": "se",
+      "freq": 5,
+      "diff": 3,
+      "deps": [],
+      "rel": [
+        "26",
+        "31"
+      ],
+      "title": "软件过程模型",
+      "oneliner": "瀑布按工序直走、螺旋带风险打转、敏捷小步快跑——选模型就是选施工组织方式。",
+      "file": "kp/25-process-models.html"
+    },
+    {
+      "id": "26",
+      "slug": "requirements",
+      "domain": "se",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "25"
+      ],
+      "rel": [
+        "27",
+        "30"
+      ],
+      "title": "需求工程",
+      "oneliner": "需求要经过获取、分析、确认、管理四道关，写错需求是全工程最贵的错误。",
+      "file": "kp/26-requirements.html"
+    },
+    {
+      "id": "27",
+      "slug": "dfd",
+      "domain": "se",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "26"
+      ],
+      "rel": [
+        "28"
+      ],
+      "title": "结构化分析与数据流图",
+      "oneliner": "DFD 画的是数据的流动路线，父图子图必须平衡，加工必须有输入有输出。",
+      "file": "kp/27-dfd.html"
+    },
+    {
+      "id": "28",
+      "slug": "coupling-cohesion",
+      "domain": "se",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "27"
+      ],
+      "rel": [
+        "46"
+      ],
+      "title": "模块设计与内聚耦合",
+      "oneliner": "高内聚=一个人只干一类活，低耦合=同事之间少互相打扰。",
+      "file": "kp/28-coupling-cohesion.html"
+    },
+    {
+      "id": "29",
+      "slug": "oo-basics",
+      "domain": "se",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "25"
+      ],
+      "rel": [
+        "30",
+        "46"
+      ],
+      "title": "面向对象基础",
+      "oneliner": "封装藏细节、继承接家产、多态同一个说法不同对象有不同做法。",
+      "file": "kp/29-oo-basics.html"
+    },
+    {
+      "id": "30",
+      "slug": "uml",
+      "domain": "se",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "29"
+      ],
+      "rel": [
+        "47",
+        "48",
+        "49"
+      ],
+      "title": "UML建模",
+      "oneliner": "静态图拍骨架照、动态图拍过程录像，用例图讲系统对外承诺。",
+      "file": "kp/30-uml.html"
+    },
+    {
+      "id": "31",
+      "slug": "testing",
+      "domain": "se",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "25",
+        "26"
+      ],
+      "rel": [
+        "44"
+      ],
+      "title": "软件测试",
+      "oneliner": "白盒看线路、黑盒看说明书，测试证明缺陷存在而非证明无缺陷。",
+      "file": "kp/31-testing.html"
+    },
+    {
+      "id": "32",
+      "slug": "maintenance-cmm",
+      "domain": "se",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "31"
+      ],
+      "rel": [
+        "45"
+      ],
+      "title": "维护、配置管理与CMMI",
+      "oneliner": "维护分四类，配置管理管住每一个版本，CMMI 给组织成熟度定级。",
+      "file": "kp/32-maintenance-cmm.html"
+    },
+    {
+      "id": "33",
+      "slug": "arch-concepts",
+      "domain": "arch",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "29",
+        "30"
+      ],
+      "rel": [
+        "34",
+        "44"
+      ],
+      "title": "软件架构概念与4+1视图",
+      "oneliner": "架构是难以更改的早期决策集，4+1视图让不同干系人各看各的图纸。",
+      "file": "kp/33-arch-concepts.html"
+    },
+    {
+      "id": "34",
+      "slug": "styles-dataflow",
+      "domain": "arch",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "33"
+      ],
+      "rel": [
+        "35",
+        "40"
+      ],
+      "title": "架构风格：数据流与调用返回",
+      "oneliner": "管道过滤器像流水线接棒，分层像逐级审批，风格是可复用的顶层套路。",
+      "file": "kp/34-styles-dataflow.html"
+    },
+    {
+      "id": "35",
+      "slug": "styles-indep-vm",
+      "domain": "arch",
+      "freq": 5,
+      "diff": 4,
+      "deps": [
+        "34"
+      ],
+      "rel": [
+        "36"
+      ],
+      "title": "架构风格：独立构件与虚拟机",
+      "oneliner": "事件驱动让组件听广播不点名，虚拟机风格造一台「机器中的机器」。",
+      "file": "kp/35-styles-indep-vm.html"
+    },
+    {
+      "id": "36",
+      "slug": "styles-specific",
+      "domain": "arch",
+      "freq": 5,
+      "diff": 4,
+      "deps": [
+        "35"
+      ],
+      "rel": [
+        "37",
+        "38"
+      ],
+      "title": "架构风格：MVC、微内核与SOA",
+      "oneliner": "MVC 分工界面数据控制，微内核留最小核心装插件，SOA 用标准接口拼服务。",
+      "file": "kp/36-styles-specific.html"
+    },
+    {
+      "id": "37",
+      "slug": "csbs-tiers",
+      "domain": "arch",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "36"
+      ],
+      "rel": [
+        "38",
+        "05"
+      ],
+      "title": "C/S、B/S与多层架构",
+      "oneliner": "C/S 装客户端像装专属柜员机，B/S 用浏览器像用公共窗口，中间层负责分流。",
+      "file": "kp/37-csbs-tiers.html"
+    },
+    {
+      "id": "38",
+      "slug": "microservices",
+      "domain": "arch",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "37"
+      ],
+      "rel": [
+        "39",
+        "40"
+      ],
+      "title": "SOA与微服务",
+      "oneliner": "单体是小卖部啥都卖，微服务是专业商铺区：按业务拆店、独立经营、网络订货。",
+      "file": "kp/38-microservices.html"
+    },
+    {
+      "id": "39",
+      "slug": "cloud-native",
+      "domain": "arch",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "38"
+      ],
+      "rel": [
+        "19",
+        "61"
+      ],
+      "title": "云计算与云原生",
+      "oneliner": "IaaS 租毛坯、PaaS 租精装、SaaS 直接拎包入住；容器是标准化集装箱。",
+      "file": "kp/39-cloud-native.html"
+    },
+    {
+      "id": "40",
+      "slug": "middleware-eda",
+      "domain": "arch",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "38"
+      ],
+      "rel": [
+        "35",
+        "59"
+      ],
+      "title": "中间件与事件驱动架构",
+      "oneliner": "消息队列是城市快递中转站：发件人扔下就走，收件人有空再取。",
+      "file": "kp/40-middleware-eda.html"
+    },
+    {
+      "id": "41",
+      "slug": "adl-docs",
+      "domain": "arch",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "33"
+      ],
+      "rel": [
+        "44",
+        "45"
+      ],
+      "title": "ADL与架构文档",
+      "oneliner": "ADL 用构件、连接件、配置三要素把架构写成机器可分析的图纸。",
+      "file": "kp/41-adl-docs.html"
+    },
+    {
+      "id": "42",
+      "slug": "quality-attributes",
+      "domain": "qa",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "33"
+      ],
+      "rel": [
+        "43"
+      ],
+      "title": "质量属性与质量场景",
+      "oneliner": "性能、可用性、可修改性、安全……每个属性都要用六要素场景写清楚才算数。",
+      "file": "kp/42-quality-attributes.html"
+    },
+    {
+      "id": "43",
+      "slug": "quality-tactics",
+      "domain": "qa",
+      "freq": 5,
+      "diff": 4,
+      "deps": [
+        "42"
+      ],
+      "rel": [
+        "44",
+        "39"
+      ],
+      "title": "质量属性战术",
+      "oneliner": "战术是达成质量属性的可选招式：冗余保可用、缓存提性能、封装利修改。",
+      "file": "kp/43-quality-tactics.html"
+    },
+    {
+      "id": "44",
+      "slug": "arch-evaluation",
+      "domain": "qa",
+      "freq": 5,
+      "diff": 4,
+      "deps": [
+        "43",
+        "41"
+      ],
+      "rel": [
+        "45"
+      ],
+      "title": "架构评估：SAAM/ATAM/CBAM",
+      "oneliner": "评估在动工前找风险：敏感点是一个变量，权衡点是两个属性的拉锯点。",
+      "file": "kp/44-arch-evaluation.html"
+    },
+    {
+      "id": "45",
+      "slug": "arch-evolution",
+      "domain": "qa",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "44"
+      ],
+      "rel": [
+        "32",
+        "38"
+      ],
+      "title": "架构演化与重构",
+      "oneliner": "城市会扩张改造，架构要经历演化、维持、衰退的生命循环。",
+      "file": "kp/45-arch-evolution.html"
+    },
+    {
+      "id": "46",
+      "slug": "principles-gof",
+      "domain": "pt",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "29"
+      ],
+      "rel": [
+        "30"
+      ],
+      "title": "设计原则与GoF总览",
+      "oneliner": "开闭原则是总纲：对扩展开放、对修改关闭，23 个模式都是它的具体打法。",
+      "file": "kp/46-principles-gof.html"
+    },
+    {
+      "id": "47",
+      "slug": "creational",
+      "domain": "pt",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "46"
+      ],
+      "rel": [
+        "48",
+        "49"
+      ],
+      "title": "创建型模式",
+      "oneliner": "创建型模式把 new 的权力收归工厂：单例全家独一份，建造者按订单组装。",
+      "file": "kp/47-creational.html"
+    },
+    {
+      "id": "48",
+      "slug": "structural",
+      "domain": "pt",
+      "freq": 5,
+      "diff": 3,
+      "deps": [
+        "46"
+      ],
+      "rel": [
+        "49",
+        "47"
+      ],
+      "title": "结构型模式",
+      "oneliner": "结构型模式管拼接：适配器转换插头，装饰器层层加功能，代理隔门办事。",
+      "file": "kp/48-structural.html"
+    },
+    {
+      "id": "49",
+      "slug": "behavioral",
+      "domain": "pt",
+      "freq": 4,
+      "diff": 4,
+      "deps": [
+        "46"
+      ],
+      "rel": [
+        "48",
+        "47"
+      ],
+      "title": "行为型模式",
+      "oneliner": "行为型模式管协作：观察者听广播，责任链逐级上报，状态机随态换招。",
+      "file": "kp/49-behavioral.html"
+    },
+    {
+      "id": "50",
+      "slug": "crypto",
+      "domain": "sec",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "24"
+      ],
+      "rel": [
+        "51"
+      ],
+      "title": "密码学基础",
+      "oneliner": "对称加密用同一把钥匙速度快，非对称用钥匙对解决分发难，摘要防篡改。",
+      "file": "kp/50-crypto.html"
+    },
+    {
+      "id": "51",
+      "slug": "network-defense",
+      "domain": "sec",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "50"
+      ],
+      "rel": [
+        "52"
+      ],
+      "title": "网络安全防护体系",
+      "oneliner": "防火墙是城门岗哨，IDS 是巡逻哨兵，VPN 是穿过危险地带的加密地道。",
+      "file": "kp/51-network-defense.html"
+    },
+    {
+      "id": "52",
+      "slug": "attacks-malware",
+      "domain": "sec",
+      "freq": 3,
+      "diff": 2,
+      "deps": [
+        "51"
+      ],
+      "rel": [
+        "19"
+      ],
+      "title": "攻击与恶意代码",
+      "oneliner": "注入是把恶意指令混进表格，DDoS 是雇人堵门，社会工程学攻的是人心。",
+      "file": "kp/52-attacks-malware.html"
+    },
+    {
+      "id": "53",
+      "slug": "ip-rights",
+      "domain": "sec",
+      "freq": 5,
+      "diff": 2,
+      "deps": [],
+      "rel": [
+        "54"
+      ],
+      "title": "知识产权",
+      "oneliner": "著作权自动产生看期限，专利要申请看地域，商标注册在先、商业秘密靠保密。",
+      "file": "kp/53-ip-rights.html"
+    },
+    {
+      "id": "54",
+      "slug": "standards-contract",
+      "domain": "sec",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "53"
+      ],
+      "rel": [
+        "53"
+      ],
+      "title": "标准化与合同法律",
+      "oneliner": "标准分四级各管一域，合同签订要约承诺，招投标程序不可倒置。",
+      "file": "kp/54-standards-contract.html"
+    },
+    {
+      "id": "55",
+      "slug": "pm-framework",
+      "domain": "pm",
+      "freq": 3,
+      "diff": 2,
+      "deps": [],
+      "rel": [
+        "56"
+      ],
+      "title": "项目管理框架",
+      "oneliner": "十大知识领域是指挥部的十本台账，启动规划执行监控收尾五大过程组循环。",
+      "file": "kp/55-pm-framework.html"
+    },
+    {
+      "id": "56",
+      "slug": "schedule-cpm",
+      "domain": "pm",
+      "freq": 4,
+      "diff": 3,
+      "deps": [
+        "55"
+      ],
+      "rel": [
+        "06",
+        "57"
+      ],
+      "title": "进度管理与关键路径",
+      "oneliner": "关键路径是最长的工期主线，它上的活一天都延误不得，总时差为零。",
+      "file": "kp/56-schedule-cpm.html"
+    },
+    {
+      "id": "57",
+      "slug": "earned-value",
+      "domain": "pm",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "56"
+      ],
+      "rel": [
+        "58"
+      ],
+      "title": "成本估算与挣值分析",
+      "oneliner": "挣值分析三个数定乾坤：计划值、实际成本、已完成工作的预算价值。",
+      "file": "kp/57-earned-value.html"
+    },
+    {
+      "id": "58",
+      "slug": "ops-research",
+      "domain": "pm",
+      "freq": 3,
+      "diff": 3,
+      "deps": [
+        "56"
+      ],
+      "rel": [
+        "57"
+      ],
+      "title": "管理科学与决策分析",
+      "oneliner": "线性规划找最优配比，决策树给不确定性算期望，排队论算窗口开几个。",
+      "file": "kp/58-ops-research.html"
+    },
+    {
+      "id": "59",
+      "slug": "bigdata",
+      "domain": "trend",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "19",
+        "40"
+      ],
+      "rel": [
+        "60"
+      ],
+      "title": "大数据架构",
+      "oneliner": "Lambda 批流两条腿走路，Kappa 只留流式一条腿，数据湖仓库管水的进与出。",
+      "file": "kp/59-bigdata.html"
+    },
+    {
+      "id": "60",
+      "slug": "ai-arch",
+      "domain": "trend",
+      "freq": 4,
+      "diff": 2,
+      "deps": [
+        "59"
+      ],
+      "rel": [
+        "39",
+        "61"
+      ],
+      "title": "AI与大模型架构",
+      "oneliner": "训练是建厂、推理是开工，大模型服务要靠缓存、分流和算力调度撑住。",
+      "file": "kp/60-ai-arch.html"
+    },
+    {
+      "id": "61",
+      "slug": "iot-edge",
+      "domain": "trend",
+      "freq": 3,
+      "diff": 2,
+      "deps": [
+        "39"
+      ],
+      "rel": [
+        "60"
+      ],
+      "title": "物联网与边缘计算",
+      "oneliner": "感知层长眼睛、网络层传消息、应用层做决策，边缘计算让计算搬到现场。",
+      "file": "kp/61-iot-edge.html"
+    },
+    {
+      "id": "62",
+      "slug": "blockchain",
+      "domain": "trend",
+      "freq": 2,
+      "diff": 2,
+      "deps": [
+        "50",
+        "19"
+      ],
+      "rel": [
+        "60"
+      ],
+      "title": "区块链与前沿选型",
+      "oneliner": "区块链是全员记账不可涂改的总账本，联盟链适合多方协作的城市场景。",
+      "file": "kp/62-blockchain.html"
+    }
+  ]
+}

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · 指令系统与流水线 · 架构师学堂</title>
+<meta name="description" content="流水线让指令像装配线重叠执行，吞吐量取决于最慢的一站。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="01-computer-overview.html">前置 01</a></span>
+    <h1>04 · 指令系统与流水线</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">流水线让指令像装配线重叠执行，吞吐量取决于最慢的一站。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>洗衣店节前爆单：一批衣服要洗 30 分钟、漂 30 分钟、烘 30 分钟，共有 4 批。店长说：「三道工序，流水作业理论上能快 3 倍！」算下来串行要 6 小时，流水却还要 3 小时——<b>为什么没快到 3 倍？如果洗、漂、烘各环节耗时不同，又该用哪个公式估总时长？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>流水线的加速来自<strong>重叠</strong>：第 2 批在漂的时候，第 1 批已经在烘。但开工有「填充」（第一批要独自走完全程）、收工有「排空」，这两段没人跟你重叠，所以 4 批 = (3+4-1)×30min = 3 小时，加速比 2 倍而非 3 倍——加速比的上限就是段数 k。更关键的是：如果三道工序不是各 30 分钟而是 20/35/30 分钟，流水节奏就被<strong>最慢的漂洗（35 分钟）</strong>卡死，总时长公式也要换成「各段之和 + (n-1)×最长段」。指令流水线一模一样，这就是本页两条公式的分野。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>01 · 计算机系统组成与体系结构</b>——流水线正是把 01 页「一条指令的五步」重叠起来跑：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>指令流水线</strong>：把一条指令的执行切成 k 段（如取指、译码、取数、执行、写回），让多条指令在时间上<strong>重叠</strong>——第 i 条在执行时，第 i+1 条已在译码，第 i+2 条正在取指。各段像装配线工位，同一时刻都在忙。</p>
+      <h3>解决什么问题</h3>
+      <p>串行执行时 CPU 大部分部件闲着（译码时执行器没事干）。流水线用「提高吞吐量」而非「缩短单条指令时间」的方式榨干硬件——单条指令的延迟不会变短，但<strong>单位时间完成的指令数（吞吐量）</strong>成倍上升。</p>
+      <h3>核心机制</h3>
+      <p>两条时间公式（设各段时间 t₁..t_k，其中最长段 Δt，共 n 条指令）：</p>
+      <table class="tbl">
+        <tr><th>公式</th><th>表达式</th><th>适用</th></tr>
+        <tr><td>理论公式（一般式）</td><td>T = (t₁+…+t_k) + (n-1)·Δt</td><td>各段时间不等时用；首条走全程 + 后续按瓶颈节奏流入</td></tr>
+        <tr><td>实践公式（等长式）</td><td>T = (k+n-1)·Δt</td><td>各段时间相同（均为 Δt）时的特例，考题常见</td></tr>
+        <tr><td>加速比</td><td>S = 不流水时间 ÷ 流水时间，极限≈Σtᵢ/Δt（≤k）</td><td>评估流水线收益</td></tr>
+        <tr><td>吞吐率</td><td>TP = n ÷ T</td><td>稳态时 ≈ 1/Δt</td></tr>
+      </table>
+      <p><strong>瓶颈段决定节奏</strong>：流水线周期取<strong>最长子过程</strong>Δt——最慢的工位拖全线的拍子，这是本页第一考点。</p>
+      <h3>关键细节</h3>
+      <p><strong>三种相关（冒险）及对策</strong>：</p>
+      <table class="tbl">
+        <tr><th>相关类型</th><th>成因</th><th>对策</th></tr>
+        <tr><td>结构相关</td><td>多条指令抢同一硬件资源</td><td>资源重复设置（指令/数据 Cache 分离）、暂停流水</td></tr>
+        <tr><td>数据相关</td><td>后条指令要用前条结果（RAW 写后读最常见）</td><td>定向/旁路（forwarding）、插入气泡、编译重排</td></tr>
+        <tr><td>控制相关</td><td>分支指令改变取指流向</td><td>分支预测、延迟转移、多路预取</td></tr>
+      </table>
+      <p><strong>提升流水线性能的技术</strong>：超标量（一个周期发射多条指令，多套流水线）、超流水（把段切得更细、主频更高）、超长指令字 VLIW（编译器静态打包）、分支预测（猜对零代价，猜错清空流水线）。</p>
+      <p><strong>寻址方式速查</strong>（指令系统部分的高频小题）：</p>
+      <table class="tbl">
+        <tr><th>寻址方式</th><th>操作数在哪</th><th>有效地址 EA</th><th>备注</th></tr>
+        <tr><td>立即寻址</td><td>就在指令里</td><td>—</td><td>最快，不访存取数</td></tr>
+        <tr><td>直接寻址</td><td>主存</td><td>EA=A（指令给出的地址）</td><td>访存 1 次取数</td></tr>
+        <tr><td>间接寻址</td><td>主存</td><td>EA=(A)（A 单元里存的才是地址）</td><td>访存 2 次及以上</td></tr>
+        <tr><td>寄存器寻址</td><td>寄存器</td><td>—</td><td>不访存，快</td></tr>
+        <tr><td>寄存器间接寻址</td><td>主存</td><td>EA=(R)</td><td>访存 1 次</td></tr>
+        <tr><td>基址寻址</td><td>主存</td><td>EA=基址寄存器+偏移</td><td>面向操作系统：程序重定位</td></tr>
+        <tr><td>变址寻址</td><td>主存</td><td>EA=变址寄存器+形式地址</td><td>面向用户：数组循环处理</td></tr>
+        <tr><td>相对寻址</td><td>主存</td><td>EA=PC+偏移</td><td>便于程序浮动、转移指令</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①两条公式别混用：题目说「各段时间相同/忽略各段差异」才用 (k+n-1)Δt；给出各段不同时间必须用 Σtᵢ+(n-1)Δt；②流水线周期取<strong>最长段</strong>，不是平均；③加速比极限是段数 k（或 Σtᵢ/Δt），宣称「5 段流水快 10 倍」必错；④数据相关里 RAW（写后读）最常见，读后写 WAR、写后写 WAW 在按序流水里基本不出现。</div>
+      <h3>专业英语小贴士</h3>
+      <p>pipeline（流水线）；throughput（吞吐量）；speedup（加速比）；hazard（流水线冒险/相关）；addressing mode（寻址方式）；branch prediction（分支预测）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>流水线就是<strong>装配线</strong>（本域固定比喻）：一辆车（指令）依次经过底盘、车身、喷漆、内饰四个工位；四辆车同时在四个工位上时，装配线每「一拍」就下线一辆——但这一拍多长，由<strong>最慢的工位</strong>说了算。要是喷漆总比别的工位慢一倍，加多少辆车的订单都堵在它那儿。类比成立在「各工位独立、可同时干活」；失效在「后一辆车要用前一辆车的零件」——装配线不会等，CPU 必须靠旁路递件或干脆停一拍，这就是数据相关。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>四工位同时各干各的</td><td>指令五段重叠执行</td><td>成立</td></tr>
+      <tr><td>最慢工位决定下线节奏</td><td>周期 Δt 取最长子过程</td><td>成立</td></tr>
+      <tr><td>头几辆车逐渐填满工位</td><td>流水线填充期</td><td>成立（故有 k+n-1）</td></tr>
+      <tr><td>后车随手拿到前车的零件</td><td>数据相关自动解决</td><td><b>失效</b>：CPU 必须显式用定向/停顿处理 RAW</td></tr>
+    </table>
+    <div class="rhyme">流水快慢看长板，周期取段最长者；<br>k 加 n 减一乘 Δ，等长才能套此式；<br>各段不等别硬算，先和后加才稳妥；<br>相关三种分得清，结构数据与控制。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画是一条 5 段指令流水线的时空图（甘特图）：每个格子代表「某条指令在某段的驻留时间」。拖动「指令条数」滑块，切换「各段等长/不等长」，对比两条公式的计算结果——<b>必考计算题就在这里做一遍</b>。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>指令条数 n <input type="range" id="n-slider" min="1" max="10" value="6"> <span id="n-out">6</span></label>
+      <label>段时长 <input type="range" id="mode-slider" min="0" max="1" value="0"> <span id="mode-out">各段等长（各 10ns）</span></label>
+      <span class="kf-caption" id="calc-out"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：流水线计算器 + 挑战</h4>
+      <p class="foreshadow">拖滑块设段数 k、指令数 n、段时长 Δt（等长），观察总时间与加速比。挑战：<b>让加速比 &gt; 4</b>：</p>
+      <label>段数 k <input type="range" id="k-slider" min="2" max="8" value="4"> <span id="k-out">4</span></label><br>
+      <label>指令数 n <input type="range" id="qn-slider" min="1" max="20" value="5"> <span id="qn-out">5</span></label><br>
+      <label>段时长 Δt <input type="range" id="dt-slider" min="5" max="100" step="5" value="20"> <span id="dt-out">20 ns</span></label>
+      <p id="lab1-calc" class="foreshadow"></p>
+      <button class="btn" id="sp-check">检查加速比是否 &gt; 4</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：三种相关 ↔ 成因与对策</h4>
+      <p class="foreshadow">先点左列一个相关类型，再点右列对应描述：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：寻址方式 ↔ 特征</h4>
+      <p class="foreshadow">先点左列一个寻址方式，再点右列它的特征：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match3-left"></div>
+        <div id="match3-right"></div>
+      </div>
+      <button class="btn" id="match3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>01 页给了指令周期「取指→译码→取数→执行→写回」——本页把这五步从「排队逐条」改成「装配线重叠」，并把 RISC「定长、单周期」的特点变成流水线的天然燃料。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「取指要等内存」的空拍，在 <b>05 · 存储层次与Cache</b> 用 Cache 堵上——命中率直接决定流水线喂得饱不饱；</li>
+    <li>「并行重叠提升吞吐」的思想在 <b>09 · 进程、线程与调度</b> 升维成多道程序并发。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>理论公式</th><th>实践公式</th></tr>
+      <tr><td>差异点</td><td>(t₁+…+t_k)+(n-1)·Δt，各段可不等长</td><td>(k+n-1)·Δt，要求各段等长（或忽略差异）</td></tr>
+      <tr><td>易错点</td><td>各段等长时忘记它退化成实践公式</td><td>各段不等长时硬套，把 Σtᵢ 算成 k·Δt</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">审题先看「各段时间」：给了不同时间用理论式（先和后加），说等长才用 (k+n-1)Δt。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——洗衣服分洗、漂、烘三步，第二批衣服漂的时候第一批已经在烘了……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 流水线提吞吐不缩短单条延迟：周期 Δt 取最长段，等长用 (k+n-1)Δt，不等长用 Σtᵢ+(n-1)Δt。</li><li>② 三种相关：结构靠重复资源、数据靠定向/重排、控制靠分支预测；RAW 是数据相关的头号主角。</li><li>③ 加速比极限≈段数 k；超标量加流水线条数、超流水加段数细度，寻址方式里基址管重定位、变址管数组。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '04', domain: 'hw', loc: 'foundation', root: '..',
+  title: '指令系统与流水线',
+  prev: '03-error-check.html', prevTitle: '03 · 校验码与纠错',
+  next: '05-cache-memory.html', nextTitle: '05 · 存储层次与Cache',
+  keywords: ['流水线','吞吐量','加速比','数据相关','控制相关','分支预测','超标量','寻址方式']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 01） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·01】一条指令在 CPU 内部大致经过哪几个阶段？',
+    opts: [
+      { t: '开机→杀毒→关机', why: '那是用户视角的操作，不是指令级机制。' },
+      { t: '取指→译码→（取数）→执行→写回', why: '对。控制器取指令、翻译、取操作数，运算器执行，结果写回——本页流水线就把这条链拆成工位重叠跑。' },
+      { t: '编译→链接→运行', why: '那是高级语言变成程序的过程，发生在指令执行之前。' }
+    ],
+    ans: 1, tag: '回忆:01', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某流水线分 5 段，各段时间均为 10ns，连续流入 10 条指令，总执行时间为？',
+      opts: [
+        { t: '100 ns', why: '这是 10 条不重叠的串行单段时间（10×10），没算每条要跑 5 段。' },
+        { t: '140 ns', why: '对。各段等长用实践公式：(k+n-1)Δt=(5+10-1)×10=140ns。' },
+        { t: '150 ns', why: '多加了一段：k+n-1=14，不是 15——第一条指令别数两次。' },
+        { t: '500 ns', why: '这是完全串行 10×50；流水线重叠省下的正是这个差（360ns）。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '某流水线 3 段，各段时间依次 50ns、80ns、100ns，连续流入 10 条指令，总时间约为？',
+      opts: [
+        { t: '1000 ns', why: '这是硬套实践公式 (3+10-1)×100 的结果——各段不等长时它不成立。' },
+        { t: '1130 ns', why: '对。理论公式：Σtᵢ+(n-1)Δt=(50+80+100)+9×100=1130ns，Δt 取最长段 100ns。' },
+        { t: '2300 ns', why: '这是完全串行（10×230）；流水线让后续指令与首条重叠。' },
+        { t: '930 ns', why: '拍数没数满：Σtᵢ+(n-3)Δt=230+700=930，少加了 2 拍——首条之后每条指令的间隔都要计入，间隔共 n-1=9 拍。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '流水线中，第 i+1 条指令需要用到第 i 条指令的运算结果，这种冲突属于？',
+      opts: [
+        { t: '结构相关，对策是重复设置部件', why: '结构相关是抢硬件资源；这里抢的是「数据」，不是部件。' },
+        { t: '数据相关（RAW 写后读），对策是定向/旁路或插入气泡', why: '对。写后读最常见：结果还没写回就要被读，用定向直接把结果从上一段递下去，或停一拍。' },
+        { t: '控制相关，对策是分支预测', why: '控制相关针对分支指令改变流向，与数据依赖无关。' },
+        { t: '资源相关，对策是加大内存', why: '加大内存解决不了寄存器数据依赖。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '处理数组时希望「形式地址不变、下标逐次加一」地扫过一片连续单元，最适合的寻址方式是？',
+      opts: [
+        { t: '立即寻址', why: '操作数固定在指令里，扫描数组每步操作数都不同，用不上。' },
+        { t: '变址寻址：EA=变址寄存器+形式地址', why: '对。形式地址作数组基址、变址寄存器当循环变量，正是「面向用户处理数组」的设计。' },
+        { t: '基址寻址：EA=基址寄存器+偏移', why: '长得像但用途反：基址面向操作系统的程序重定位，基址寄存器由系统管理，用户不改。' },
+        { t: '相对寻址', why: '相对寻址以 PC 为基准，服务于转移指令和程序浮动。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·01】RISC 指令集之所以「天生适合流水线」，最主要的原因是？',
+      opts: [
+        { t: '指令功能强大，一条顶多条', why: '那是 CISC 的特点；功能复杂反而让段切不均匀。' },
+        { t: '指令定长、寻址方式少、多数指令单周期，各段规整均匀', why: '对。段切得整齐、节奏一致，装配线才能满速转；这正是 01 页 CISC/RISC 表格的流水线视角。' },
+        { t: 'RISC 不需要访存', why: 'RISC 仍要访存（Load/Store 架构只是让运算尽量在寄存器间）。' },
+        { t: 'RISC 用微程序实现', why: 'RISC 恰以硬布线为主，微程序控制是 CISC 的常见实现。' }
+      ],
+      ans: 1, tag: '交错复习:01', src: '仿真题' }
+  ], { kpId: '04', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某五段流水线各段时间依次为 50、80、60、90、70ns（取指、译码、取数、执行、写回）。现有 100 条指令连续流入。工程师小张估算：「总时间=(5+100-1)×90=9360ns」。',
+    q: '(1) 指出小张算式的错误并给出正确总时间；(2) 计算相对完全串行的加速比；(3) 指出瓶颈段并提出两条流水线级改进。',
+    ref: '(1) 错误：各段不等长时不能套 (k+n-1)Δt（那是等长特例，且他还错把 Σtᵢ 当成 k·Δt）。正确：Δt=最长段=90ns，T=Σtᵢ+(n-1)Δt=(50+80+60+90+70)+99×90=350+8910=9260ns。(2) 完全串行 T₀=100×350=35000ns，加速比 S=35000/9260≈3.78；理论极限 Σtᵢ/Δt≈3.89，说明已接近瓶颈极限。(3) 瓶颈是第 4 段（90ns）。改进：①对瓶颈段重复设置部件或细分该段（均衡各段时长，接近超流水思想），把 Δt 降下来；②解决访存瓶颈：指令/数据 Cache 分离消除结构相关（配合 05 页提高命中率），减少停顿。',
+    points: ['指出「不等长硬套等长公式」这一步错在哪', 'T=9260ns 与 S≈3.78 计算正确', '瓶颈定位到 90ns 段且改进措施对应结构相关/瓶颈段'],
+    frame: '答题框架：审公式适用条件→代入正确公式→算加速比并与极限对照→定位瓶颈→改进措施逐条对应瓶颈。',
+    kpId: '04'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '某 RISC 五段流水线（取指、译码、执行、访存、写回），编译器输出片段：I1: LOAD R1,[A]；I2: ADD R2,R1,R3；I3: SUB R4,R5,R6；I4: STORE [B],R2。',
+    q: '(1) 指出哪些指令对之间存在数据相关并说明类型；(2) 若无任何优化，I2 需要停顿几拍？为什么；(3) 给出两种消除停顿的方案并简述原理。',
+    ref: '(1) I1→I2：I2 的源操作数 R1 由 I1 写入，RAW（写后读）；I2→I4：I4 存储 R2，也是 RAW。I3 与其余指令无数据相关。(2) 无定向机制时，I1 要到第 5 段（写回）才写入 R1，而 I2 在第 3 段（执行）就要读 R1，需在流水线中插入停顿（气泡）等待写回完成，典型损失约 2 拍（按具体段排布而定）。(3) 方案一：定向/旁路（forwarding）——ALU 结果在执行段末直接从上一级的输出寄存器引到下级输入，不必等写回，多数 RAW 停顿归零；方案二：编译器指令重排——把无关的 I3 提到 I2 之前填补空拍（本例 I3 恰好独立，可填充流水线气泡）。另可辅以寄存器改名消除反相关/输出相关。',
+    points: ['正确识别 I1→I2、I2→I4 两条 RAW', '能解释停顿拍数来源（写回与执行的段距）', '定向与重排两种方案的原理说清（结果直递/无关指令填缝）'],
+    frame: '答题框架：先画五段时空图标出读写时刻→逐对指令判相关类型→量化停顿→给对策并说明各自消除哪一拍。',
+    kpId: '04'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '中央厨房出餐：切配 4 分钟、炒制 8 分钟、装盘 4 分钟，共 20 份订单连续加工，全部出完约需多久？',
+    opts: [
+      { t: '320 分钟', why: '这是完全串行 20×16；流水作业下后一份订单的切配可与前一份的炒制重叠。' },
+      { t: '176 分钟', why: '这是硬套等长式 (3+20-1)×8——各段时间不等长时该公式不适用，先求各段之和再按瓶颈段加拍。' },
+      { t: '168 分钟', why: '对。Δt=最慢的炒制 8 分钟，T=Σtᵢ+(n-1)Δt=(4+8+4)+19×8=168 分钟，瓶颈是炒制。' }
+    ],
+    ans: 2, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '04', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['01'], 'prev');
+  CX.depChain('#bridge-next', ['05', '06']);
+
+  /* ---- 动画：流水线时空图 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var nIns = 6, unequal = 0;
+  var T_EQ = [10, 10, 10, 10, 10], T_UN = [50, 80, 60, 90, 70];
+  var stageNames = ['取指', '译码', '取数', '执行', '写回'];
+  function schedule(ts, n) {
+    var dt = Math.max.apply(null, ts);
+    var F = [], i, s;
+    for (i = 0; i < n; i++) {
+      F.push([]);
+      for (s = 0; s < ts.length; s++) {
+        var prev = i > 0 ? F[i - 1][s] : 0;
+        var left = s > 0 ? F[i][s - 1] : i * dt;
+        F[i].push(Math.max(prev, left) + ts[s]);
+      }
+    }
+    return F;
+  }
+  function draw(t) {
+    var ts = unequal ? T_UN : T_EQ;
+    var k = ts.length, dt = Math.max.apply(null, ts);
+    var F = schedule(ts, nIns);
+    var Tmax = F[nIns - 1][k - 1];
+    var now = t * Tmax;
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    var x0 = 60, x1 = 730, y0 = 46, rh = Math.min(24, 232 / nIns);
+    var scale = (x1 - x0) / Tmax;
+    var colors = ['var(--accent)', 'var(--accent-2)', 'var(--ok)', 'var(--warn)', 'var(--bad)'];
+    var i, st;
+    for (i = 0; i < nIns; i++) {
+      var y = y0 + i * rh;
+      s += '<text x="52" y="' + (y + rh - 5) + '" text-anchor="end" font-size="11" fill="var(--text-dim)">I' + (i + 1) + '</text>';
+      for (st = 0; st < k; st++) {
+        var startT = F[i][st] - ts[st];
+        if (startT >= now) continue;
+        var wT = Math.min(ts[st], now - startT);
+        s += '<rect x="' + (x0 + startT * scale).toFixed(1) + '" y="' + (y + 1) + '" width="' + Math.max(1, wT * scale).toFixed(1) + '" height="' + (rh - 2) + '" rx="3" fill="' + colors[st] + '" opacity=".85"/>';
+      }
+    }
+    var nowX = x0 + now * scale;
+    s += '<line x1="' + nowX.toFixed(1) + '" y1="' + (y0 - 6) + '" x2="' + nowX.toFixed(1) + '" y2="' + (y0 + nIns * rh + 4) + '" stroke="var(--text)" stroke-width="2" stroke-dasharray="4 3"/>';
+    /* 时间轴 */
+    s += '<line x1="' + x0 + '" y1="' + (y0 + nIns * rh + 8) + '" x2="' + x1 + '" y2="' + (y0 + nIns * rh + 8) + '" stroke="var(--line)"/>';
+    var tickStep = Tmax > 800 ? 300 : (Tmax > 400 ? 150 : 50);
+    var tk;
+    for (tk = 0; tk <= Tmax; tk += tickStep) {
+      var tx = x0 + tk * scale;
+      s += '<line x1="' + tx + '" y1="' + (y0 + nIns * rh + 8) + '" x2="' + tx + '" y2="' + (y0 + nIns * rh + 13) + '" stroke="var(--line)"/>';
+      s += '<text x="' + tx + '" y="' + (y0 + nIns * rh + 26) + '" text-anchor="middle" font-size="10" fill="var(--text-dim)">' + tk + '</text>';
+    }
+    s += '<text x="' + x1 + '" y="' + (y0 + nIns * rh + 26) + '" text-anchor="end" font-size="10" fill="var(--text-dim)">时间/ns</text>';
+    s += '<text x="14" y="30" font-size="12" fill="var(--text-dim)">段：' + stageNames.join(' → ') + '（颜色区分），Δt=' + dt + 'ns</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var sumT = 0, j;
+    for (j = 0; j < k; j++) sumT += ts[j];
+    var formulaT = unequal ? (sumT + (nIns - 1) * dt) : ((k + nIns - 1) * dt);
+    var wrongT = (k + nIns - 1) * dt;
+    var msg;
+    if (!unequal) msg = '等长：T=(k+n-1)Δt=(' + k + '+' + nIns + '-1)×' + dt + '=' + formulaT + 'ns';
+    else msg = '不等长：T=Σtᵢ+(n-1)Δt=' + sumT + '+' + (nIns - 1) + '×' + dt + '=' + formulaT + 'ns（硬套等长式会错算成 ' + wrongT + 'ns）';
+    CX.utils.$('#calc-out').textContent = msg;
+    var cap;
+    if (t < 0.2) cap = '填充期：首条指令独自走完 5 段，后面的指令依次进入空工位。';
+    else if (t < 0.85) cap = '稳态：每隔 Δt=' + dt + 'ns（最长段）就有一条指令完成——瓶颈段在给全线打拍子。';
+    else cap = '排空：全部完成，T=' + formulaT + 'ns。对照右侧公式：你用的是等长式还是「先和后加」？';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 16, duration: 12, onTick: draw });
+  var nS = CX.utils.$('#n-slider'), modeS = CX.utils.$('#mode-slider');
+  nS.addEventListener('input', function () { nIns = parseInt(nS.value, 10); CX.utils.$('#n-out').textContent = nIns; draw(anim.t || 0); });
+  modeS.addEventListener('input', function () {
+    unequal = parseInt(modeS.value, 10);
+    CX.utils.$('#mode-out').textContent = unequal ? '不等长（50/80/60/90/70ns）' : '各段等长（各 10ns）';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：参数实验 ---- */
+  var kS = CX.utils.$('#k-slider'), qnS = CX.utils.$('#qn-slider'), dtS = CX.utils.$('#dt-slider');
+  function calcPipe() {
+    var k = parseInt(kS.value, 10), n = parseInt(qnS.value, 10), dt = parseInt(dtS.value, 10);
+    CX.utils.$('#k-out').textContent = k;
+    CX.utils.$('#qn-out').textContent = n;
+    CX.utils.$('#dt-out').textContent = dt + ' ns';
+    var T = (k + n - 1) * dt, T0 = k * n * dt, S = T0 / T, tp = n / T;
+    CX.utils.$('#lab1-calc').textContent = '流水总时间 T=(k+n-1)Δt=' + T + 'ns；串行 T₀=' + T0 + 'ns；加速比 S=' + S.toFixed(2) + '；吞吐率 ' + tp.toFixed(3) + ' 条/ns';
+    return S;
+  }
+  [kS, qnS, dtS].forEach(function (x) { x.addEventListener('input', calcPipe); });
+  calcPipe();
+  CX.utils.$('#sp-check').addEventListener('click', function () {
+    var S = calcPipe(), fb = CX.utils.$('#lab1-fb');
+    if (S > 4) {
+      fb.textContent = '✅ 加速比 ' + S.toFixed(2) + ' > 4。观察：n 越大 S 越接近段数 k——装配线跑得越久，填充期摊得越薄。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      var k = parseInt(kS.value, 10), n = parseInt(qnS.value, 10);
+      fb.textContent = '❌ 加速比只有 ' + S.toFixed(2) + '。错在这一步：S=k·n/(k+n-1)，n 小的时候填充期拖后腿——要么把指令数 n 拉大，要么把段数 k 提到 5 以上（当前 k=' + k + '，n=' + n + '）。';
+      fb.className = 'lab-feedback bad';
+    }
+  });
+
+  /* ---- 实验二：连线匹配（相关类型） ---- */
+  var pairs = [
+    ['结构相关', '多条指令抢同一硬件部件：重复设资源或停顿'],
+    ['数据相关', '后条指令要用前条结果（RAW）：定向旁路或气泡'],
+    ['控制相关', '分支指令改变取指流向：分支预测或延迟转移']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的成因与对策。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个相关类型。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/3';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('#lab2-fb').textContent = '❌ 不对。分辨口诀：抢「部件」是结构，等「数据」是数据，猜「去向」是控制——你选的这条说的是哪一类资源？';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：连线匹配（寻址方式） ---- */
+  var pairs3 = [
+    ['立即寻址', '操作数直接写在指令里，取指后无需再取数'],
+    ['直接寻址', '指令给出主存地址 A，访存一次取操作数'],
+    ['间接寻址', 'A 单元里存的还是地址，至少访存两次'],
+    ['寄存器间接寻址', '寄存器里存主存地址，访存一次'],
+    ['变址寻址', '变址寄存器+形式地址，适合数组循环扫描']
+  ];
+  var lBox3 = CX.utils.$('#match3-left'), rBox3 = CX.utils.$('#match3-right');
+  var selL3 = null, donePairs3 = 0;
+  function buildMatch3() {
+    selL3 = null; donePairs3 = 0;
+    lBox3.innerHTML = ''; rBox3.innerHTML = '';
+    pairs3.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox3).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL3 = d;
+        CX.utils.$('#lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的特征。';
+        CX.utils.$('#lab3-fb').className = 'lab-feedback';
+      });
+      lBox3.appendChild(d);
+    });
+    CX.shuffle(pairs3).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL3) { CX.utils.$('#lab3-fb').textContent = '先点左列一个寻址方式。'; return; }
+        if (selL3.dataset.k === d.dataset.v) {
+          selL3.style.opacity = .35; d.style.opacity = .35; selL3.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL3.classList.remove('sel'); selL3 = null; donePairs3++;
+          CX.utils.$('#lab3-fb').textContent = '✅ 配对成功 ' + donePairs3 + '/5';
+          CX.utils.$('#lab3-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL3.dataset.k;
+          var hint = k === '立即寻址' ? '❌ 立即寻址的关键判据是「数就在指令里」，不需要任何额外取数。'
+            : k === '变址寻址' ? '❌ 变址寻址判据是「变址寄存器+形式地址、面向用户数组」，别和基址（系统管重定位）混了。'
+            : '❌ 「' + k + '」不对应这条。判别步骤：先问操作数在指令/寄存器/主存哪一层，再问拿地址要多访存几次。';
+          CX.utils.$('#lab3-fb').textContent = hint;
+          CX.utils.$('#lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox3.appendChild(d);
+    });
+  }
+  buildMatch3();
+  CX.utils.$('#match3-reset').addEventListener('click', function () { buildMatch3(); CX.utils.$('#lab3-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

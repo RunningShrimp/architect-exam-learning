@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>41 · ADL与架构文档 · 架构师学堂</title>
+<meta name="description" content="ADL 用构件、连接件、配置三要素把架构写成机器可分析的图纸；文档为涉众而写、随版本可追溯。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="33-arch-concepts.html">前置 33</a></span>
+    <h1>41 · ADL与架构文档</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">ADL 三要素写成图纸：构件、连接件、配置，机器可分析。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某银行采购核心系统，招标文件写明：「中标方须交付<b>可被工具自动分析</b>的架构描述，能自动检查构件接口匹配与一致性」。架构师小王犯嘀咕：我们平时交付的都是框图和 Word 文档——图是人看的，工具怎么「读」？另有一个遗留的清算系统跑了 15 年，文档全丢、老人退休，新需求没人敢动。这两件事各需要一个什么「手艺」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>第一件事要 <b>ADL（架构描述语言）</b>：用形式化语法描述<b>构件、连接件、配置</b>，工具就能自动做一致性检查、类型检查甚至死锁检测——图纸从「给人看的画」升级为「给机器读的模型」。第二件事要 <b>架构复原（重构）</b>：从代码、运行日志与老员工记忆中<b>反推</b>出系统的真实架构，再文档化。两件事共同指向本页主题：<b>架构必须被描述、被记录、可追溯</b>，否则评估（44 页）与演化（45 页）都是空中楼阁。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>33 · 软件架构概念与4+1视图</b>（文档化的内容组织框架就是 4+1）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：ADL 三要素</h3>
+      <p><b>ADL（Architecture Description Language，架构描述语言）</b>是用形式化语法描述软件架构的语言。与框图工具的区别：它有<b>精确语义</b>，能被工具<b>分析</b>（一致性、类型匹配、行为性质）。三要素正是 33 页架构三要素的「文字化」：</p>
+      <table class="tbl">
+        <tr><th>要素</th><th>描述什么</th><th>类比</th></tr>
+        <tr><td><b>构件（Component）</b></td><td>计算或数据存储单元，带接口（端口 Port）</td><td>规划图里的建筑</td></tr>
+        <tr><td><b>连接件（Connector）</b></td><td>构件间的交互机制（管道、RPC、事件），带接口（角色 Role）</td><td>道路与管线</td></tr>
+        <tr><td><b>配置（Configuration）</b></td><td>构件与连接件如何连接组合的拓扑规则（Attachment/约束）</td><td>管线接驳图与红线</td></tr>
+      </table>
+      <p>考点句：<b>在 ADL 中，连接件是一等公民（first-class entity）</b>——它像构件一样有类型、接口与语义，可以被单独定义、分析与复用；而普通建模图里的「连线」只是线。这也是 ADL 区别于 UML 的关键之一。</p>
+      <h3>典型 ADL 一览（对号入座题）</h3>
+      <table class="tbl">
+        <tr><th>ADL</th><th>特色（一句话）</th></tr>
+        <tr><td><b>ACME</b></td><td>通用架构<b>交换/互换</b>描述语言：七类实体（构件、连接件、系统、端口、角色、表述、属性），定位是「架构的 PDF」——不同工具间交换架构描述</td></tr>
+        <tr><td><b>Wright</b></td><td>侧重连接件<b>行为形式化</b>，可做<b>死锁检测</b>等性质分析</td></tr>
+        <tr><td><b>Rapide</b></td><td>基于<b>事件模式</b>，架构<b>可执行、可仿真</b>，观察行为满足与否</td></tr>
+        <tr><td>UniCon</td><td>支持构件/连接件类型与属性匹配的组装分析</td></tr>
+        <tr><td>C2 SADL</td><td>配套 <b>C2 分层消息驱动</b>风格的描述语言</td></tr>
+      </table>
+      <h3>架构文档化原则</h3>
+      <ul>
+        <li><b>涉众导向</b>：文档为读者服务——不同干系人看不同视图（回扣 33 页 4+1），不追求「一张图包打天下」；</li>
+        <li><b>版本化</b>：架构文档是配置管理对象，纳入基线、随版本受控（联动 32 页）；</li>
+        <li><b>可追溯</b>：需求→架构决策→视图元素能对上账；决策要记「为什么」（架构决策记录 ADR 的思想）；</li>
+        <li><b>充分且最小</b>：写到足以指导与分析即可，过度文档没人读=失效；</li>
+        <li><b>同步演化</b>：架构改了文档必须跟着改，过期文档比没有更危险。</li>
+      </ul>
+      <h3>架构复原（重构）</h3>
+      <p><b>架构复原（Architecture Reconstruction/Recovery）</b>：对文档缺失的既有系统，从<b>代码静态分析、运行时动态追踪、领域知识与人员访谈</b>三条线<b>半自动反推</b>架构，再验证（与运行时行为比对）、文档化。它与「逆向工程」同源：逆向工程恢复设计与结构信息，架构复原专指恢复到<b>架构抽象层级</b>。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>architecture description language（架构描述语言）· first-class connector（连接件一等公民）· traceability（可追溯性）· architecture reconstruction（架构复原）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① <b>ADL≠UML</b>：UML 是通用建模语言、连接件不是一等公民；ADL 面向架构层级、支持形式化分析——考试爱把两者当「同类」混选；② 连接件不是「一根线」：管道、RPC、事件各有语义与类型，接错类型工具能查出来；③ 「架构文档=画图」错——文档包括视图+决策记录+质量说明，且要版本化受控；④ 架构复原≠代码重构（重命名提取函数那种）：复原是「恢复架构视图」，重构是「改善内部结构」。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>ADL=建筑图纸的「CAD 格式」</b>：手绘框图像美术画，好看但算不了受力；CAD 模型有精确尺寸语义，软件能自动检查「这根梁承重不够」——ADL 让架构图同样「可算」。<b>连接件是一等公民</b>=市政图里「道路」不只是线，而是有宽度、限速、通行规则的对象，可以单独设计审查。<b>架构复原=老宅测绘</b>：图纸丢了的老宅，测量队用卷尺（静态分析）、住客口述（访谈）、翻修记录（动态日志）三方对照，重新画出可信的图纸。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>CAD 模型可算受力</td><td>ADL 可做一致性与性质分析</td><td>成立</td></tr>
+      <tr><td>道路是有规则的对象</td><td>连接件是一等实体</td><td>成立</td></tr>
+      <tr><td>测绘一次图纸永久准确</td><td>复原结果长期有效</td><td><b>失效</b>：系统持续演化，复原的架构要随版本更新，否则重新过期</td></tr>
+      <tr><td>图纸给施工队看</td><td>文档涉众导向</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">构件连接加配置，ADL 三宝要牢记；<br>连接件是一等公民，ACME 交换无异议；<br>Wright 专查死锁事，Rapide 仿真演习急；<br>文档为人为版本，需求决策可追溯；<br>老宅无图莫慌张，测绘复原画新籍。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示一份 ACME 风格的描述逐行「编译」成架构图：声明两个构件与一个连接件，再声明配置（绑定），最后做自动分析。拖动「连接件类型」滑块换连接件，看类型检查的结果变化——这就是「机器可分析」的价值。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>连接件类型 <input type="range" id="adl-slider" min="0" max="2" step="1" value="0"> <span id="adl-out">pipe（流）</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（归类判断）：这条描述属于构件、连接件还是配置？</h4>
+      <p class="foreshadow">口诀：名词（计算/存储单元）=构件；动词（交互机制）=连接件；「谁接到谁/怎么组合」=配置。</p>
+      <div id="cls-item" style="font-weight:600;margin:6px 0"></div>
+      <div>
+        <button class="btn" data-c="构件">构件</button>
+        <button class="btn" data-c="连接件">连接件</button>
+        <button class="btn" data-c="配置">配置</button>
+      </div>
+      <div class="lab-feedback" id="lab1-fb"></div>
+      <button class="btn primary" id="cls-next" style="display:none;margin-top:6px">下一题 →</button>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：ADL ↔ 看家本领</h4>
+      <p class="foreshadow">先点左列 ADL，再点右列它的特色：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="adl-left"></div>
+        <div id="adl-right"></div>
+      </div>
+      <button class="btn" id="adl-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：这份文档犯了什么错？</h4>
+      <p class="foreshadow">左列是文档问题，右列是违反的原则：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="doc-left"></div>
+        <div id="doc-right"></div>
+      </div>
+      <button class="btn" id="doc-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考「架构要可描述、可追溯」：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>33 · 软件架构概念</b>给了三要素（构件/连接件/约束）与 4+1 视图——ADL 是它们的<b>形式化文字版</b>，4+1 是文档化的<b>内容组织框架</b>；<b>32 · 配置管理</b>给了版本化与基线——架构文档正是受控对象之一。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>44 · 架构评估</b>：SAAM/ATAM 要「读」架构——ADL 的可分析性让评估从人工走查升级为工具辅助；</li>
+      <li><b>45 · 架构演化与重构</b>：演化要有起点图与轨迹账——版本化文档就是演化的时间机器。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>ADL</th><th>UML</th></tr>
+      <tr><td>定位</td><td>面向<b>架构层级</b>的描述语言，构件/连接件/配置有形式语义</td><td>通用软件建模语言，覆盖需求到实现的多种图</td></tr>
+      <tr><td>连接件</td><td><b>一等公民</b>：有类型、接口（角色）与语义</td><td>多用依赖/关联等关系表达，不是一等实体</td></tr>
+      <tr><td>易错点</td><td>以为 ADL 只是把框图翻译成文字——核心价值是「可被工具分析」</td><td>以为 UML 能完全替代 ADL——架构级形式化分析是 UML 的短板</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">UML 是「全科室通用的画图笔」，ADL 是「专为总规做的可计算模型」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——手绘地图和能导航的电子地图的区别……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① ADL 三要素：构件、连接件（一等公民）、配置（拓扑规则）；代表：ACME 交换、Wright 死锁检测、Rapide 可执行仿真。</li><li>② 文档化五原则：涉众导向、版本化、可追溯、充分且最小、同步演化。</li><li>③ 架构复原=静态分析+动态追踪+访谈三方对照，从遗留系统反推架构并验证、文档化。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '41', domain: 'arch', loc: 'cityplan', root: '..',
+  title: 'ADL与架构文档',
+  prev: '40-middleware-eda.html', prevTitle: '40 · 中间件与事件驱动架构',
+  next: '42-quality-attributes.html', nextTitle: '42 · 质量属性与质量场景',
+  keywords: ['ADL','构件','连接件','配置','ACME','架构文档','涉众','架构复原']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 33） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·33】33 页说架构三要素是构件、连接件与约束；ADL 里与「约束/组合规则」对应的要素通常叫？',
+    opts: [
+      { t: '配置（Configuration）：构件与连接件如何连接组合的拓扑声明', why: '对。本页动画里「Attachment 绑定」就是配置的具体形态。' },
+      { t: '端口（Port）', why: '端口是构件的接口，不是组合规则。' },
+      { t: '视图（View）', why: '视图是描述角度（4+1），不是三要素之一。' }
+    ],
+    ans: 0, tag: '回忆:33', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: 'ADL 区别于普通建模图的关键特征是？',
+      opts: [
+        { t: '图画得更漂亮', why: '与美观无关。' },
+        { t: '构件、连接件、配置有形式化语义，连接件是一等公民，可被工具自动分析', why: '对。「连接件一等公民+机器可分析」两句一起才是完整答案。' },
+        { t: '只能描述构件不能描述交互', why: '恰恰相反：连接件正是 ADL 的强项。' },
+        { t: '专门用于画数据库 ER 图', why: 'ER 图是数据建模，与 ADL 层级不同。' }
+      ],
+      ans: 1, tag: 'ADL三要素', src: '仿真题' },
+    { q: '采购方要求「架构描述能在不同工具间互换，并检查连接件行为是否死锁」。分别应优先考虑？',
+      opts: [
+        { t: 'ACME 与 Wright', why: '对。ACME 定位通用交换（架构的「PDF」），Wright 专攻连接件行为形式化与死锁检测。' },
+        { t: 'Rapide 与 UniCon', why: 'Rapide 强在可执行仿真，不是交换格式首选。' },
+        { t: 'C2 SADL 与 ACME', why: 'C2 SADL 配套分层消息风格，死锁检查不是它的标签。' }
+      ],
+      ans: 0, tag: '典型ADL', src: '仿真题' },
+    { q: '一个运行 15 年的核心系统文档全失、老人退休。要恢复其架构，最合适的做法是？',
+      opts: [
+        { t: '凭印象重画一张框图存档', why: '无凭据的重画不可信，正是架构复原要避免的。' },
+        { t: '架构复原：代码静态分析+运行时动态追踪+人员访谈三方对照，再与实际行为验证后文档化', why: '对。三条证据线交叉验证是复原的标准做法。' },
+        { t: '直接推倒重写，不需要恢复架构', why: '重写是决策选项之一，但「不需要恢复」说法错误——任何改造前都要先知道现状。' }
+      ],
+      ans: 1, tag: '架构复原', src: '仿真题' },
+    { q: '【交错复习·33】「架构文档要为不同干系人提供不同视图：给用户看功能、给运维看部署」——这一文档化原则在 33 页的对应物是？',
+      opts: [
+        { t: '4+1 视图：逻辑/进程/开发/物理面向不同干系人，场景用例串接验证', why: '对。「涉众导向」的文档化原则正是 4+1 视图思想的落地。' },
+        { t: '构件与连接件的区分', why: '那是三要素，与「给谁看」无关。' },
+        { t: '架构风格六大类', why: '风格是结构套路，不是文档组织框架。' }
+      ],
+      ans: 0, tag: '交错复习:33', src: '仿真题' },
+    { q: '【交错复习·32】按 32 页配置管理的口径，架构文档的正确管理方式是？',
+      opts: [
+        { t: '纳入配置管理：版本化受控、变更走流程、与代码版本建立对应基线', why: '对。文档是配置项，「版本化」也是本页文档化原则之一。' },
+        { t: '放在共享网盘谁都可以随意覆盖', why: '失去受控性，过期文档比没有更危险。' },
+        { t: '项目验收前一次性补写', why: '事后补写无法追溯决策过程，违背可追溯原则。' }
+      ],
+      ans: 0, tag: '交错复习:32', src: '仿真题' }
+  ], { kpId: '41', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某银行采购新一代核心系统，招标要求：「交付物须包含可被工具自动分析的架构描述，能自动检查构件接口类型匹配与描述一致性；架构描述须在不同评审工具间可交换」。乙方架构师习惯交付画图工具画的框图与 Word 文档。',
+    q: '(1) 解释招标要求对应的技术与理由；(2) 给出用 ADL 满足要求的方案（三要素如何落地）；(3) 说明 ADL 描述对采购方的三个价值。',
+    ref: '(1) 招标要求对应 ADL（架构描述语言）：框图是给人看的「画」，无精确语义、工具无法分析；ADL 有形式语法与语义，工具可做类型检查、一致性检查，ACME 这类语言还定位为跨工具交换格式（架构的「PDF」）。(2) 方案：构件——每个服务/模块声明为构件并列出端口（接口）；连接件——把管道、RPC、事件等交互机制定义为一等公民的连接件类型（含角色与语义）；配置——用绑定声明「构件端口↔连接件角色」的组合拓扑并附加约束；交付时用 ACME 作交换格式，用带行为分析的 ADL（如 Wright 类）做接口匹配与死锁检查。(3) 价值：①客观验收——接口类型不匹配、描述不一致由工具自动发现，避免评审「看图靠眼缘」；②防含糊——形式语义消除自然语言歧义，责任边界清晰；③支撑演化与评估——架构可被 44 页类评估方法直接消费，改动可做影响分析（45 页演化的起点）。',
+    points: ['点出「框图不可分析 vs ADL 形式化可分析」的本质差异', '三要素落地具体（构件端口/连接件角色/配置绑定），并提及 ACME 交换', '价值至少三条且面向采购方（验收、防歧义、支撑评估演化）'],
+    frame: '答题框架：翻译招标语言（要求→技术）→ 方案按三要素逐条落地 → 价值从「验收/防歧义/长期演化」三层展开。',
+    kpId: '41'
+  });
+  CX.renderCase('#case2', {
+    stem: '某清算系统运行 15 年：架构文档缺失、原始开发人员离职，仅有源代码与部分生产日志。公司计划对该系统做重大改造，改造委员会要求「先弄清楚现状架构，再动刀」。',
+    q: '(1) 设计架构复原方案（信息来源与方法）；(2) 复原结果如何验证；(3) 复原完成后如何文档化以避免再次「失忆」。',
+    ref: '(1) 三线并进：静态分析——解析代码得到模块依赖、类/包结构、数据库表访问关系，勾勒逻辑视图与开发视图雏形；动态追踪——在准生产环境埋点与日志分析，还原运行时进程交互、调用链与数据流（进程视图素材）；人员访谈——老运维与业务骨干口述关键流程与「暗规则」，补充设计意图。三线交叉互补，半自动工具辅助聚类，形成候选架构视图。(2) 验证：与运行时行为比对（关键业务场景的调用链与视图是否一致）、与已知事实核对（历史故障的传播路径能否用该架构解释）、请老员工评审确认，并对视图标注置信度。(3) 文档化：按 4+1 视图组织；纳入配置管理形成基线（版本化）；为关键结构补写架构决策记录（为什么这样设计，可追溯）；约定「架构变更必须同步更新文档」的流程，并明确文档的涉众与更新责任人（涉众导向+同步演化），避免几年后再次失忆。',
+    points: ['信息来源三条线齐全（静态分析/动态追踪/人员访谈）且说明各自恢复哪类视图', '验证方式与运行行为挂钩并标注置信度', '文档化方案覆盖 4+1 组织、版本化基线、决策记录与同步演化机制'],
+    frame: '答题框架：复原方法（三线取证）→ 验证（行为比对+专家确认）→ 文档化（组织/受控/追溯/同步）四步走。',
+    kpId: '41'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '公司要给一个「文档齐全度尚可但从未做过架构评审」的系统引入架构评估。评估前最有价值的准备动作是？',
+    opts: [
+      { t: '把文档统一为可分析的架构描述并补齐视图与决策记录，让评估有「可读的图纸」', why: '对。评估吃的是架构描述——本页的文档化与 ADL 正是为评估与演化准备弹药。' },
+      { t: '先把系统推倒重写再说', why: '评估的目的恰是「动工前发现风险」，先重写本末倒置。' },
+      { t: '把所有文档打印装订成册', why: '形式不等于质量，可分析与可追溯才是关键。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '41', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['33'], 'prev');
+  CX.depChain('#bridge-next', ['44', '45'], 'next');
+
+  /* ---- 动画：ACME 逐行编译 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var CONN = 0;
+  var connNames = ['pipe（流）', 'rpc（调用）', 'event（事件）'];
+  function draw(t) {
+    var connWords = ['pipe', 'rpc', 'eventBus'];
+    var step = Math.min(5, Math.floor(t * 6));
+    var s = '<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="320" rx="12" fill="var(--bg-soft)"/>';
+    var i;
+    /* 左：文本逐行 */
+    s += '<rect x="24" y="24" width="300" height="272" rx="10" fill="var(--card)" stroke="var(--line)"/>';
+    s += '<text x="40" y="46" font-size="12" fill="var(--accent-2)">architecture demo (ACME 风格)</text>';
+    var mono = ['Component filterA', 'Component filterB', 'Connector ' + connWords[CONN], 'Attachment A.out → c.a', 'Attachment c.b → B.in', 'Analysis: types ...'];
+    for (i = 0; i <= step; i++) {
+      s += '<text x="40" y="' + (72 + i * 34) + '" font-size="12" fill="' + (i === step ? 'var(--accent-2)' : 'var(--text)') + '" font-family="monospace">' + mono[i] + '</text>';
+    }
+    /* 右：图形生长 */
+    var cxp = 540, cyp = 160;
+    s += '<rect x="400" y="60" width="110" height="56" rx="8" fill="var(--card-2)" stroke="var(--accent)"/>';
+    s += '<text x="455" y="93" text-anchor="middle" font-size="12" fill="var(--text)">filterA</text>';
+    if (step >= 1) {
+      s += '<rect x="400" y="200" width="110" height="56" rx="8" fill="var(--card-2)" stroke="var(--accent)"/>';
+      s += '<text x="455" y="233" text-anchor="middle" font-size="12" fill="var(--text)">filterB</text>';
+    }
+    if (step >= 2) {
+      s += '<circle cx="' + cxp + '" cy="' + cyp + '" r="26" fill="var(--accent-2)" opacity=".25" stroke="var(--accent-2)"/>';
+      s += '<text x="' + cxp + '" y="' + (cyp + 5) + '" text-anchor="middle" font-size="11" fill="var(--text)">' + ['pipe', 'rpc', 'bus'][CONN] + '</text>';
+    }
+    if (step >= 3) s += '<line x1="510" y1="88" x2="' + cxp + '" y2="' + (cyp - 18) + '" stroke="var(--accent)" stroke-width="2"/>';
+    if (step >= 4) s += '<line x1="' + cxp + '" y1="' + (cyp + 18) + '" x2="510" y2="228" stroke="var(--accent)" stroke-width="2"/>';
+    /* 分析结果 */
+    if (step >= 5) {
+      var mismatch = CONN === 2; /* filterB.in 期望 stream 类型，事件总线类型不符（示意） */
+      s += '<rect x="392" y="130" width="300" height="26" rx="8" fill="' + (mismatch ? 'var(--bad)' : 'var(--ok)') + '" opacity=".18" stroke="' + (mismatch ? 'var(--bad)' : 'var(--ok)') + '"/>';
+      s += '<text x="542" y="147" text-anchor="middle" font-size="11" fill="' + (mismatch ? 'var(--bad)' : 'var(--ok)') + '">' +
+        (mismatch ? '✗ 类型不匹配：filterB.in 期望 stream，bus 提供 event' : '✓ 类型匹配：连接合法，未发现死锁') + '</text>';
+    }
+    s += '<text x="542" y="300" text-anchor="middle" font-size="11" fill="var(--text-dim)">图纸可被机器「读」并「算」——这就是 ADL 的价值</text>';
+    s += '</svg>';
+    var capsA = [
+      '第1行：声明构件 filterA，暴露端口 out（类型 stream）——名词。',
+      '第2行：声明构件 filterB，端口 in——又一个「计算单元」。',
+      '第3行：声明连接件——交互机制被当作一等公民单独定义（有角色有语义）。',
+      '第4行：配置开始——把 filterA 的端口绑定到连接件的角色 a。',
+      '第5行：另一侧绑定完成，拓扑（谁接到谁）落地。',
+      '第6行：工具自动分析类型一致性与行为性质——换连接件类型试试，结论会变！'
+    ];
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', capsA[step]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 18, duration: 12, onTick: draw });
+  var asl = CX.utils.$('adl-slider');
+  asl.addEventListener('input', function () {
+    CONN = Math.max(0, Math.min(2, +asl.value || 0));
+    CX.utils.$('adl-out').textContent = connNames[CONN];
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：三要素归类 ---- */
+  var clsItems = [
+    { t: '「过滤器」构件定义', c: '构件', why: '计算单元——构件。' },
+    { t: '消息事件通道', c: '连接件', why: '交互机制——连接件（一等公民）。' },
+    { t: '「构件端口必须绑定连接件角色后才能通信」', c: '配置', why: '组合规则——配置/约束。' },
+    { t: 'RPC 存根机制', c: '连接件', why: '远程调用机制——连接件。' },
+    { t: '报表服务', c: '构件', why: '承担计算的单元——构件。' },
+    { t: '「客户端经 RPC 与服务器相连」的拓扑声明', c: '配置', why: '谁接到谁的声明——配置。' },
+    { t: '中央数据库', c: '构件', why: '存储单元——构件。' },
+    { t: '管道（pipe）', c: '连接件', why: '数据流交互机制——连接件。' }
+  ];
+  var clsIdx = 0, clsOk = 0;
+  var clsItem = CX.utils.$('cls-item'), clsFb = CX.utils.$('lab1-fb'), clsNext = CX.utils.$('cls-next');
+  function showCls() {
+    clsItem.textContent = '第 ' + (clsIdx + 1) + '/' + clsItems.length + ' 条：「' + clsItems[clsIdx].t + '」';
+    clsFb.textContent = ''; clsFb.className = 'lab-feedback'; clsNext.style.display = 'none';
+    CX.utils.$$('#lab1 .btn[data-c]').forEach(function (x) { x.disabled = false; });
+  }
+  showCls();
+  CX.utils.$$('#lab1 .btn[data-c]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var it = clsItems[clsIdx];
+      if (b.dataset.c === it.c) { clsOk++; clsFb.textContent = '✅ 正确——' + it.why; clsFb.className = 'lab-feedback ok'; }
+      else { clsFb.textContent = '❌ 你选了「' + b.dataset.c + '」，正确是「' + it.c + '」——' + it.why; clsFb.className = 'lab-feedback bad'; }
+      CX.utils.$$('#lab1 .btn[data-c]').forEach(function (x) { x.disabled = true; });
+      clsNext.style.display = '';
+    });
+  });
+  clsNext.addEventListener('click', function () {
+    clsIdx++;
+    if (clsIdx >= clsItems.length) {
+      clsItem.textContent = '完成！答对 ' + clsOk + '/' + clsItems.length + '。';
+      clsNext.style.display = 'none';
+      clsFb.textContent = clsOk === clsItems.length ? '🎉 三要素分得清清楚楚。' : '再背口诀：名词=构件，动词=连接件，组合声明=配置。';
+      clsFb.className = 'lab-feedback ' + (clsOk === clsItems.length ? 'ok' : 'bad');
+      clsIdx = 0; clsOk = 0;
+      setTimeout(showCls, 1800);
+      return;
+    }
+    showCls();
+  });
+
+  /* ---- 实验二：ADL 特色匹配 ---- */
+  var adlPairs = [
+    ['ACME', '通用架构交换描述（架构的「PDF」）'],
+    ['Wright', '连接件行为形式化，可查死锁'],
+    ['Rapide', '事件模式，架构可执行可仿真'],
+    ['C2 SADL', '配套分层消息驱动风格的描述']
+  ];
+  var aL = CX.utils.$('adl-left'), aR = CX.utils.$('adl-right');
+  var aSel = null, aDone = 0;
+  function buildAdl() {
+    aSel = null; aDone = 0;
+    aL.innerHTML = ''; aR.innerHTML = '';
+    CX.utils.$('lab2-fb').textContent = '';
+    adlPairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', aL).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); aSel = d;
+        CX.utils.$('lab2-fb').textContent = '已选 ' + p[0] + '，请在右列点它的看家本领。';
+      });
+      aL.appendChild(d);
+    });
+    CX.shuffle(adlPairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!aSel) { CX.utils.$('lab2-fb').textContent = '先点左列一个 ADL。'; return; }
+        if (aSel.dataset.k === d.dataset.v) {
+          aSel.style.opacity = .35; d.style.opacity = .35;
+          aSel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          aSel.classList.remove('sel'); aSel = null; aDone++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + aDone + '/4';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + d.textContent + '」不是它的标签——口诀：ACME 换、Wright 锁、Rapide 演、C2 分层。';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      aR.appendChild(d);
+    });
+  }
+  buildAdl();
+  CX.utils.$('adl-reset').addEventListener('click', buildAdl);
+
+  /* ---- 实验三：文档问题匹配 ---- */
+  var docPairs = [
+    ['文档上没有版本号，改没改过没人知道', '版本化'],
+    ['一张万能框图发给投资方、运维、程序员共用', '涉众导向'],
+    ['关键设计「当时为什么这么定」没人说得清', '可追溯（决策记录）'],
+    ['需求改了两个月，架构文档还是老样子', '同步演化'],
+    ['写了两百页没人看，关键信息反而找不到', '充分且最小']
+  ];
+  var dL = CX.utils.$('doc-left'), dR = CX.utils.$('doc-right');
+  var dSel = null, dDone = 0;
+  function buildDoc() {
+    dSel = null; dDone = 0;
+    dL.innerHTML = ''; dR.innerHTML = '';
+    CX.utils.$('lab3-fb').textContent = '';
+    docPairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', dL).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); dSel = d;
+        CX.utils.$('lab3-fb').textContent = '已选问题，请在右列点它违反的原则。';
+      });
+      dL.appendChild(d);
+    });
+    CX.shuffle(docPairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!dSel) { CX.utils.$('lab3-fb').textContent = '先点左列一个问题。'; return; }
+        if (dSel.dataset.k === d.dataset.v) {
+          dSel.style.opacity = .35; d.style.opacity = .35;
+          dSel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          dSel.classList.remove('sel'); dSel = null; dDone++;
+          CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + dDone + '/5';
+          CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab3-fb').textContent = '❌ 放错了——五原则口诀：为读者（涉众导向）、进基线（版本化）、留账本（可追溯）、写够就好（充分且最小）、跟着改（同步演化）。';
+          CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      dR.appendChild(d);
+    });
+  }
+  buildDoc();
+  CX.utils.$('doc-reset').addEventListener('click', buildDoc);
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

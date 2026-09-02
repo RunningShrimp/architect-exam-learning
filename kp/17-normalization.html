@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17 · 规范化理论 · 架构师学堂</title>
+<meta name="description" content="函数依赖定候选码，1NF 到 BCNF 逐级消除冗余，无损分解靠交集能定一。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">数据库</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="16-sql-relalg.html">前置 16</a></span>
+    <h1>17 · 规范化理论</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">函数依赖定码，逐级断舍离消除冗余，无损靠交集定一。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>档案借阅系统上线三个月，管理员叫苦：全校「计算机系系主任」从王教授换成了周教授，系统里 8000 行借阅记录的「系主任」列要逐行改成周教授——漏改一行就出现「同系两个主任」。为什么一张表会烂成这样？下午案例考试如果出「补全关系模式并说明理由」，只写答案不写推导，能得分吗？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>烂表的根子是<strong>函数依赖</strong>没理顺：系主任其实由系名决定（系名→系主任），却被塞进以（学号,课程号）为码的借阅大表里，于是同一事实被抄了 8000 遍——更新异常。规范化就是按依赖把大表逐级拆小：先消除部分依赖（2NF），再斩断传递链（3NF），让<strong>每个事实只存一处</strong>。第二个问题很残酷：<strong>不能</strong>。评分标准明确要求写出「候选码推导 + 违反哪条范式 + 分解依据」，只给结论是要丢分的。本页专门训练这套推导话术。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>16 · SQL与关系代数</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>函数依赖（FD）</strong>记作 X→Y：只要两行在 X 上相等，Y 必相等——「学号相同则姓名必相同」。<strong>规范化理论</strong>以函数依赖为手术刀，定义了逐级收紧的范式标准（1NF→2NF→3NF→BCNF），把「什么都往里塞」的大表拆成各管一事的小表，消除插入异常、删除异常和冗余引起的更新异常。</p>
+      <h3>解决什么问题</h3>
+      <p>大杂烩表让一个事实存多处：改一处漏一处（更新异常）、该记的没地方记（插入异常）、删记录顺手删掉独一份的信息（删除异常）。规范化让<strong>每个关系模式只描述一件事</strong>，事实只存一份。</p>
+      <h3>核心机制：三种依赖与四级范式</h3>
+      <table class="tbl">
+        <tr><th>依赖类型</th><th>定义（码为 K）</th><th>例</th></tr>
+        <tr><td>完全依赖</td><td>Y 依赖整个 K，缺任何一部分都推不出 Y</td><td>(学号,课程号)→成绩</td></tr>
+        <tr><td>部分依赖</td><td>Y 依赖 K 的<b>某个真子集</b></td><td>码(学号,课程号)，但 学号→姓名</td></tr>
+        <tr><td>传递依赖</td><td>X→Y、Y→Z，且 Y 不反决 X，则 Z 传递依赖 X</td><td>学号→系名，系名→系主任</td></tr>
+      </table>
+      <table class="tbl">
+        <tr><th>范式</th><th>要求（在上一级基础上）</th><th>消除了什么</th></tr>
+        <tr><td>1NF</td><td>每个属性不可再分（原子性）</td><td>表中有表</td></tr>
+        <tr><td>2NF</td><td>消除<b>非主属性对码的部分依赖</b></td><td>「码的一部分就定得住」的列</td></tr>
+        <tr><td>3NF</td><td>消除<b>非主属性对码的传递依赖</b></td><td>「拐了一道弯」才定住的列</td></tr>
+        <tr><td>BCNF</td><td><b>每个决定因素都包含候选码</b>（所有依赖的左部都是超码）</td><td>主属性内部的依赖隐患</td></tr>
+      </table>
+      <h3>关键细节：候选码求法（考试套路）</h3>
+      <p>先把属性按在 FD 中出现的位置分类：<strong>L 类</strong>（只出现在左部）必在候选码里；<strong>R 类</strong>（只在右部）必不在；<strong>N 类</strong>（不出现）必在；<strong>LR 类</strong>（两边都出现）逐个试探。用 Armstrong 三定律（自反、增广、传递）算<strong>闭包 X⁺</strong>：若 (L∪N)⁺ 已含全部属性，候选码就是它；否则逐个并入 LR 类属性再验证。候选码必须满足「能推出全部属性」且「去掉任一属性就不行」（最小性）。</p>
+      <p><strong>无损分解判式</strong>：把 R 分解为 R1、R2 两块，无损连接的充要条件（两分解情形）是 <b>(R1∩R2)→(R1−R2)</b> 或 <b>(R1∩R2)→(R2−R1)</b>——记成「交集能定其一」。此外还要尽量<strong>保持依赖</strong>：原 FD 集能由各分解块上的 FD 推出来。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 2NF/3NF 针对的是<b>非主属性</b>；BCNF 才管主属性。② 部分依赖的前提是「码是组合码」——单属性码的表不可能是部分依赖问题。③ 无损判式是「交集<b>函数决定</b>其中一块的差集」，不是「交集非空就无损」。④ 案例答题只写「满足 3NF」不给推导理由 = 丢分，必须写出：码的推导、依赖分析、拆分依据、无损验证四步。</div>
+      <div class="callout"><span class="t">🇬🇧 专业英语小贴士</span>normalization（规范化）、functional dependency / FD（函数依赖）、candidate key（候选码）、anomaly（异常，如 update anomaly 更新异常）。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>规范化就是 <b>📚 中央档案馆</b>的<strong>档案断舍离</strong>：起初一张「万能档案」什么都抄（读者信息、书的信息、借阅信息挤一张纸），同一任系主任的名字抄了八千遍。断舍离的原则是「<strong>一事一档</strong>」：读者档案只记读者，馆藏档案只记书，借阅登记只记「谁、哪本、何时」。拆完之后，主任换人只需改<strong>一处</strong>。断舍离的代价：要查全信息得跑三个架子（多表连接）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>一张万能大杂烩档案</td><td>未规范化的关系模式</td><td>成立</td></tr>
+      <tr><td>同一事实抄多处</td><td>冗余 → 更新异常</td><td>成立</td></tr>
+      <tr><td>一事一档、分架存放</td><td>2NF/3NF 分解</td><td>成立</td></tr>
+      <tr><td>「拆得越碎越好」</td><td>无限细分</td><td><b>失效边界</b>：拆太碎查询要大量连接、性能下降；工程上有意「复抄一份」换速度，那叫反规范化（19 页的明码交易）</td></tr>
+    </table>
+    <div class="rhyme">一范属性要原子，二范扫清部分依；<br>三范斩断传递链，BC 决定含码齐；<br>求码先盯单边列，闭包算完码自明；<br>无损交集能定一，推导过程别省笔。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>拖动「分解等级」滑块，从 1NF 一路升到 BCNF，观察大杂烩表如何被逐级拆开、红色冗余如何消失：</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>分解等级 <input type="range" id="sk-nf" min="1" max="4" step="1" value="1"> <span id="sk-nf-out">1NF</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽分类）：给依赖做体检</h4>
+      <p class="foreshadow">把每条依赖拖进对应诊室（注意题面给出的「码」是什么）：</p>
+      <div id="dep-pool" style="min-height:40px"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:180px"><b>完全依赖</b><div class="drag-slot" id="slot-full" data-slot="full"></div></div>
+        <div style="flex:1;min-width:180px"><b>部分依赖</b><div class="drag-slot" id="slot-part" data-slot="part"></div></div>
+        <div style="flex:1;min-width:180px"><b>传递依赖</b><div class="drag-slot" id="slot-trans" data-slot="trans"></div></div>
+      </div>
+      <button class="btn" id="dep-check">检查分类</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（候选码实验）：R(W,X,Y,Z)，F={W→X, Y→X, WY→Z}</h4>
+      <p class="foreshadow">点击选择「必然出现在候选码里的属性」（可多选），再验证：</p>
+      <div id="ck-pool"></div>
+      <button class="btn" id="ck-check">验证候选码起点</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（无损判定）：用判式裁决两个分解</h4>
+      <p class="foreshadow">判式：(R1∩R2)→(R1−R2) 或 (R1∩R2)→(R2−R1)。逐题作答：</p>
+      <p><b>题1</b>：R(A,B,C)，F={B→C}，ρ={R1(A,B), R2(B,C)}。
+        <label><input type="radio" name="lj1" value="yes"> 无损</label>
+        <label><input type="radio" name="lj1" value="no"> 不保证无损</label></p>
+      <p><b>题2</b>：R(A,B,C)，F={B→C}，ρ={R1(A,B), R2(A,C)}。
+        <label><input type="radio" name="lj2" value="yes"> 无损</label>
+        <label><input type="radio" name="lj2" value="no"> 不保证无损</label></p>
+      <button class="btn" id="lj-check">提交判定</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、5 题为先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>16 页的关系代数提供了「投影」这个手术动作——规范化的每一步分解，就是对原表做一次 π 投影；分解是否无信息损失，用连接验证。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>规范化把表拆小了，但查询要多跑几个架子；<b>19 · 分布式数据库</b>里「反规范化」故意把表再合回去——拿一致性换速度的明码交易；</li><li>「每个事实只存一处」的思想，在 <b>18 · 事务与并发控制</b> 里是减少锁冲突的底层理由。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>部分依赖</th><th>传递依赖</th></tr>
+      <tr><td>结构</td><td>码的<b>真子集</b>直接决定非主属性</td><td>码→中间属性→另一非主属性（拐一道弯）</td></tr>
+      <tr><td>违反的范式</td><td>2NF（部分依赖在则非 2NF）</td><td>3NF（传递依赖在则非 3NF）</td></tr>
+      <tr><td>易错点</td><td>忘了前提「码是组合码」</td><td>中间属性必须「不反决码」，否则不叫传递依赖</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">部分依赖是「半张票就够」，传递依赖是「隔山定牛」；2NF 除前者，3NF 除后者。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——笔记本里每一页都抄一遍班主任的名字，换班主任就要改整本……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 函数依赖是手术刀：部分依赖（码的子集就定住）违 2NF，传递依赖（拐一道弯）违 3NF，BCNF 要求所有决定因素都含候选码。</li><li>② 求候选码套路：L 类/N 类必入、R 类排除、LR 类试探，闭包验证「能推全且最小」。</li><li>③ 两块分解无损判式「交集能定其一」；案例必须给出码的推导、范式判定、拆分依据与无损验证，只写结论丢分。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '17', domain: 'db', loc: 'archive', root: '..',
+  title: '规范化理论',
+  prev: '16-sql-relalg.html', prevTitle: '16 · SQL与关系代数',
+  next: '18-transaction.html', nextTitle: '18 · 事务与并发控制',
+  keywords: ['函数依赖', '部分依赖', '传递依赖', '候选码', '第二范式', '第三范式', 'BCNF', '无损分解']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置点：16 SQL与关系代数） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·16】规范化分解的每一步「把大表拆成小表」，在关系代数里对应哪个运算？',
+    opts: [
+      { t: 'σ 选择（挑行）', why: '选择只挑行，不减列，拆表减的是列。' },
+      { t: 'π 投影（挑列）', why: '对：分解 = 对原关系模式做投影；拆完用连接验证是否无损。' },
+      { t: '÷ 除法', why: '除法解决「全部都」型查询。' }
+    ],
+    ans: 1, tag: '回忆:16', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '关系模式 R 的候选码是组合码 K，若存在非主属性仅依赖于 K 的一个真子集，则 R 最高满足？',
+      opts: [
+        { t: '2NF', why: '反了：2NF 的定义就是「消除非主属性对码的部分依赖」，带着部分依赖到不了 2NF。' },
+        { t: '3NF', why: '3NF 比 2NF 更严，不可能带病升级到更高级。' },
+        { t: '1NF', why: '对：存在部分依赖就不满足 2NF，只能停在「属性原子」的 1NF。' },
+        { t: 'BCNF', why: 'BCNF 是常用范式中最严的一级，更不可能。' }
+      ],
+      ans: 2, tag: '范式判定', src: '仿真题' },
+    { q: 'R(A,B,C,D)，函数依赖集 F={D→B, B→D, A→D}。R 的候选码是？',
+      opts: [
+        { t: 'A', why: 'A⁺={A,D,B}，推不出 C，不包含全部属性。' },
+        { t: 'AC', why: '对：L 类属性 A 与 N 类属性 C 必入码；算闭包 (AC)+={A,C,D,B} 覆盖全部属性，且去掉 A 或 C 都推不全——候选码为 AC。' },
+        { t: 'ABCD（全属性）', why: '把 R 类属性 B、D 也塞进去违反最小性。' },
+        { t: 'CD', why: 'C⁺={C}，D⁺={D,B}，(CD)⁺={C,D,B} 缺 A。' }
+      ],
+      ans: 1, tag: '求码', src: '仿真题' },
+    { q: '【交错复习:16】从 SQL 使用角度，下列哪种现象最能说明该表需要规范化（存在传递依赖）？',
+      opts: [
+        { t: 'SELECT 很慢，加索引就能好', why: '查询慢通常是索引问题，与范式无必然关系。' },
+        { t: '同一「系名→系主任」事实在几百行里重复，换主任要 UPDATE 几百行', why: '对：非主属性由中间属性（系名）决定，正是传递依赖导致的更新异常。' },
+        { t: 'INSERT 时主键冲突', why: '主键冲突是约束正常工作，不是范式问题。' }
+      ],
+      ans: 1, tag: '交错复习:16', src: '仿真题' },
+    { q: 'R(A,B,C)，F={A→B}，分解 ρ={R1(A,B), R2(A,C)}。用两分解无损判式检查：',
+      opts: [
+        { t: '无损：R1∩R2={A}，A→(R1−R2)=B 成立', why: '对：交集 A 能函数决定 R1−R2 中的 B（题给 A→B），判式满足，分解无损。' },
+        { t: '不保证无损：交集为空集', why: '交集是 {A} 非空，判定依据也不是空不空。' },
+        { t: '无损：因为两表列数相同', why: '列数与无损性无关，判式只看交集能否定其一。' }
+      ],
+      ans: 0, tag: '无损判式', src: '仿真题' },
+    { q: '【交错复习:15】m:n 联系转出的表（如 选修(学号,课程号,成绩)，码为(学号,课程号)，无其他依赖）处于哪一级范式？',
+      opts: [
+        { t: '1NF：存在部分依赖', why: '成绩完全依赖全码，学号、课程号单独推不出成绩，无部分依赖。' },
+        { t: 'BCNF：决定因素只有全码自身，所有依赖左部都含候选码', why: '对：这类「全码表」是 BCNF 的天然样本——15 页的转换规则与规范化天然相容。' },
+        { t: '3NF 但不满足 BCNF', why: '没有主属性上的额外依赖，不存在违反 BCNF 的因素。' }
+      ],
+      ans: 1, tag: '交错复习:15', src: '仿真题' }
+  ], { kpId: '17', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '学校借阅系统有一张表 R(学号,姓名,系名,系主任,课程号,成绩)，语义规则：学号决定姓名与系名；系名决定系主任；（学号,课程号）决定成绩；一门课可有多个学生，一名学生修多门课。',
+    q: '(1) 求 R 的候选码并写出推导过程；(2) 判断 R 最高满足几范式，指出违反点；(3) 将 R 分解到 3NF，写出各关系模式并用判式验证分解无损。',
+    ref: '(1) 候选码推导：课程号只出现在依赖左部（L 类）必入码；学号虽左部出现，但「成绩」只能由（学号,课程号）共同决定，试算 (学号,课程号)⁺：由题给依赖可得 {学号,课程号,姓名,系名,系主任,成绩}=全部属性，且去掉任一属性推不出成绩——候选码为（学号,课程号）。(2) R 为 1NF：姓名、系名、系主任均可由码的真子集「学号」推出，存在非主属性对码的部分依赖，不满足 2NF；拆出学生部分后「学号→系名→系主任」还是传递依赖，不满足 3NF。(3) 3NF 分解：SC(学号,课程号,成绩)、学生(学号,姓名,系名)、系(系名,系主任)。无损验证：SC⋈学生 按「学号」连接，交集{学号}→学生块的差集{姓名,系名}成立（学号决定它们），判式满足；学生⋈系 按「系名」连接，交集{系名}→系主任成立，无损。每个事实（姓名、系主任、成绩）全库只存一处，更新异常消除。',
+    points: ['候选码为（学号,课程号）且给出闭包/推导过程，不是只给结论', '指出部分依赖与传递依赖两类违反点（对应 2NF、3NF）', '分解结果三表正确、主键标注清楚', '用「交集能定其一」分别验证两次连接无损'],
+    frame: '答题框架（四步缺一不可）：① 列依赖 → ② 求 L 类属性、算闭包定码 → ③ 逐级检查部分/传递依赖并给拆分依据 → ④ 写出分解模式 + 无损判式验证 + 一句「保持依赖」说明。',
+    kpId: '17'
+  });
+  CX.renderCase('#case2', {
+    stem: '评审会上两人争论：R(A,B,C)，F={A→B, B→C}。甲提出 ρ1={R11(A,B), R12(B,C)}；乙提出 ρ2={R21(A,B), R22(A,C)}。甲说自己「天然无损」，乙说自己「虽被质疑但也能用」。',
+    q: '(1) 分别用无损判式检验 ρ1 与 ρ2；(2) 检验两个分解的保持依赖性；(3) 综合两项给出你的选择与理由。',
+    ref: '(1) 无损：ρ1：R11∩R12={B}，B→(R12−R11)={C} 成立（题给 B→C），无损 ✔。ρ2：R21∩R22={A}，A→(R21−R22)={B} 成立（A→B），也无损 ✔。(2) 保持依赖：ρ1 中 A→B 落在 R11、B→C 落在 R12，全部 FD 可由分块推出，保持依赖 ✔。ρ2：A→B 在 R21 中；但 B→C 的两属性分属 R21(B) 与 R22(C)，任何一块都验不了它，且由投影闭包推不出 B→C，不保持依赖 ✘。(3) 两个分解都无损，但只有 ρ1 保持依赖——判断依赖是否成立（如成绩上限、系数约束）要能落在一块表里检查，选 ρ1。这也说明「无损」与「保持依赖」是两个独立指标，答案别混为一谈。',
+    points: ['ρ1、ρ2 均正确套用判式得出「皆无损」', '指出 ρ2 丢失 B→C、不保持依赖', '明确「无损」与「保持依赖」是两个独立标准', '结论有依据（选 ρ1）而非各打五十大板'],
+    frame: '答题框架：对每个分解分别过两道闸（无损判式 → 保持依赖检查）→ 列对比表 → 按业务需要（能否就地校验约束）给出结论。',
+    kpId: '17'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '图书系统大表 R(书号,书名,出版社,社长,读者号,借期)，码为（书号,读者号），且有：书号→书名,出版社；出版社→社长。第一步规范化应消除的是？',
+    opts: [
+      { t: '书名、出版社对码的部分依赖：拆出馆藏(书号,书名,出版社,社长)与借阅(书号,读者号,借期)', why: '对：与学号-成绩场景完全同构，第一刀先消部分依赖升 2NF；之后馆藏里 出版社→社长 传递依赖再拆第二刀。' },
+      { t: '先消除传递依赖', why: '顺序错：2NF 先于 3NF，部分依赖是更「浅」的病先治。' },
+      { t: '直接合并成一张更大的表', why: '方向反了，规范化是拆不是合。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['16'], 'prev');
+  CX.depChain('#bridge-next', ['18', '19'], 'next');
+
+  /* ---- 动画：滑动分解等级看冗余消除 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var sNf = CX.utils.$('#sk-nf');
+  var nfNames = { 1: '1NF', 2: '2NF', 3: '3NF', 4: 'BCNF' };
+  sNf.addEventListener('input', function () {
+    CX.utils.$('#sk-nf-out').textContent = nfNames[sNf.value];
+    draw(anim && anim.t || 0);
+  });
+  function mini(x, y, cols, rows, opts) {
+    opts = opts || {};
+    var cw = opts.cw || 62, rh = 22;
+    var w = cw * cols.length, h = rh * (rows.length + 1) + 6;
+    var s = '<g opacity="' + (opts.op != null ? opts.op : 1) + '">';
+    s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="var(--card)" stroke="' + (opts.bad ? 'var(--bad)' : (opts.ok ? 'var(--ok)' : 'var(--line)')) + '" rx="6"/>';
+    cols.forEach(function (c, i) {
+      var key = c.charAt(0) === '*';
+      s += '<text x="' + (x + i * cw + 8) + '" y="' + (y + 15) + '" font-size="10.5" fill="' + (key ? 'var(--accent)' : 'var(--warn)') + '" font-weight="' + (key ? 'bold' : 'normal') + '" ' + (key ? 'text-decoration="underline"' : '') + '>' + (key ? c.slice(1) : c) + '</text>';
+    });
+    rows.forEach(function (r, ri) {
+      r.forEach(function (v, ci) {
+        var red = opts.dup && opts.dup[ci] && ri > 0 && r[ci] === rows[ri - 1][ci];
+        s += '<text x="' + (x + ci * cw + 8) + '" y="' + (y + 15 + rh * (ri + 1)) + '" font-size="10" fill="' + (red ? 'var(--bad)' : 'var(--text-dim)') + '">' + v + '</text>';
+      });
+    });
+    s += '</g>';
+    return s;
+  }
+  function draw(t) {
+    var lv = parseInt(sNf.value, 10);
+    var s = '<svg viewBox="0 0 700 330" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="330" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="350" y="26" text-anchor="middle" font-size="14" fill="var(--accent-2)">R(学号,姓名,系名,系主任,课程号,成绩) · 码=(学号,课程号) · 当前：' + nfNames[lv] + '</text>';
+    var big = [['*学号', '姓名', '系名', '系主任', '课程号', '成绩']];
+    var rowsBig = [
+      ['S1', '林一', '计算机', '王教授', 'C1', '92'],
+      ['S1', '林一', '计算机', '王教授', 'C2', '78'],
+      ['S2', '赵二', '计算机', '王教授', 'C1', '85'],
+      ['S3', '钱三', '机械', '李教授', 'C3', '64']
+    ];
+    var appear = Math.min(1, t / 0.3);
+    if (lv === 1) {
+      s += mini(30, 60, big[0], rowsBig, { cw: 108, dup: { 1: 1, 2: 1, 3: 1 }, bad: true, op: 0.5 + 0.5 * appear });
+      s += '<text x="360" y="212" font-size="12" fill="var(--bad)">红色重复 = 同一事实抄多遍：姓名/系名/系主任各重复 3~4 次</text>';
+      s += '<text x="360" y="236" font-size="12" fill="var(--text-dim)">1NF：属性原子即可——大杂烩合法，但更新异常已经埋好</text>';
+      s += '<text x="360" y="262" font-size="12" fill="var(--text-dim)">病灶①：学号→姓名（部分依赖） 病灶②：学号→系名→系主任（传递依赖）</text>';
+    } else if (lv === 2) {
+      s += mini(30, 60, ['*学号', '*课程号', '成绩'], [['S1', 'C1', '92'], ['S1', 'C2', '78'], ['S2', 'C1', '85'], ['S3', 'C3', '64']], { cw: 70, ok: true, op: appear });
+      s += mini(280, 60, ['*学号', '姓名', '系名', '系主任'], [['S1', '林一', '计算机', '王教授'], ['S2', '赵二', '计算机', '王教授'], ['S3', '钱三', '机械', '李教授']], { cw: 88, dup: { 2: 1, 3: 1 }, bad: true, op: appear });
+      s += '<text x="350" y="212" font-size="12" fill="var(--ok)">第一刀（升 2NF）：按「学号→…」把学生信息切出去，成绩完全依赖全码 ✔</text>';
+      s += '<text x="350" y="236" font-size="12" fill="var(--bad)">但系主任仍随系名重复——传递依赖学号→系名→系主任还在</text>';
+    } else {
+      s += mini(30, 60, ['*学号', '*课程号', '成绩'], [['S1', 'C1', '92'], ['S1', 'C2', '78'], ['S2', 'C1', '85'], ['S3', 'C3', '64']], { cw: 70, ok: true, op: appear });
+      s += mini(270, 60, ['*学号', '姓名', '系名'], [['S1', '林一', '计算机'], ['S2', '赵二', '计算机'], ['S3', '钱三', '机械']], { cw: 82, dup: { 2: 1 }, op: appear });
+      s += mini(500, 60, ['*系名', '系主任'], [['计算机', '王教授'], ['机械', '李教授']], { cw: 90, ok: true, op: appear });
+      s += '<text x="350" y="205" font-size="12" fill="var(--ok)">第二刀（升 3NF）：系(系名→系主任)独立成档，系主任全库只存 1 份 ✔</text>';
+      s += '<text x="350" y="229" font-size="12" fill="' + (lv === 4 ? 'var(--ok)' : 'var(--text-dim)') + '">BCNF 检查：三张表的每个决定因素（学号、系名、(学号,课程号)）都含候选码' + (lv === 4 ? ' → 已达 BCNF，无需再拆 ✔' : ' → 满足') + '</text>';
+      s += '<text x="350" y="253" font-size="12" fill="var(--text-dim)">代价预告：借一份完整档案要连 3 个架子（3 表连接）——19 页的反规范化会拿这个做交易</text>';
+    }
+    s += '<text x="350" y="300" text-anchor="middle" font-size="11.5" fill="var(--text-dim)">无痕验证：SC⋈学生 按「学号」交集能定其差集；学生⋈系 按「系名」交集能定系主任 → 两刀都无损</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (lv === 1) cap = '1NF：大杂烩合法但冗余遍地（红色重复）——只要求属性原子。';
+    else if (lv === 2) cap = '2NF：第一刀消除部分依赖，学生信息切出；系主任仍在重复。';
+    else if (lv === 3) cap = '3NF：第二刀斩断传递链，系主任只存一处——红色冗余清零。';
+    else cap = 'BCNF：检查所有决定因素都含候选码，本例已达标，不再拆。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 10, onTick: draw });
+
+  /* ---- 实验一：依赖分类拖拽 ---- */
+  var depCards = [
+    { t: '码=(学号,课程号)：(学号,课程号)→成绩', c: 'full', why: '缺学号或缺课程号都推不出成绩，完全依赖。' },
+    { t: '码=(学号,课程号)：学号→姓名', c: 'part', why: '码的真子集「学号」就定住姓名——部分依赖，违反 2NF。' },
+    { t: '学号→系名，系名→系主任（码=学号）', c: 'trans', why: '系主任拐一道弯才被码定住——传递依赖，违反 3NF。' },
+    { t: '码=(学号,课程号)：课程号→课程名', c: 'part', why: '同上，码的真子集定住非主属性，部分依赖。' },
+    { t: '码=书号：书号→书名', c: 'full', why: '单属性码谈不上部分依赖，依赖它的都是完全依赖。' },
+    { t: '工号→系名，系名→楼栋（码=工号）', c: 'trans', why: '工号→系名→楼栋，传递依赖。' }
+  ];
+  var pool1 = CX.utils.$('#dep-pool');
+  CX.shuffle(depCards).forEach(function (c) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = c.t; d.dataset.c = c.c; d.dataset.t = c.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', c.t); });
+    pool1.appendChild(d);
+  });
+  ['slot-full', 'slot-part', 'slot-trans'].forEach(function (id) {
+    var slot = CX.utils.$('#' + id);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = document.querySelector('.drag-item[data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+  });
+  CX.utils.$('#dep-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab1-fb');
+    var placed = document.querySelectorAll('#slot-full .drag-item, #slot-part .drag-item, #slot-trans .drag-item').length;
+    if (placed < depCards.length) { fb.textContent = '还有 ' + (depCards.length - placed) + ' 张卡片没入诊室。'; fb.className = 'lab-feedback bad'; return; }
+    var wrong = null;
+    ['full', 'part', 'trans'].forEach(function (k) {
+      if (wrong) return;
+      document.querySelectorAll('#slot-' + k + ' .drag-item').forEach(function (d) {
+        if (d.dataset.c !== k && !wrong) wrong = { t: d.dataset.t, slot: k, want: d.dataset.c };
+      });
+    });
+    if (wrong) {
+      fb.textContent = '「' + wrong.t + '」放进了「' + wrong.slot + '」诊室。复查法：先问「缺一半还行吗？」行=完全；「码的一半就够？」=部分；「拐了一道弯？」=传递。本卡是' + ({ full: '完全依赖', part: '部分依赖', trans: '传递依赖' })[wrong.want] + '。';
+      fb.className = 'lab-feedback bad';
+    } else {
+      fb.textContent = '全部正确。附加结论：有部分依赖就到不了 2NF；有传递依赖（且无部分依赖）停在 2NF；两者都没有才进 3NF。';
+      fb.className = 'lab-feedback ok';
+    }
+  });
+
+  /* ---- 实验二：候选码起点 ---- */
+  var ckAttrs = ['W', 'X', 'Y', 'Z'];
+  var ckPick = {};
+  var ckPool = CX.utils.$('#ck-pool');
+  ckAttrs.forEach(function (a) {
+    var b = document.createElement('button');
+    b.className = 'btn'; b.textContent = a; b.dataset.on = '0';
+    b.addEventListener('click', function () {
+      ckPick[a] = !ckPick[a];
+      b.dataset.on = ckPick[a] ? '1' : '0';
+      b.style.borderColor = ckPick[a] ? 'var(--accent-2)' : '';
+      b.style.color = ckPick[a] ? 'var(--accent-2)' : '';
+    });
+    ckPool.appendChild(b);
+  });
+  CX.utils.$('#ck-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab2-fb');
+    var picked = ckAttrs.filter(function (a) { return ckPick[a]; });
+    var hasW = picked.indexOf('W') >= 0, hasY = picked.indexOf('Y') >= 0;
+    var hasX = picked.indexOf('X') >= 0, hasZ = picked.indexOf('Z') >= 0;
+    if (hasX || hasZ) {
+      fb.textContent = 'X、Z 出了问题：X 只出现在依赖右部（W→X、Y→X），Z 只出现在右部（WY→Z）——R 类属性被码决定，绝不能进码（进了就违反最小性）。';
+      fb.className = 'lab-feedback bad'; return;
+    }
+    if (hasW && hasY) {
+      fb.textContent = '正确：W、Y 只出现在左部（L 类）必入码；验证 (WY)+={W,Y,X,Z} 覆盖全属性且最小——候选码就是 WY。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      fb.textContent = '漏了必入的属性：只在依赖左部出现的属性（本例 W、Y）必须进入每个候选码——否则它们谁也推不出来。';
+      fb.className = 'lab-feedback bad';
+    }
+  });
+
+  /* ---- 实验三：无损判定 ---- */
+  CX.utils.$('#lj-check').addEventListener('click', function () {
+    var fb = CX.utils.$('#lab3-fb');
+    var a1 = (document.querySelector('input[name=lj1]:checked') || {}).value;
+    var a2 = (document.querySelector('input[name=lj2]:checked') || {}).value;
+    if (!a1 || !a2) { fb.textContent = '两道题都要作答。'; fb.className = 'lab-feedback bad'; return; }
+    var msg = [];
+    var okAll = true;
+    if (a1 === 'yes') msg.push('题1 正确：R1∩R2={B}，B→(R2−R1)={C} 成立 → 无损。');
+    else { msg.push('题1 错了：交集是 {B}，而 B→C 成立，判式满足 → 无损。'); okAll = false; }
+    if (a2 === 'no') msg.push('题2 正确：交集 {A}，A→B 或 A→C 题中都没有（只有 B→C），判式不满足 → 不保证无损（B→C 会被拆丢）。');
+    else { msg.push('题2 错了：交集 {A} 决定不了任何差集（题给只有 B→C），不能宣称无损。'); okAll = false; }
+    fb.textContent = msg.join(' ');
+    fb.className = okAll ? 'lab-feedback ok' : 'lab-feedback bad';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

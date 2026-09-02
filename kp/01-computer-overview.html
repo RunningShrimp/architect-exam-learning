@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 · 计算机系统组成与体系结构 · 架构师学堂</title>
+<meta name="description" content="一台计算机=运算、存储、输入输出经总线组织的城市基础设施。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <h1>01 · 计算机系统组成与体系结构</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">一台计算机=运算、存储、输入输出经总线组织的城市基础设施。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>公司要给订单系统换服务器。销售拍胸脯：「新机 CPU 主频 3.5GHz，比你现在 2.9GHz 的旧机快 20% 起。」上线压测却傻眼：新机吞吐只提升了不到 5%，监控显示 CPU 大量时间停在访存等待上。问题来了——<b>主频提了 20%，系统为什么没快 20%？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>CPU 时间 ≈ 指令数 × CPI ÷ 主频（CPI=平均每条指令的时钟周期数）。主频只是分母的一项；如果新机器为提主频拉深了流水线、访存未命中变多、CPI 变大，分子涨得比分母还快，速度就提不起来。更根本地，冯·诺依曼结构下指令和数据都走同一条「马路」（总线）进出存储器，CPU 再快，路堵了全白搭——这叫冯·诺依曼瓶颈。所以体系结构（存储层次、流水线、总线宽度）比单看主频重要得多，这正是后面 04、05 两页的主线。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本页是全站<b>第一站（起点）</b>，没有前置知识点。先摸个底：凭生活经验判断下面这道直觉题，学完本页再回来对答案。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>计算机系统</strong>=硬件+软件。硬件的经典骨架是 <strong>冯·诺依曼结构</strong>：运算器、控制器、存储器、输入设备、输出设备五大部件，通过总线互连。它的灵魂是<strong>存储程序</strong>思想：程序（指令）和数据一样，都用二进制事先存进存储器，机器启动后自动逐条取出并执行——「把办事流程写成文件存进档案柜，照着自动办」。</p>
+      <h3>解决什么问题</h3>
+      <p>在没有存储程序思想的机器上，换一个任务就要重新接线。存储程序让「换任务=换存储器里的内容」，通用计算机从此成立。而体系结构（Architecture）回答的是：<strong>程序员可见的机器长什么样</strong>（指令集、寄存器、寻址方式、数据类型），与「用什么电路实现」（组成）分层解耦。</p>
+      <h3>核心机制</h3>
+      <p>一条指令的生命周期：<strong>取指 → 译码 → 取操作数 → 执行 → 写回</strong>。控制器（市长办公室）负责取指、译码、发号施令；运算器（各局办事窗口，核心是 ALU）负责算术逻辑运算；结果经总线写回存储器。所有部件共享一条公共马路，这就是冯·诺依曼瓶颈的来源——改进方向是哈佛结构（指令、数据分路）与多级存储层次。</p>
+      <p>性能量化：CPU 时间 = 指令数 × CPI ÷ 主频；MIPS = 主频 ÷ (CPI × 10⁶)，即每秒执行多少百万条指令。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>维度</th><th>CISC（复杂指令集）</th><th>RISC（精简指令集）</th></tr>
+        <tr><td>指令长度</td><td>变长</td><td>定长</td></tr>
+        <tr><td>指令数/寻址方式</td><td>多而全</td><td>少而精</td></tr>
+        <tr><td>常用指令执行</td><td>微程序控制为主</td><td>硬布线为主，多数一个周期</td></tr>
+        <tr><td>寄存器</td><td>较少</td><td>大量寄存器，运算主要在寄存器间</td></tr>
+        <tr><td>与流水线关系</td><td>难以高效流水</td><td>为流水线而生（04 页主角）</td></tr>
+      </table>
+      <p>Flynn 分类法按「指令流×数据流」给体系结构分四类：SISD（单指令单数据，经典单核）、SIMD（单指令多数据，向量机/GPU 的核心思想）、MISD（极少见，教材上常举容错系统为例）、MIMD（多指令多数据，多核/集群）。</p>
+      <table class="tbl">
+        <tr><th>部件</th><th>城市比喻（本域固定）</th><th>职责</th></tr>
+        <tr><td>CPU=市政府</td><td>运算器=办事窗口，控制器=市长办公室</td><td>算与管</td></tr>
+        <tr><td>内存=办公桌</td><td>正在处理的文件放桌上</td><td>存放正在运行的程序与数据</td></tr>
+        <tr><td>磁盘=档案馆</td><td>长期档案</td><td>持久存储</td></tr>
+        <tr><td>总线=马路</td><td>公共道路</td><td>部件间传指令、数据、地址（配控制信号）</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①主频≠性能：不同指令集 CPI 不同，跨架构只比主频是经典陷阱；②冯·诺依曼结构「以存储程序为中心」——早期教材说它「以运算器为中心」，现代体系已演化为以存储器为中心，考题问「存储程序思想」时答「指令与数据同存于存储器、自动逐条执行」；③MIPS 的倒数不是执行时间，注意换算 10⁶。</div>
+      <h3>专业英语小贴士</h3>
+      <p>von Neumann architecture（冯·诺依曼体系结构，存储程序思想即此）；ALU = Arithmetic Logic Unit（算术逻辑单元，运算器的核心）；MIPS = Million Instructions Per Second（每秒百万条指令，性能指标）；bus（总线）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>把一台计算机想象成一座城市的基础设施：<strong>市政府（CPU）</strong>里，市长办公室（控制器）照着流程文件（存储的程序）指挥各局窗口（运算器）办事；文件从<strong>办公桌（内存）</strong>上取，办完归档去<strong>档案馆（磁盘）</strong>；所有文件传递都走同一条<strong>马路（总线）</strong>——路一堵，市里再能干也得干等。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>市长照文件流程办事</td><td>存储程序、控制器取指译码</td><td>成立</td></tr>
+      <tr><td>办事窗口只管算</td><td>运算器/ALU</td><td>成立</td></tr>
+      <tr><td>所有文件走同一条马路</td><td>总线互连、冯·诺依曼瓶颈</td><td>成立（哈佛结构/多总线即为改进）</td></tr>
+      <tr><td>市政府扩建窗口=城市更高效</td><td>主频/核数提升=系统等比变快</td><td><b>失效</b>：受内存速度、总线带宽、CPI 制约，必须整体看体系结构</td></tr>
+    </table>
+    <div class="rhyme">五件兄弟一台戏，运算控制与存储；<br>输入输出两头站，总线马路来串线；<br>存储程序是家规，指令数据同屋住；<br>主频虽高莫得意，马路堵塞白辛苦。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「取指→译码执行→写回」一个指令周期：文书（指令）沿总线往返于市政府与办公桌之间，CPU 真正干活的时间被访存等待摊薄——这就是冯·诺依曼瓶颈。拖动「内存速度」滑块看 CPU 有效利用率的变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>内存速度 <input type="range" id="m-slider" min="5" max="30" value="10"> <span id="m-out">1.0x</span></label>
+      <span class="kf-caption" id="m-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：一条指令的执行流程</h4>
+      <p class="foreshadow">把卡片拖进下方槽，排出一条指令从取到算完的顺序：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：五大部件 ↔ 职责与比喻</h4>
+      <p class="foreshadow">先点左列一个部件，再点右列对应职责：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：性能计算器与挑战</h4>
+      <p class="foreshadow">拖滑块调参数，让机器同时满足：<b>执行时间 &lt; 0.40s</b> 且 <b>MIPS &gt; 800</b>（程序指令数按滑块值 ×10⁸ 计）：</p>
+      <label>主频 <input type="range" id="f-slider" min="5" max="40" value="20"> <span id="f-out">2.0 GHz</span></label><br>
+      <label>CPI <input type="range" id="cpi-slider" min="10" max="40" value="20"> <span id="cpi-out">2.0</span></label><br>
+      <label>指令数 <input type="range" id="ic-slider" min="10" max="100" value="50"> <span id="ic-out">5.0 ×10⁸</span></label>
+      <p id="calc-out" class="foreshadow"></p>
+      <button class="btn" id="calc-check">检查是否达标</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（本页为起点页，第 5 题为入学摸底）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>本页是起点：你只需要「程序会自动执行」这个生活常识，其余由本页建立。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「指令周期取指、译码、执行多步」在 <b>04 · 流水线</b> 变成装配线：多步重叠起来一起跑；</li>
+    <li>「CPU 等内存」的痛点在 <b>05 · 存储层次与Cache</b> 用随手抽屉（Cache）解决；</li>
+    <li>「总线是公共马路」在 <b>07 · 中断、DMA与总线</b> 展开成门铃与专用货梯的故事。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>CISC</th><th>RISC</th></tr>
+      <tr><td>差异点</td><td>指令多变长、功能全、微程序实现</td><td>指令固定长、功能精、硬布线实现，寄存器多</td></tr>
+      <tr><td>易错点</td><td>以为指令多=性能强（CPI 反而高）</td><td>以为 RISC 不用访存（仍要访存，只是运算尽量在寄存器间）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">CISC 是「什么都会的全科窗口」，RISC 是「只做高频简单活、排成一列飞速流转的快窗口」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——计算机像一座城市，市政府管计算，档案馆存档案……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 冯·诺依曼五大件=运算、控制、存储、输入、输出，靠总线互连；存储程序思想=指令和数据同存于存储器、自动逐条执行。</li><li>② 性能看组合拳：CPU 时间=指令数×CPI÷主频，主频高不等于快，总线与存储层次常是真瓶颈。</li><li>③ CISC 求全、RISC 求快；Flynn 四分类里记住 SIMD（GPU 思想）与 MIMD（多核/集群）就够了。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '01', domain: 'hw', loc: 'foundation', root: '..',
+  title: '计算机系统组成与体系结构',
+  next: '02-number-system.html', nextTitle: '02 · 进制转换与数据表示',
+  keywords: ['冯·诺依曼','存储程序','运算器','控制器','总线','CISC','RISC','MIPS']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（起点页：无前置点，做常识摸底） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【摸底·生活直觉】你觉得同样是「电脑」，为什么手机、笔记本、机房服务器都能跑不同的软件？',
+    opts: [
+      { t: '它们的电线接法每天重排一次', why: '如果是接线决定功能，换软件就得重新接线——存储程序思想恰恰否定了这一点。' },
+      { t: '程序以数据形式存在存储器里，机器照着自动执行', why: '对，这就是冯·诺依曼「存储程序」：换任务=换存储器里的内容，硬件不变。' },
+      { t: '它们的 CPU 其实不一样，只是碰巧都能跑', why: '指令集可以不同，但「程序存进存储器自动执行」这个共同思想才是关键。' }
+    ],
+    ans: 1, tag: '回忆:常识', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '冯·诺依曼计算机「存储程序」思想的核心含义是？',
+      opts: [
+        { t: '程序必须存放在硬盘中才能运行', why: '错。存储在哪个介质不是重点，内存（主存）才是运行时程序的住所。' },
+        { t: '指令和数据以同等地位用二进制存于存储器，机器自动逐条取指执行', why: '对。指令也是「数据」，取指→译码→执行全自动循环，这才成就了通用计算机。' },
+        { t: '数据和程序分别存放在两套独立的存储器', why: '那是哈佛结构的思想，恰是冯·诺依曼结构的改进版而非本尊。' },
+        { t: '程序由微指令编写', why: '微程序是实现层手段，不是存储程序思想的定义。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '下列关于 RISC（精简指令集计算机）的说法，正确的是？',
+      opts: [
+        { t: '指令数量多且长度可变', why: '反了：这是 CISC 的特征；RISC 指令少而定长。' },
+        { t: '寻址方式丰富以适应各种场景', why: 'RISC 寻址方式少而精，把复杂性交给编译器。' },
+        { t: '指令定长、寻址方式少，配合大量寄存器，便于流水线高效执行', why: '对。定长+少寻址让取指译码规整，寄存器间运算降低访存，这正是为流水线（04 页）铺路。' },
+        { t: '绝大多数指令需要多个时钟周期完成', why: 'RISC 追求多数指令单周期完成，多周期的是 CISC 的复杂指令。' }
+      ],
+      ans: 2, tag: '概念', src: '仿真题' },
+    { q: '某图像处理芯片用同一条指令同时对 256 个像素做相同运算，按 Flynn 分类法它属于？',
+      opts: [
+        { t: 'SISD', why: '单指令单数据是经典串行单核，无法一条指令管 256 个数。' },
+        { t: 'SIMD', why: '对。单指令流、多数据流：一条指令对多个数据单元同时操作，GPU/向量机的核心思想。' },
+        { t: 'MISD', why: '多指令单数据极少见，教材常举多机容错系统为例，与题意不符。' },
+        { t: 'MIMD', why: '多指令多数据是多核/集群：各核执行不同指令，不是「同一条指令管多数据」。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '某 CPU 主频 2GHz，程序含 5×10⁸ 条指令，平均 CPI=2。程序的 CPU 执行时间约为？',
+      opts: [
+        { t: '0.25 s', why: '漏了 CPI：只算了 5×10⁸/2×10⁹。每条指令要 2 个周期，必须乘 CPI。' },
+        { t: '0.5 s', why: '对。时间=指令数×CPI÷主频=5×10⁸×2÷(2×10⁹)=0.5s。' },
+        { t: '1.0 s', why: '把 CPI 当成了 4（或主频当 1GHz），代入前先统一量纲。' },
+        { t: '2.5 s', why: '把主频当成了 0.4GHz 量级，数量级判断先自查：2GHz≈每秒 20 亿周期。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '【摸底·常识】评价一台机器执行程序快慢，最直接的组合指标是？',
+      opts: [
+        { t: '只看主频，主频高一定快', why: '单看主频忽略 CPI 与指令数，01 页开篇的服务器案例就是反例。' },
+        { t: '指令数、CPI 与主频三者共同决定（CPU 时间=指令数×CPI÷主频）', why: '对。三者是「要做多少事、每件事几拍、一拍多快」的完整链条。' },
+        { t: '只看内存容量', why: '内存容量影响能跑多大的程序，不直接决定单程序执行速度。' }
+      ],
+      ans: 1, tag: '摸底:常识', src: '仿真题' }
+  ], { kpId: '01', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某公司为订单系统选型：方案 A 为 4 核 CPU、主频 3.5GHz、内存 2400MHz、双通道；方案 B 为 8 核 CPU、主频 2.6GHz、内存 3200MHz、四通道。压测显示该系统内存访问密集，CPU 大量时间在等待数据到达。',
+    q: '(1) 解释「主频高不等于系统快」的体系结构原因；(2) 仅凭本案例信息，倾向选哪个方案并给出依据；(3) 若要进一步提速，指出两条不换 CPU 的体系结构手段。',
+    ref: '(1) CPU 时间=指令数×CPI÷主频，主频只是分母；内存访问密集意味着 CPI 被访存等待拉高（冯·诺依曼瓶颈/存储墙），总线带宽与存储层次跟不上时主频优势无法兑现。(2) 倾向 B：内存频率更高且通道数翻倍、访存吞吐更大，正对本系统的访存瓶颈；核数也更多，吞吐型负载受益。(3) 手段：扩大 Cache/优化多级存储层次提高命中率（05 页）；增加内存通道或改用更快内存提升总线带宽；软件侧优化数据布局提升局部性、用流水线化/预取隐藏访存延迟。',
+    points: ['能用「指令数×CPI÷主频」解释主频只是变量之一', '指出访存瓶颈（冯·诺依曼瓶颈/存储墙）并与方案特征对应', '改进措施针对瓶颈（存储层次/总线带宽/局部性）而非泛泛「加配置」'],
+    frame: '答题框架：先列性能公式定变量→定位瓶颈（用压测证据）→措施与瓶颈一一对应→说明预期收益与代价。',
+    kpId: '01'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '同一程序（4×10⁸ 条指令）在两台机器上测试：机器甲主频 2.0GHz、平均 CPI=1.5；机器乙主频 2.8GHz、平均 CPI=2.4。同事小王断言：「2.8÷2.0=1.4，乙比甲快 40%。」',
+    q: '(1) 计算两台机器各自的 CPU 执行时间；(2) 判断小王的说法对错并说明原因；(3) 给出比较跨机器性能时应采用的正确口径。',
+    ref: '(1) 甲：4×10⁸×1.5÷(2.0×10⁹)=0.30s；乙：4×10⁸×2.4÷(2.8×10⁹)≈0.343s。(2) 小王错。他只比了主频，忽略 CPI：乙为提主频导致每条指令平均占更多周期，总时间反而比甲长约 14%。(3) 正确口径：同一负载下比较 CPU 时间=指令数×CPI÷主频，或用吞吐率/加速比；跨指令集时还要看指令数是否变化，必要时以执行基准程序的实际时间为准。',
+    points: ['两个执行时间都算对（0.30s 与约 0.34s）', '指出「只比主频」错在忽略 CPI', '给出以 CPU 时间/实测时间为准的统一比较口径'],
+    frame: '答题框架：先算（公式代入）→再判（用数据说话）→后立口径（比较标准是什么、为什么）。',
+    kpId: '01'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '智能洗衣机的主控芯片换程序就能改成 dishwasher（洗碗机）控制器。这体现了哪个思想？',
+    opts: [
+      { t: '哈佛结构', why: '哈佛结构讲指令与数据分开走两路，与「换程序不改硬件」无关。' },
+      { t: '存储程序：程序以数据形式存于存储器，换任务只换存储内容', why: '对。从服务器到家电，「程序当数据存、机器自动执行」都是冯·诺依曼思想的应用。' },
+      { t: 'SIMD 并行', why: '与一条指令管多个数据无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '01', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', [], 'prev');
+  CX.depChain('#bridge-next', ['04', '05']);
+
+  /* ---- 动画：指令周期与冯·诺依曼瓶颈 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var memSpeed = 1.0;
+  function draw(t) {
+    var tF = 1 / memSpeed, tE = 1, cycle = tF + tE + tF;
+    var p = t * cycle, phase, cap;
+    var x1 = 120, x2 = 640, y = 178, mx = 0, busy = false, wait = false;
+    if (p < tF) { phase = 0; mx = x1 + (x2 - x1) * (p / tF); wait = true; cap = '取指：控制器派「文书」沿总线去办公桌取指令——CPU 只能干等，这是瓶颈的一半。'; }
+    else if (p < tF + tE) { phase = 1; mx = x1; busy = true; cap = '译码并执行：指令在市政府内部办理——这才是 CPU 真正干活的时间。'; }
+    else { phase = 2; mx = x2 - (x2 - x1) * ((p - tF - tE) / tF); wait = true; cap = '写回：结果沿总线送回办公桌——又占一次马路，瓶颈的另一半。'; }
+    var eff = (tE / cycle * 100).toFixed(0);
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<line x1="40" y1="196" x2="720" y2="196" stroke="var(--line)" stroke-width="8"/>';
+    s += '<text x="380" y="222" text-anchor="middle" font-size="13" fill="var(--text-dim)">总线 = 公共马路（指令、数据、地址都走这条）</text>';
+    s += '<rect x="50" y="90" width="140" height="70" rx="10" fill="' + (busy ? 'var(--accent-2)' : 'var(--card-2)') + '" stroke="' + (busy ? 'var(--accent-2)' : 'var(--line)') + '" opacity="' + (busy ? '.9' : '1') + '"/>';
+    s += '<text x="120" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">市政府 CPU</text>';
+    s += '<text x="120" y="142" text-anchor="middle" font-size="12" fill="' + (busy ? 'var(--bg)' : 'var(--bad)') + '">' + (busy ? '忙碌：译码+执行' : '等待：访存中') + '</text>';
+    s += '<rect x="570" y="90" width="140" height="70" rx="10" fill="var(--card-2)" stroke="var(--line)"/>';
+    s += '<text x="640" y="118" text-anchor="middle" font-size="14" font-weight="700" fill="var(--text)">办公桌 内存</text>';
+    s += '<text x="640" y="142" text-anchor="middle" font-size="12" fill="var(--text-dim)">存放指令与数据</text>';
+    if (!busy) {
+      s += '<rect x="' + (mx - 26) + '" y="182" width="52" height="26" rx="6" fill="var(--accent)" opacity=".9"/>';
+      s += '<text x="' + mx + '" y="200" text-anchor="middle" font-size="12" font-weight="700" fill="var(--bg)">指令</text>';
+    }
+    s += '<text x="40" y="262" font-size="13" fill="var(--text-dim)">教学简化模型：周期=取指(1/m) + 译码执行(1) + 写回(1/m)，CPU 有效利用率 = 1/(1+2/m)</text>';
+    s += '<text x="380" y="286" text-anchor="middle" font-size="15" font-weight="700" fill="var(--accent-2)">当前 CPU 有效利用率 ≈ ' + eff + '%（内存速度 ' + memSpeed.toFixed(1) + 'x）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#m-calc').textContent = '利用率=1/(1+2/' + memSpeed.toFixed(1) + ')≈' + eff + '%——内存越慢，市政府空转越多。';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 10, onTick: draw });
+  var ms = CX.utils.$('#m-slider');
+  ms.addEventListener('input', function () {
+    memSpeed = ms.value / 10;
+    CX.utils.$('#m-out').textContent = memSpeed.toFixed(1) + 'x';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var order = ['控制器发出取指命令', '存储器送出指令到指令寄存器', '控制器译码并发出操作命令', '运算器取操作数并执行运算', '结果写回存储器并形成下条指令地址'];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。提示：一切从「取指」开始——没有指令，译码和运算都无从谈起；写回是最后一步。';
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：取指命令 → 指令进寄存器 → 译码发令 → 运算 → 写回。这就是 04 页流水线要重叠的那五步。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['运算器', '算术逻辑运算（ALU 办事窗口）'],
+    ['控制器', '取指、译码、发号施令（市长办公室）'],
+    ['存储器', '存放正在运行的程序与数据（办公桌）'],
+    ['输入设备', '把外部信息变成数据送进城'],
+    ['总线', '部件间公共的传输出路（马路）']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的职责。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个部件。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var wrong = '❌ 「' + selL.dataset.k + '」不对应「' + d.textContent + '」。想一想：算术逻辑运算归运算器，取指译码发令归控制器，「存东西」才归存储器——你选的是干哪类活的？';
+          CX.utils.$('#lab2-fb').textContent = wrong;
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：参数实验 ---- */
+  var fS = CX.utils.$('#f-slider'), cpiS = CX.utils.$('#cpi-slider'), icS = CX.utils.$('#ic-slider');
+  function calc() {
+    var f = fS.value / 10, cpi = cpiS.value / 10, ic = icS.value / 10;
+    CX.utils.$('#f-out').textContent = f.toFixed(1) + ' GHz';
+    CX.utils.$('#cpi-out').textContent = cpi.toFixed(1);
+    CX.utils.$('#ic-out').textContent = ic.toFixed(1) + ' ×10⁸';
+    var time = ic * 1e8 * cpi / (f * 1e9);
+    var mips = f * 1e9 / (cpi * 1e6);
+    CX.utils.$('#calc-out').textContent = '执行时间 = ' + (ic * 1e8) + ' × ' + cpi + ' ÷ ' + (f * 1e9) + ' = ' + time.toFixed(3) + ' s ；MIPS = ' + mips.toFixed(0);
+    return { time: time, mips: mips };
+  }
+  [fS, cpiS, icS].forEach(function (s) { s.addEventListener('input', calc); });
+  calc();
+  CX.utils.$('#calc-check').addEventListener('click', function () {
+    var r = calc(), fb = CX.utils.$('#lab3-fb');
+    var okT = r.time < 0.40, okM = r.mips > 800;
+    if (okT && okM) { fb.textContent = '✅ 达标：时间 ' + r.time.toFixed(3) + 's < 0.40s，MIPS ' + r.mips.toFixed(0) + ' > 800。注意你同时压低了 CPI——这正是体系结构比主频更管用的证据。'; fb.className = 'lab-feedback ok'; }
+    else if (!okT && !okM) { fb.textContent = '❌ 两项都不达标。第一步先看时间：指令数×CPI÷主频，三个旋钮都能减时间；再看 MIPS=主频÷CPI×1000（GHz→MHz 换 1000）。'; fb.className = 'lab-feedback bad'; }
+    else if (!okT) { fb.textContent = '❌ 时间 ' + r.time.toFixed(3) + 's 没达标（需 <0.40s）。错在这一步：时间主要由「指令数×CPI」的分子决定，继续降 CPI 或减指令数比拉主频更有效。'; fb.className = 'lab-feedback bad'; }
+    else { fb.textContent = '❌ MIPS ' + r.mips.toFixed(0) + ' 没达标（需 >800）。错在这一步：MIPS 只由主频÷CPI 决定，与指令数无关——你调指令数是无效操作，去提主频或降 CPI。'; fb.className = 'lab-feedback bad'; }
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

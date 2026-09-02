@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>50 · 密码学基础 · 架构师学堂</title>
+<meta name="description" content="对称快、非对称解决分发难，摘要防篡改，签名防抵赖。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">信息安全与法律法规</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="24-app-protocols.html">前置 24</a></span>
+    <h1>50 · 密码学基础</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">对称快、非对称解决分发难，摘要防篡改，签名防抵赖。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>你是电商平台架构师，支付链路评审会上吵成一团：有人说「全用 RSA，安全！」；有人说「AES 一把钥匙就够」。散会当晚客服炸锅：同一笔订单，商家说 99 元，用户账单被扣 990 元——订单在半路被人改了，而且双方都没法自证清白。三个问题一起压过来：<b>怎么不被偷看、怎么发现被篡改、怎么让赖账的人无法抵赖？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>任何单一手段都不够。<b>加密</b>只管「不被偷看」（机密性）；发现被改要靠<b>报文摘要</b>（完整性）；防止抵赖要靠<b>数字签名</b>（抗抵赖）；而纯非对称太慢、纯对称没法安全发钥匙，所以要<b>数字信封</b>（混合）：非对称护送会话密钥、对称加密大数据。99 元变 990 元的订单，恰恰是「只加密、没签名」的典型事故——密文改不动，但没人校验完整性，攻击者重放了改过金额的报文。本页把这套组合拳拆到可以直接写进案例答案。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>24 · 应用层协议与安全设备</b>（它已经用到了本页的机制）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>密码学在城防司法局里就是「<strong>密写术</strong>」：把能看懂的<b>明文</b>变成看不懂的<b>密文</b>，只有持有<b>密钥</b>的人能还原。现代密码学有一条底线叫 <strong>Kerckhoffs 原则</strong>：假设攻击者连加密算法都知道，系统的安全性只挂在<b>密钥</b>上——算法可以公开，钥匙绝不能丢。</p>
+      <h3>解决什么问题</h3>
+      <p>安全目标一共四件，各由不同工具负责，考试最爱考「哪个工具管哪件事」：</p>
+      <table class="tbl">
+        <tr><th>安全目标</th><th>工具</th><th>一句话原理</th></tr>
+        <tr><td>机密性（不偷看）</td><td>对称 / 非对称加密</td><td>没有钥匙就还原不出明文</td></tr>
+        <tr><td>完整性（不被改）</td><td>报文摘要（哈希）</td><td>内容变一点，摘要面目全非</td></tr>
+        <tr><td>真实性 + 抗抵赖</td><td>数字签名 + 证书</td><td>只有他本人的私钥能生成这个签名</td></tr>
+        <tr><td>身份可信任</td><td>CA / PKI 数字证书</td><td>公证处替「公钥属于某人」背书</td></tr>
+      </table>
+      <h3>核心机制</h3>
+      <p><strong>① 对称加密：一把钥匙，加解密同一把。</strong>优点是快，适合加密大文件；死穴是<b>密钥分发</b>——n 个人两两保密通信需要 n(n-1)/2 把钥匙，而且「怎么把钥匙安全地送到对方手里」本身就是难题。</p>
+      <p><strong>② 非对称加密：钥匙成对，公钥 + 私钥。</strong>用公钥加密的数据只有对应私钥能解开；公钥可以随便发，私钥自己藏着。它一举解决分发难题，代价是<b>慢</b>（一般比对称慢百倍以上），只适合小块数据。两个方向用法不同：<b>公钥加密、私钥解密</b>＝保密；<b>私钥签名、公钥验证</b>＝抗抵赖。</p>
+      <p><strong>③ 数字信封（混合加密）：</strong>发送方随机生成一把一次性<b>会话密钥</b>，用它对称加密大数据；再用接收方公钥加密这把会话密钥，连同密文一起发出。接收方先用自己的私钥解出会话密钥，再解密数据。<b>公钥只干一小票活，对称干重活</b>，性能与分发兼得——HTTPS 正是这么干的。</p>
+      <p><strong>④ 报文摘要：</strong>MD5（128 位）、SHA-1（160 位）、SHA-256、国密 SM3。把任意长度的报文压成固定长度的「指纹」：单向（从摘要推不回原文）、雪崩（改一个字摘要全变）。但摘要<b>无密钥</b>，攻击者把报文和摘要一起换掉你发现不了——所以它<b>防篡改、不防伪造</b>，防伪造必须配合签名。</p>
+      <p><strong>⑤ 数字签名：</strong>发送方<b>先对报文做摘要，再用「自己的私钥」加密摘要</b>，附在报文后；接收方用<b>发送方的公钥</b>解出摘要，与自己重算的摘要比对。对上了＝报文没改（完整性）＋确实是持有那把私钥的人发的（抗抵赖）。注意：签名<b>不加密报文</b>，不提供机密性。</p>
+      <p><strong>⑥ CA 与 PKI：</strong>公钥是公开的，那怎么确认「这把公钥真属于商家」？由证书颁发机构（CA，城市里的公证处）签发<b>数字证书</b>：把持有者身份与公钥绑定，并用 CA 自己的私钥签名。根 CA 认证中间 CA、中间 CA 认证用户，形成<b>证书链</b>，逐级验签直到信任锚。这套「公证体系」就是 PKI。<strong>Kerberos</strong> 则是另一条路线：不靠公钥，靠一个可信密钥分发中心（KDC：AS + TGS）发票据，用对称密钥 + 时间戳（防重放）完成内网身份认证。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>家族</th><th>代表算法</th><th>钥匙</th><th>速度</th><th>典型用途</th></tr>
+        <tr><td>对称加密</td><td>DES（56 位密钥）、3DES、AES（128/192/256）、国密 SM1/SM4</td><td>加解密同一把</td><td>快</td><td>大数据量加密</td></tr>
+        <tr><td>非对称加密</td><td>RSA、ECC、ElGamal、国密 SM2</td><td>公钥/私钥成对</td><td>慢</td><td>传会话密钥、数字签名</td></tr>
+        <tr><td>报文摘要</td><td>MD5（128 位）、SHA-1、SHA-256、国密 SM3</td><td>无密钥</td><td>极快</td><td>完整性校验</td></tr>
+      </table>
+      <p>数字签名四步（判断题题眼全在这四步里）：发送方 A 算摘要 → A 用 <b>A 的私钥</b>加密摘要得签名 → B 用 <b>A 的公钥</b>解出摘要 → B 对收到的报文重算摘要并比对。若还要保密，A 再用 <b>B 的公钥</b>把「报文+签名」一起加密——两把不同的钥匙各司其职。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 干扰项「用<b>接收方</b>公钥加密的就是数字签名」——错：签名用的是<b>发送方自己的私钥</b>；用接收方公钥加密做的是<b>保密</b>。② 「签了名就等于加密了」——错，签名不保密。③ 「MD5 能防止伪造报文」——错，摘要可被连同报文一起替换。④ DES 密钥 56 位（算法公开），3DES 是三重 DES；RSA 属非对称，密钥常用 1024/2048 位。⑤ 混合加密里「非对称传钥匙、对称传数据」分工不能颠倒。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>public key（公钥）、private key（私钥）、digital signature（数字签名）。英语题常见问法：Which key is used to <b>verify</b> a digital signature? —— the <b>sender's public key</b>（验证用发送方公钥）。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在 🛡️ 城防司法局里：加密是<strong>密写</strong>，密钥对是<strong>挂锁与钥匙</strong>——公钥像一只敞着口的挂锁，谁都能把东西扣进去，但只有持有钥匙的人能打开；数字签名是<strong>按手印 + 公证处</strong>：手印（签名）人人可验，但只有本人按得出来；PKI 是<strong>公证体系</strong>，连「公证处是不是真的」也由上级公证处背书；知识产权（第 53 站）则是这里的<strong>房产证</strong>。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>密写药水把信变天书</td><td>加密（明文→密文）</td><td>成立</td></tr>
+      <tr><td>同一瓶药水既能写也能读</td><td>对称密钥（一把钥匙）</td><td>成立</td></tr>
+      <tr><td>敞口挂锁人人可扣、钥匙唯一</td><td>公钥加密、私钥解密</td><td>成立；但反向「私钥签、公钥验」在现实挂锁里<strong>没有对应物</strong>——这是类比失效边界</td></tr>
+      <tr><td>指纹能认「是不是同一份」</td><td>报文摘要</td><td>成立；但没人保证「指纹牌」本身没被连货一起换掉（所以防不了伪造）</td></tr>
+      <tr><td>按手印 + 公证处骑缝章</td><td>数字签名 + CA 证书</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">对称一把钥匙快，人多分发就抓瞎；<br>公私成对开新局，公锁私签不掺假；<br>摘要压成短指纹，只防篡改难防假；<br>签名先哈后私钥，收方公钥来核查；<br>信封公钥装密钥，大数据量也不怕；<br>身份绑定找公证，CA 证书链条挂。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画逐帧演示<strong>数字信封</strong>从加密到解密的全过程；拖动「数据块数」滑块，观察为什么大数据量必须用数字信封而不是纯非对称加密。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>数据块数 N <input type="range" id="env-n" min="1" max="50" value="12"> <span id="env-n-out">12</span></label>
+      <span class="kf-caption" id="env-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：把数字信封收发流程排对</h4>
+      <p class="foreshadow">从「生成会话密钥」开始，把 7 步按正确顺序拖入下方槽（桌面端拖拽，移动端点击卡片再点槽也可）：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：算法 ↔ 家族归属</h4>
+      <p class="foreshadow">先点左列一个算法，再点右列它的家族：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（判断快答）：这句话对吗？</h4>
+      <p class="foreshadow">逐句判断——这正是考场上判断题的原样训练：</p>
+      <div id="tf-list"></div>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>24 · 应用层协议与安全设备</b>已经告诉你 HTTPS「给管道加上锁」；本页把这个黑盒拆开：那把锁就是数字信封 + 证书链。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li><b>51 · 网络安全防护体系</b>里 IPSec/SSL VPN 的「加密地道」，跑的就是本页的加密与摘要；</li><li><b>62 · 区块链</b>把哈希与非对称签名变成「人人可验证、无人可抵赖」的全员总账本。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>数字签名</th><th>数字信封</th></tr>
+      <tr><td>差异点</td><td>用<b>发送方自己的私钥</b>处理摘要；目标＝完整性+抗抵赖，<b>不保密</b></td><td>用<b>接收方的公钥</b>护送会话密钥；目标＝机密性+性能兼顾</td></tr>
+      <tr><td>易错点</td><td>误以为「用对方公钥加密」就叫签名</td><td>误以为信封里装的是数据本身（装的只是对称密钥）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">签名亮的是<strong>自己的</strong>私钥（证明我是我），信封装的是<strong>对方的</strong>公钥（保证你才看得懂）；一个管「谁发的、改没改」，一个管「别人看不看得懂」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——写密信有两种锁……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 对称（DES/3DES/AES/SM1/SM4）快但难分发，非对称（RSA/ECC/SM2）慢但解决分发；数字信封＝公钥护送会话密钥＋对称加密数据。</li><li>② 摘要（MD5/SHA/SM3）防篡改不防伪造；数字签名＝先哈希再私钥签，接收方用发送方公钥验证，签名不保密。</li><li>③ 公钥「属于谁」由 CA/PKI 的证书链背书；内网对称路线则是 Kerberos 票据 + 时间戳防重放。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '50', domain: 'sec', loc: 'citadel', root: '..',
+  title: '密码学基础', prev: '49-behavioral.html', prevTitle: '49 · 行为型模式',
+  next: '51-network-defense.html', nextTitle: '51 · 网络安全防护体系',
+  keywords: ['对称加密', '非对称加密', '公钥', '私钥', '报文摘要', '数字签名', '数字信封', '数字证书']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 24 · 应用层协议与安全设备） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·24】网上银行用的是 HTTPS。它相当于给哪个应用层协议「套上安全层」，其默认端口是多少？',
+    opts: [
+      { t: 'HTTP，443', why: '对：HTTPS = HTTP over TLS/SSL，默认端口 443。' },
+      { t: 'FTP，21', why: 'FTP 是文件传输，21 是它的控制端口，与网页无关。' },
+      { t: 'SMTP，25', why: 'SMTP 是发邮件的协议，25 是邮件端口。' },
+      { t: 'DNS，53', why: 'DNS 是查号台（域名解析），53 是它的端口。' }
+    ],
+    ans: 0, tag: '回忆:24', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某系统要把每日约 50GB 的备份文件加密后存放，最合适的算法是？',
+      opts: [
+        { t: 'RSA（2048 位密钥）', why: '非对称太慢，加密 50GB 数据性能无法接受；RSA 适合小块数据如密钥。' },
+        { t: 'AES（128 位密钥）', why: '对：大文件加密用对称算法，AES 快且安全。' },
+        { t: 'MD5（128 位摘要）', why: '摘要是「指纹」不是加密，从摘要还原不出原文，也无密文可言。' },
+        { t: 'SHA-256', why: '同样是摘要算法，只做完整性校验，不提供机密性。' }
+      ],
+      ans: 1, tag: '算法选型', src: '仿真题' },
+    { q: '关于数字签名的过程，正确的是？',
+      opts: [
+        { t: '发送方用接收方公钥加密报文全文，接收方用自己私钥解', why: '这是「加密」实现保密的做法，与签名无关；签名不加密报文全文。' },
+        { t: '发送方对报文做摘要后用自己私钥加密，接收方用发送方公钥验证', why: '对：先哈希再私钥签、公钥验，同时给出完整性与抗抵赖。' },
+        { t: '发送方用自己公钥加密摘要，接收方用自己私钥解', why: '方向全乱：私钥不能外发，接收方的私钥也解不了别人公钥加密的内容。' },
+        { t: '签名能防止报文被窃听', why: '签名不加密报文，窃听者照样能读到内容；保密要靠加密。' }
+      ],
+      ans: 1, tag: '签名流程', src: '仿真题' },
+    { q: '「数字信封」的本质是？',
+      opts: [
+        { t: '用对称密钥加密非对称密钥', why: '颠倒：是非对称（公钥）护送对称（会话）密钥。' },
+        { t: '一种新的摘要算法', why: '数字信封不是算法，是对称+非对称的组合方案。' },
+        { t: '非对称加密传会话密钥 + 对称加密数据', why: '对：公钥只干一小票活（送钥匙），对称干重活（加密据），兼顾分发与性能。' },
+        { t: '把数字证书装进信封发送', why: '与证书无关；信封里是对被会话密钥加密的结果。' }
+      ],
+      ans: 2, tag: '混合加密', src: '仿真题' },
+    { q: '【交错复习·24】HTTPS 握手阶段，非对称加密（如 RSA）的主要用途是？',
+      opts: [
+        { t: '加密整个网页内容', why: '页面数据量大，全程非对称太慢；这正是数字信封要解决的性能问题。' },
+        { t: '协商并护送后续使用的对称会话密钥', why: '对：握手用非对称/密钥交换护送会话密钥，之后的数据传输用对称加密。' },
+        { t: '替代摘要做完整性校验', why: '完整性由 MAC/摘要机制负责，不是非对称加密的职责。' },
+        { t: '压缩 HTTP 报文', why: '压缩与加密是两回事。' }
+      ],
+      ans: 1, tag: '交错复习:24', src: '仿真题' },
+    { q: '关于报文摘要（如 MD5/SM3），下列说法正确的是？',
+      opts: [
+        { t: '有密钥参与，可解密还原原文', why: '摘要是单向压缩，无密钥、不可逆。' },
+        { t: '报文变一个字，摘要基本不变', why: '反了：雪崩效应是改一点摘要就面目全非，靠它发现篡改。' },
+        { t: '能发现报文被改，但防不了攻击者连报文带摘要一起换', why: '对：摘要无密钥，伪造者可重算新摘要；防伪造需配合数字签名。' },
+        { t: 'SHA-1 的摘要长度是 512 位', why: 'SHA-1 是 160 位；MD5 是 128 位。' }
+      ],
+      ans: 2, tag: '摘要特性', src: '仿真题' }
+  ], { mode: 'test', kpId: '50' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '你是电商平台架构师。需求评审提出四条要求：① 支付卡号经公网传输不可被窃听；② 订单金额被中途篡改要能立刻发现；③ 用户下单后不能抵赖；④ 大促峰值每秒上万笔订单，加密开销不能拖垮服务器。曾有事故：一笔 99 元订单被改成 990 元，双方均无法自证。',
+    q: '(1) 针对①选择加密体系并说明为何不用纯非对称；(2) 针对②③写出完整签名流程（说清每一步用谁的哪把钥匙）；(3) 针对④如何兼顾性能；(4) 商家对外公布的公钥，其真实性由谁背书、用什么机制？',
+    ref: '(1) 采用混合加密（数字信封）：会话密钥对称加密大数据、接收方公钥护送会话密钥；纯非对称（RSA）比对称慢百倍以上，吞吐撑不住业务量。(2) 签名流程：用户端对订单报文计算摘要→用「用户的私钥」加密摘要形成签名，附在报文后→平台用「用户的公钥」解出摘要→对收到的报文重算摘要比对；一致则完整性+抗抵赖同时成立。注意签名不加密报文，报文本体另由数字信封保护。(3) 会话密钥一次性随机生成、定期更换；对称算法选 AES/SM4 硬件加速；非对称运算仅限握手/送钥匙，必要时用会话复用。(4) 由 CA 签发数字证书：把商家身份与其公钥绑定并加盖 CA 私钥签名，浏览器按证书链逐级验证到根 CA，防止公钥被冒名替换。',
+    points: ['答出混合加密结构（非对称送钥匙、对称送数据）并能解释纯非对称的性能缺陷', '签名流程四步钥匙方向全对：摘要→私钥签（发送方）→公钥验（接收方）→比对，并指出签名不保密', '性能对策具体（一次性会话密钥、AES/SM4 加速、握手开销控制）', '公钥可信性问题落到 CA/证书链，而非含糊说「加密一下」'],
+    frame: '答题框架：先分目标（机密/完整/抵赖/性能）→ 每个目标配一种机制并写清钥匙方向 → 用「分层组合」收束：传输层信封、业务层签名、信任层证书 → 最后点一句各机制不能互相替代。',
+    kpId: '50'
+  });
+  CX.renderCase('#case2', {
+    stem: '某公司内网约 2000 人，最初由管理员为「每一对需要传文件的员工」手工约定对称密钥。三个月后问题爆发：密钥表无人维护得清、新员工领钥要等一周、离职员工仍持有可用旧钥，审计无法追溯谁在何时用了哪把钥匙。',
+    q: '(1) 用一个式子说明原方案密钥规模的问题；(2) 给出两条改进路线（KDC/Kerberos 与 PKI/CA）各自的核心思路；(3) 说明 Kerberos 用时间戳防什么攻击。',
+    ref: '(1) n 人两两通信需 n(n-1)/2 把钥匙，2000 人约需 1999000 把；且每新增/离开一人全部相关密钥都要换发，管理成本爆炸。(2) 路线一 KDC/Kerberos：设可信密钥分发中心（AS 认证 + TGS 发票据），每人只与 KDC 共享一把主密钥，会话密钥由 KDC 临时发放、随用随废，审计集中在 KDC；路线二 PKI/CA：为每人签发数字证书绑定身份与公钥，非对称完成密钥协商，配合证书撤销列表/有效期解决离职者失效问题。(3) 时间戳（加有效期）防「重放攻击」——攻击者截获旧票据/旧报文原样重发冒充合法用户。',
+    points: ['写出 n(n-1)/2 并代入 2000 人量级，点出成员变动导致全量换钥', '两条路线机制说清：Kerberos 票据+集中分发 vs 证书链+撤销机制', '主动提时间戳防重放（写「票据有效期」也算对）', '能结合「审计/撤销离职人员」这一管理诉求评价两方案'],
+    frame: '答题框架：先量化问题（式子+数字）→ 逐条给方案并对照原方案的三个痛点（规模/时效/审计）→ 结尾比较适用场景：封闭内网用 Kerberos，跨机构开放场景用 PKI。',
+    kpId: '50'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某下载站给每个安装包页面挂出「文件 + SHA-256 校验值」。这个校验值能防什么、不能防什么？',
+    opts: [
+      { t: '能发现下载中断/损坏，也能防黑客连文件带校验值一起替换', why: '前半对，后半错：校验值若与文件来自同一被控渠道，攻击者可一起换，用户无从发现。' },
+      { t: '只能发现传输损坏或被改；若校验值与文件被一起篡改则无法发现——防伪造须让校验值来自可信渠道（如官方签名）', why: '对：这就是摘要「防篡改不防伪造」的变式——同一概念，从文件分发场景再考一遍。' },
+      { t: 'SHA-256 有密钥，黑客算不出新校验值', why: 'SHA-256 是无密钥摘要，任何人都能对任何文件算出校验值。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant', kpId: '50' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['24'], 'prev');
+  CX.depChain('#bridge-next', ['51', '62'], 'next');
+
+  /* ---- 动画：数字信封逐帧 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var nSlider = CX.utils.$('env-n');
+  var nOut = CX.utils.$('env-n-out');
+  var calcOut = CX.utils.$('env-calc');
+  var N = 12;
+  var CAPS = [
+    '第1帧：买家生成订单明文，并在本地随机生成一把一次性「会话密钥 K」（对称钥匙）。',
+    '第2帧：用 K 做对称加密——快，一口气锁住全部数据块。',
+    '第3帧：取出收款方的公钥挂锁，把 K 锁进小信封——这就是「数字信封」。',
+    '第4帧：密文 + 数字信封一起穿过公网，旁观者看到的全是天书。',
+    '第5帧：收款方用自己的私钥（世界上唯一能开这把锁的钥匙）打开信封，取出 K。',
+    '第6帧：用 K 解开密文，订单明文完整落地。',
+    '第7帧：对比耗时：纯非对称要把每个数据块都做慢运算，数字信封只做一次公钥运算。',
+    '第8帧：结论——机密与分发由信封解决，速度由对称算法保证，各干各的活。'
+  ];
+  function draw(t) {
+    var seg = t * 8;
+    var f = Math.min(7, Math.floor(seg));
+    var frac = seg - f;
+    var rsaCost = N * 100, envCost = 100 + N * 2;
+    var maxC = Math.max(rsaCost, envCost);
+    var rsaW = Math.round(rsaCost / maxC * 320);
+    var envW = Math.max(6, Math.round(envCost / maxC * 320));
+    var s = '<svg viewBox="0 0 740 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="数字信封动画">';
+    s += '<rect width="740" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 两端 */
+    s += '<rect x="24" y="46" width="150" height="74" rx="8" fill="var(--card)" stroke="var(--line)"/><text x="99" y="72" text-anchor="middle" font-size="14" fill="var(--text-dim)">发送方（买家）</text>';
+    s += '<rect x="566" y="46" width="150" height="74" rx="8" fill="var(--card)" stroke="var(--line)"/><text x="641" y="72" text-anchor="middle" font-size="14" fill="var(--text-dim)">接收方（商家）</text>';
+    /* 管道 */
+    s += '<line x1="174" y1="196" x2="566" y2="196" stroke="var(--line)" stroke-width="10" stroke-linecap="round" opacity=".6"/>';
+    s += '<text x="370" y="220" text-anchor="middle" font-size="12" fill="var(--text-dim)">公网（人人可见）</text>';
+    /* 帧0：明文 + 会话密钥 */
+    if (f === 0) {
+      s += '<rect x="36" y="126" width="126" height="34" rx="6" fill="var(--accent)" opacity=".25" stroke="var(--accent)"/><text x="99" y="148" text-anchor="middle" font-size="12" fill="var(--text)">订单：99 元</text>';
+      s += '<circle cx="99" cy="252" r="16" fill="var(--accent-2)" opacity=".9"/><text x="99" y="257" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">K</text>';
+      s += '<text x="128" y="256" font-size="11" fill="var(--text-dim)">随机生成会话密钥</text>';
+    }
+    /* 帧1：对称加密成密文块 */
+    if (f === 1) {
+      for (var i = 0; i < 4; i++) s += '<rect x="' + (40 + i * 32) + '" y="126" width="24" height="34" rx="4" fill="var(--accent-2)" opacity=".45"/>';
+      s += '<text x="176" y="148" font-size="12" fill="var(--text-dim)">×' + N + ' 块密文（K 加密，快）</text>';
+      s += '<circle cx="99" cy="252" r="16" fill="var(--accent-2)"/><text x="99" y="257" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">K</text>';
+    }
+    /* 帧2：公钥锁信封 */
+    if (f === 2) {
+      s += '<rect x="40" y="126" width="96" height="40" rx="6" fill="var(--ok)" opacity=".25" stroke="var(--ok)"/><text x="88" y="151" text-anchor="middle" font-size="12" fill="var(--text)">信封{K}</text>';
+      s += '<text x="150" y="151" font-size="14" fill="var(--ok)">🔒←商家公钥锁上</text>';
+      for (var j = 0; j < 4; j++) s += '<rect x="' + (40 + j * 32) + '" y="98" width="24" height="18" rx="3" fill="var(--accent-2)" opacity=".45"/>';
+    }
+    /* 帧3：传输 */
+    if (f === 3) {
+      var x3 = 174 + frac * (566 - 174 - 150);
+      s += '<rect x="' + x3 + '" y="180" width="80" height="32" rx="6" fill="var(--accent-2)" opacity=".45"/>';
+      s += '<rect x="' + (x3 + 88) + '" y="180" width="46" height="32" rx="6" fill="var(--ok)" opacity=".35" stroke="var(--ok)"/><text x="' + (x3 + 111) + '" y="201" text-anchor="middle" font-size="11" fill="var(--text)">信封</text>';
+    }
+    /* 帧4：私钥开信封 */
+    if (f === 4) {
+      s += '<rect x="590" y="126" width="96" height="40" rx="6" fill="var(--ok)" opacity=".25" stroke="var(--ok)"/><text x="638" y="151" text-anchor="middle" font-size="12" fill="var(--text)">信封{K}</text>';
+      s += '<text x="638" y="188" text-anchor="middle" font-size="14" fill="var(--bad)">🔑 商家私钥开锁</text>';
+      s += '<text x="638" y="106" text-anchor="middle" font-size="11" fill="var(--text-dim)">只有它能开</text>';
+    }
+    /* 帧5：取出K */
+    if (f === 5) {
+      s += '<circle cx="641" cy="252" r="16" fill="var(--accent-2)"/><text x="641" y="257" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--bg)">K</text>';
+      s += '<text x="560" y="257" font-size="11" fill="var(--text-dim)">取回会话密钥</text>';
+      s += '<rect x="590" y="126" width="96" height="40" rx="6" fill="var(--ok)" opacity=".35" stroke="var(--ok)"/><text x="638" y="151" text-anchor="middle" font-size="12" fill="var(--text)">信封已开</text>';
+    }
+    /* 帧6：解密得明文 */
+    if (f === 6) {
+      s += '<rect x="582" y="126" width="126" height="34" rx="6" fill="var(--ok)" opacity=".3" stroke="var(--ok)"/><text x="645" y="148" text-anchor="middle" font-size="12" fill="var(--text)">订单：99 元 ✓</text>';
+      s += '<circle cx="641" cy="252" r="16" fill="var(--accent-2)" opacity=".5"/><text x="641" y="257" text-anchor="middle" font-size="12" fill="var(--bg)">K</text>';
+    }
+    /* 帧7：耗时对比 */
+    if (f === 7) {
+      s += '<text x="370" y="120" text-anchor="middle" font-size="14" fill="var(--text)">耗时对比（示意，N=' + N + ' 块，公钥运算 100ms/次、对称 2ms/块）</text>';
+      s += '<text x="60" y="152" font-size="12" fill="var(--bad)">纯非对称</text><rect x="150" y="140" width="' + rsaW + '" height="18" rx="4" fill="var(--bad)" opacity=".6"/><text x="' + (158 + rsaW) + '" y="154" font-size="12" fill="var(--text)">' + rsaCost + ' ms</text>';
+      s += '<text x="60" y="182" font-size="12" fill="var(--ok)">数字信封</text><rect x="150" y="170" width="' + envW + '" height="18" rx="4" fill="var(--ok)" opacity=".7"/><text x="' + (158 + envW) + '" y="184" font-size="12" fill="var(--text)">' + envCost + ' ms</text>';
+      s += '<text x="370" y="222" text-anchor="middle" font-size="12" fill="var(--text-dim)">非对称 1 次（送钥匙）+ 对称 ' + N + ' 次（锁数据）</text>';
+    }
+    /* 帧标题 */
+    s += '<text x="370" y="30" text-anchor="middle" font-size="15" font-weight="bold" fill="var(--text)">数字信封：第 ' + (f + 1) + '/8 帧</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', CAPS[f]);
+    if (calcOut) calcOut.textContent = '纯非对称 ≈ ' + rsaCost + ' ms，数字信封 ≈ ' + envCost + ' ms（示意值）';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 32, duration: 16, onTick: draw });
+  nSlider.addEventListener('input', function () {
+    N = parseInt(nSlider.value, 10);
+    nOut.textContent = String(N);
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var EXPECT = ['生成一次性会话密钥 K', '用 K 对称加密订单数据', '取出接收方的公钥', '用公钥加密 K 得数字信封', '发送：密文 + 数字信封', '接收方用自己私钥解出 K', '用 K 解密密文得到明文'];
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var items = CX.shuffle(EXPECT.map(function (t) { return t; }));
+  items.forEach(function (t) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = t; d.dataset.t = t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab1-fb');
+    if (got.length < 7) { fb.textContent = '还有 ' + (7 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 7; i++) {
+      if (got[i] !== EXPECT[i]) {
+        var hint = '';
+        if (i <= 1) hint = '提示：先有会话密钥，才能开始加密数据。';
+        else if (i <= 3) hint = '提示：数据用 K 加密，而 K 本身要靠对方公钥护送（信封）。';
+        else hint = '提示：接收侧的顺序正好与发送侧镜像——先开信封（私钥）取出 K，再用 K 解数据。';
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。「' + EXPECT[i] + '」应该在这一步。' + hint;
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 顺序正确：生成 K → 对称加密数据 → 公钥封 K 成信封 → 发送 → 私钥开封 → 解密。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['DES / 3DES', '对称加密（56 位密钥的老将）'],
+    ['AES', '对称加密（当前主力）'],
+    ['RSA / ECC', '非对称加密（钥匙成对）'],
+    ['SM2 / SM4', '国密（SM2 非对称、SM4 对称）'],
+    ['MD5 / SHA-1', '报文摘要（128/160 位）'],
+    ['SM3', '报文摘要（国密）']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的家族。';
+        CX.utils.$('lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个算法。'; CX.utils.$('lab2-fb').className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/6';
+          CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab2-fb').textContent = '❌ 「' + selL.dataset.k + '」不属于「' + d.textContent + '」。先想：它有几把钥匙？快还是慢？';
+          CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：判断快答 ---- */
+  var TF = [
+    { s: '数字签名是用「接收方的公钥」对报文加密实现的。', a: false, e: '错。签名＝发送方摘要后用「自己的私钥」加密；用接收方公钥加密那是保密，不是签名——这是最高频干扰项。' },
+    { s: '报文摘要能发现报文被篡改，但防不了连报文带摘要一起伪造。', a: true, e: '对。摘要无密钥，伪造者可重算；防伪造必须让摘要带上「只有他能签」的私钥（即签名）。' },
+    { s: '非对称加密比对称快，所以大文件优先用非对称。', a: false, e: '错。方向反了：非对称慢百倍以上，大文件用对称，非对称只送钥匙（数字信封）。' },
+    { s: '报文经过数字签名后，窃听者就看不到报文内容了。', a: false, e: '错。签名只给摘要上锁，报文本体仍是明文；要保密还得用信封/加密。' },
+    { s: '公钥可以公开分发，私钥必须由持有者本人保管。', a: true, e: '对。公钥本来就是用来发的；私钥一旦泄露，签名与解密双双失守，须立即吊销证书。' }
+  ];
+  var tfBox = CX.utils.$('tf-list');
+  TF.forEach(function (it, i) {
+    var row = document.createElement('div');
+    row.style.margin = '8px 0';
+    row.innerHTML = '<p style="margin:0 0 4px">' + (i + 1) + '. ' + it.s + '</p>';
+    var bT = document.createElement('button'); bT.className = 'btn'; bT.textContent = '✔ 对';
+    var bF = document.createElement('button'); bF.className = 'btn'; bF.textContent = '✘ 错';
+    var out = document.createElement('span'); out.className = 'lab-feedback'; out.style.marginLeft = '8px';
+    function answer(said) {
+      bT.disabled = true; bF.disabled = true;
+      if (said === it.a) { out.textContent = ' ✅ 对！' + it.e; out.className = 'lab-feedback ok'; }
+      else { out.textContent = ' ❌ 错了。' + it.e; out.className = 'lab-feedback bad'; }
+    }
+    bT.addEventListener('click', function () { answer(true); });
+    bF.addEventListener('click', function () { answer(false); });
+    row.appendChild(bT); row.appendChild(bF); row.appendChild(out);
+    tfBox.appendChild(row);
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

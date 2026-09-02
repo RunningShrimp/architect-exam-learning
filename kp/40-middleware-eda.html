@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>40 · 中间件与事件驱动架构 · 架构师学堂</title>
+<meta name="description" content="消息队列是城市快递中转站：解耦、削峰、异步三价值；点对点一人领，发布订阅大家听。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🗺️ 城市规划馆</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="38-microservices.html">前置 38</a></span>
+    <h1>40 · 中间件与事件驱动架构</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">消息队列是快递中转站：解耦削峰又异步，发件扔下就走。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某票务平台开抢瞬间：涌入 10 万请求/秒，而下单核心链路最多稳住 5 千/秒。同步调用的年代，第 5001 个请求开始全部超时，用户疯狂刷新把系统彻底压垮。产品只提了一个需求：「让用户立刻看到『排队中』，系统按自己的节奏出票」。什么样的设施能做到「收下所有请求、按能力慢慢消化」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>答案是<b>消息队列（MQ）</b>——城市<b>快递中转站</b>：发件人（前端/接入层）把请求当包裹扔进中转站立刻返回「排队中」，中转站按收件人（下单核心）的处理节奏投递。这就是 MQ 的三大价值之一<b>削峰</b>：把 10 万/秒的尖峰在队列里蓄成水库，按 5 千/秒匀速放行。另两个价值——<b>解耦</b>（发件人不认识收件人）、<b>异步</b>（主流程不等耗时步骤）——本页逐一拆解，并讲清随之而来的「消息丢了/重了/乱了怎么办」。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>38 · SOA与微服务</b>（最终一致性靠「可靠消息」落地——本页就是那个「可靠消息」的机关拆解）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么：中间件与它的家族</h3>
+      <p><b>中间件（Middleware）</b>是位于<b>操作系统与应用软件之间</b>的软件层，屏蔽底层差异，让分布式构件「跨平台、跨语言」地协作——37 页给过名单：数据库中间件、<b>消息中间件（MOM）</b>、事务中间件（TP 监控器）、RPC 中间件、对象请求代理 ORB。本页把其中最重要的 <b>MOM</b> 拆开看。</p>
+      <h3>消息队列三大价值（必背）</h3>
+      <table class="tbl">
+        <tr><th>价值</th><th>机制</th><th>快递中转站比喻</th></tr>
+        <tr><td><b>解耦</b></td><td>生产者与消费者互不认识，只认消息格式（联动 35 页发布-订阅）</td><td>寄件人不知道哪个快递员取件</td></tr>
+        <tr><td><b>削峰</b></td><td>突发流量先入队缓冲，消费端按自己的能力匀速处理</td><td>双 11 包件堆满中转站，快递员按班次送</td></tr>
+        <tr><td><b>异步</b></td><td>主流程投递完消息立刻返回，耗时步骤后置</td><td>扔下包裹就走，不必等对方签收</td></tr>
+      </table>
+      <p>代价：系统从「同步强一致」变成「最终一致」，要处理消息丢失、重复、乱序、积压——天下没有免费的解耦。</p>
+      <h3>两种消息模型</h3>
+      <ul>
+        <li><b>点对点（PTP，Queue）</b>：一条消息只能被<b>一个</b>消费者消费——队列里抢任务，适合「活多人干、一人一单」（如订单处理集群）。</li>
+        <li><b>发布订阅（Pub/Sub，Topic）</b>：一条消息广播给<b>所有</b>订阅者——公众号发文粉丝全收，适合「一事多知」（如订单事件同时给库存/积分/短信）。</li>
+      </ul>
+      <h3>Kafka 类的高吞吐设计（综合知识常考）</h3>
+      <p>核心是<b>持久化日志</b>：消息按序追加写磁盘（顺序写+批量+零拷贝，所以快），消费者自己记录读取位置（offset）。<b>分区（Partition）</b>是并行单位：一个 Topic 拆成多个分区分散到多台机器；同一分区内消息有序。<b>消费者组（Consumer Group）</b>：组内成员<b>分摊</b>分区（一个分区同一时刻只给组内一个消费者——竞争）；不同组之间互不影响、各自<b>全量</b>消费（广播）。</p>
+      <h3>事务消息与最终一致性</h3>
+      <p>38 页的「可靠消息」机关在此：<b>本地消息表/事务消息</b>——先把业务数据和「待发消息」写在<b>同一个本地事务</b>里，再由后台任务/半消息确认机制投递，保证「业务成功⇒消息必达」。投递语义工程上取 <b>at-least-once（至少一次）+ 消费方幂等</b>（用唯一业务号去重，防重复消费），失败重试、多次失败进<b>死信队列</b>人工介入，再配<b>对账</b>兜底。</p>
+      <h3>EDA：事件驱动架构与 35 页的关系</h3>
+      <p><b>EDA（事件驱动架构）</b>以「事件=已发生的事实」为一等公民：事件产生器→事件通道（MQ/事件总线）→事件处理者→下游反应。与 35 页的关系一句话：<b>风格是图纸，中间件是施工工具</b>——35 页的「事件驱动/隐式调用」回答「组件该怎么组织」，本页的 MQ 回答「用什么设施把图纸建成大楼」。</p>
+      <div class="callout"><span class="t">🔤 专业英语</span>middleware（中间件）· message queue（消息队列）· decoupling / peak shaving / asynchronous（解耦/削峰/异步）· consumer group（消费者组）</div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① 削峰≠提高处理速度——总活儿没少，改的是「把尖峰蓄平」，用户看到的是「排队中」；② 点对点的消息是「抢」、发布订阅的消息是「广播」，别把归属搞反；③ 「用了 MQ 性能就更快」错——单条链路反而多了中转，换来的是吞吐弹性与主流程解耦；④ exactly-once 很难真正做全链路，工程实践是 <b>at-least-once + 幂等</b>；⑤ 死信队列是「多次投递失败的隔离区」，不是普通重试队列。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p><b>MQ=快递中转站</b>：你（生产者）把包裹扔进驿站就走（异步），不用认识快递员（解耦）；双十一包裹爆仓，驿站先堆着，快递员按班次送（削峰）。<b>点对点=多人共用的取件柜</b>：一个格子一个件，谁取走算谁的。<b>发布订阅=小区公告栏+业主群</b>：物业发一条通知，所有订阅的业主都能看到。<b>事务消息=挂号信回执</b>：先在寄件登记簿（本地消息表）落笔，再投递、要签收，丢了就重投，重复签收按编号只算一次（幂等）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>扔下包裹就走</td><td>异步：主流程不等消费完成</td><td>成立</td></tr>
+      <tr><td>爆仓缓冲、按班次投递</td><td>削峰：队列蓄平尖峰</td><td>成立</td></tr>
+      <tr><td>驿站替你确认收件人是谁</td><td>生产者知道消息何时被消费</td><td><b>失效</b>：生产者只管投递，何时消费、消费结果如何要靠回执/对账，这是异步的代价</td></tr>
+      <tr><td>取件柜一格一件</td><td>点对点：一条消息一个消费者</td><td>成立</td></tr>
+    </table>
+    <div class="rhyme">解耦削峰又异步，快递中转两头松；<br>点对点是一人领，发布订阅大家听；<br>分区并行组内抢，日志落盘不怕停；<br>先落本地消息表，重试幂等保一致；<br>对账兜底最后一关，最终一致笑春风。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示削峰：左方商家（生产者）在 20 秒内爆发出 3000 件/秒的洪峰，中转站（MQ）把它蓄成队列，右侧快递员（消费者）按你设定的速率匀速取件。拖动「消费速率」滑块看积压变化。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" style="margin-top:8px">
+      <label>消费速率 <input type="range" id="cons-slider" min="200" max="2000" step="100" value="800"> <span id="cons-out">800 件/秒</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（交互实验）：这条消息谁收到？</h4>
+      <p class="foreshadow">三个消费者 A、B、C 在线。分别用两种模型各发一条「订单已支付」消息，观察归属：</p>
+      <div>
+        <button class="btn primary" id="msg-ptp">发送到点对点队列</button>
+        <button class="btn primary" id="msg-ps">发送到发布订阅主题</button>
+      </div>
+      <div class="kf-caption" id="msg-status">消费者：A 待命 ｜ B 待命 ｜ C 待命</div>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：削峰计算器</h4>
+      <p class="foreshadow">洪峰 20 秒、生产速率固定 3000 件/秒。拖动消费速率，看积压与消化时间：</p>
+      <label>消费速率 <input type="range" id="calc-slider" min="200" max="3000" step="100" value="1000"> <span id="calc-out">1000 件/秒</span></label>
+      <div class="kf-caption" id="calc-line"></div>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：故障场景 → 可靠性机制</h4>
+      <p class="foreshadow">先点左列故障，再点右列机制；选错会指出你的机制错在哪一环：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="rk-left"></div>
+        <div id="rk-right"></div>
+      </div>
+      <button class="btn" id="rk-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景，还是考 MQ 三价值：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p><b>35 · 独立构件与虚拟机</b>给了事件驱动的「图纸」（发布-订阅、隐式调用）；<b>38 · SOA与微服务</b>给了最终一致的「需求」——本页的 MQ 与事务消息是把两者落地的「施工工具」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li><b>59 · 大数据架构</b>：Lambda 架构的速度层以消息流为源头，Kafka 分区正是流处理的并行骨架；</li>
+      <li><b>42 · 质量属性</b>：异步化与削峰是「性能」属性的战术之一，战术清单里会再遇到它们；</li>
+      <li><b>11 · 死锁与排队</b>：队列积压本质是排队论问题——消费速率低于到达速率则队长趋于无穷。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>消息队列（MQ）</th><th>缓存（Cache，05 页）</th></tr>
+      <tr><td>目的</td><td>蓄流：吸收峰值、解耦组件、异步化</td><td>加速：让重复读不必走全程</td></tr>
+      <tr><td>数据含义</td><td>每条消息都是要处理的「活」</td><td>同一份热点数据的副本</td></tr>
+      <tr><td>易错点</td><td>以为队列能当缓存用——消息被消费后就没了，不提供「重复读」</td><td>以为缓存能削峰——它挡读挡不了写洪峰</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">中转站是「活儿排队能少就别催」，便利店是「常要的东西放近点」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——双十一快递爆仓时，驿站是怎么让大家不挤爆的……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① MQ 三价值：解耦（互不认识）、削峰（蓄平尖峰）、异步（扔下就走）；代价是最终一致与消息可靠性治理。</li><li>② 点对点一条消息一个消费者，发布订阅广播给全部订阅者；Kafka 靠持久化日志+分区并行+消费者组分摊提吞吐。</li><li>③ 可靠投递=本地消息表（业务与消息同事务）+at-least-once 重试+幂等去重+死信隔离+对账兜底。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '40', domain: 'arch', loc: 'cityplan', root: '..',
+  title: '中间件与事件驱动架构',
+  prev: '39-cloud-native.html', prevTitle: '39 · 云计算与云原生',
+  next: '41-adl-docs.html', nextTitle: '41 · ADL与架构文档',
+  keywords: ['中间件','消息队列','解耦','削峰','异步','点对点','发布订阅','消费者组']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 38） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·38】38 页案例中「缴费→生效→积分」链路最终一致性的落地设施是什么？',
+    opts: [
+      { t: '可靠消息（本地消息表/事务消息）+消费幂等', why: '对。本页就拆这套机关的内部：先同事务落消息，再 at-least-once 投递+去重。' },
+      { t: '直接跨服务更新对方数据库', why: '违反独库原则，是分布式单体。' },
+      { t: '让用户手动刷新页面触发', why: '不可靠也不体面。' }
+    ],
+    ans: 0, tag: '回忆:38', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '消息队列「削峰」的确切含义是？',
+      opts: [
+        { t: '提高系统单条请求的处理速度', why: '单条速度不变；削峰改变的是流量的时间分布。' },
+        { t: '用队列把突发流量先蓄起来，消费端按自身能力匀速消化', why: '对。尖峰被蓄平，处理端始终工作在安全水位，用户侧表现为「排队中」。' },
+        { t: '把峰值流量直接丢弃以保护系统', why: '那是限流/降级策略；削峰是「蓄」不是「扔」。' }
+      ],
+      ans: 1, tag: '三大价值', src: '仿真题' },
+    { q: '点对点队列与发布订阅主题各收到一条消息，接入的三个消费者 A/B/C 的接收情况是？',
+      opts: [
+        { t: '两种模型都是三个消费者都收到', why: '广播是发布订阅的特性；点对点一条消息只有一个消费者。' },
+        { t: '点对点只有一个消费者消费到；发布订阅三个都能收到', why: '对。队列是「抢任务」，主题是「听广播」。' },
+        { t: '点对点三个都收到；发布订阅只有一个收到', why: '方向完全反了。' }
+      ],
+      ans: 1, tag: '两种模型', src: '仿真题' },
+    { q: 'Kafka 中一个消费者组内有 3 个成员，订阅了 6 个分区的主题。分配结果是？',
+      opts: [
+        { t: '每个成员都要处理全部 6 个分区的消息', why: '组内是分摊不是广播——那是「不同组之间」的行为。' },
+        { t: '每个成员分摊约 2 个分区，一个分区同一时刻只归组内一个成员', why: '对。组内竞争分摊实现并行消费，分区是并行与顺序性的基本单位。' },
+        { t: '只有 1 个成员消费，其余待命', why: '不浪费并行度，分区够就分摊。' }
+      ],
+      ans: 1, tag: 'Kafka', src: '仿真题' },
+    { q: '【交错复习·38】微服务架构里「下游服务故障时快速失败并降级，防止故障沿调用链放大」，对应的治理设施是？',
+      opts: [
+        { t: '熔断器（防雪崩）', why: '对。38 页叫它「爆满店铺门口的暂停取号牌」——先止血，再用本页的消息异步化做长期解耦。' },
+        { t: '注册中心', why: '注册中心管服务发现与上下线，不管故障隔离。' },
+        { t: '配置中心', why: '配置中心管配置下发与动态刷新。' }
+      ],
+      ans: 0, tag: '交错复习:38', src: '仿真题' },
+    { q: '【交错复习·35】「组件不直接调用彼此，发布事件由订阅者响应」与「用 Kafka 把这条链路建起来」的关系，正确的是？',
+      opts: [
+        { t: '前者是架构风格（图纸），后者是承载它的中间件设施（施工工具）', why: '对。风格回答「组件怎么组织」，中间件回答「用什么建成」——本页与 35 页的互链口诀。' },
+        { t: '两者是同一层次的竞争方案，二选一', why: '不是竞争关系，是设计与实现的两个层次。' },
+        { t: '事件驱动必须配合 Kafka 才算成立', why: '进程内事件总线、GUI 事件也是事件驱动，MQ 只是分布式下的承载工具。' }
+      ],
+      ans: 0, tag: '交错复习:35', src: '仿真题' }
+  ], { kpId: '40', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某票务平台开抢瞬间涌入 10 万请求/秒，下单核心链路仅能稳住 5 千/秒；同步架构下超时请求引发用户反复重试，系统雪崩。产品要求：用户立刻得到「排队中」反馈，系统按能力出票，且同一用户不能出两张票。',
+    q: '(1) 设计基于 MQ 的削峰改造方案；(2) 指出改造后的三个新问题与对策；(3) 论证哪些环节不适合异步化。',
+    ref: '(1) 方案：接入层做基础校验与限流后，将请求包装成「购票申请」消息快速写入 MQ 并立即返回「排队中」；下单集群作为消费者组按 5 千/秒的能力分区分摊消费出票；出票结果经消息/推送通知用户（联动 39 页弹性：消费组还能随洪峰自动扩容）。(2) 新问题与对策：①用户等待体验差、可能重复提交→前端防重（提交按钮置灰+请求号幂等），结果异步推送；②消息丢失导致漏出票→生产者确认+持久化+消费确认（at-least-once），配合对账；③重复消费导致重复出票→以「用户+场次」为幂等键去重；④队列积压过高→监控水位+动态扩消费者+分级排队（会员优先）。(3) 不适合异步的环节：支付扣款这类资金强一致动作（要同步确认或 TCC 强保证）、库存最终余量判定（超卖红线，需同步预留或原子扣减）、风控拦截（必须在下单前同步给出结论）——异步只用于「可延迟、可补偿」的环节。',
+    points: ['削峰方案完整（快速入队+匀速消费+异步反馈），消费组分区体现并行', '新问题至少三条且对策成对（幂等/防重/对账/扩容）', '能指出「强一致资金/库存/风控」环节不宜异步并说明理由'],
+    frame: '答题框架：方案图式描述（谁生产谁消费）→ 问题对策逐条配对 → 边界论证（异步的适用边界），体现取舍意识。',
+    kpId: '40'
+  });
+  CX.renderCase('#case2', {
+    stem: '某物流集团 12 个系统（下单、仓储、运输、签收、结算、客服…）两两点对点互调，接口 130 多个；改一个状态字段要联动改 8 个系统，任何系统升级都战战兢兢。',
+    q: '(1) 用 EDA 思想重构集成方式；(2) 说明本方案与 35 页「事件驱动/隐式调用」风格的关系；(3) 给出迁移中的治理要点。',
+    ref: '(1) 重构：以「包裹生命周期」定义核心事件（揽收、到达枢纽、装车、派送、签收、异常）；各业务系统只向事件总线发布自己领域的事实，关心者（结算、客服、通知）各自订阅消费；点对点 130 个接口收敛为「N 个发布者 + 事件总线 + M 个订阅者」，新增系统=新增订阅，存量零改动。(2) 关系：35 页的「事件驱动/隐式调用」是架构风格——规定组件互不认识、靠事件协作（图纸）；本页的消息中间件/事件总线是该风格在分布式环境下的承载设施（施工工具）；观察 35 页隐式调用的缺点「发布者不知谁在响应」，本页用订阅关系管理、链路追踪来补齐。(3) 治理要点：①事件 Schema 治理——统一事件字典与版本化，禁止随意改字段语义；②顺序性——按「包裹号」作分区键保证同一包裹事件有序；③可靠性与幂等——发布确认+消费幂等+死信+对账；④可观测——事件级链路追踪与积压告警；⑤迁移节奏——先旁路双写（新老并行）灰度切流，再下线点对点接口。',
+    points: ['用「核心事件+总线+订阅」重构，能说出接口数量收敛与新增订阅零改动', '明确「风格=图纸、中间件=工具」的层次关系，并回扣 35 页隐式调用的缺点与补齐', '治理要点覆盖 Schema/顺序/幂等/可观测至少三类', '给出灰度双写等迁移节奏'],
+    frame: '答题框架：重构蓝图（事件清单+拓扑变化）→ 理论回扣（与风格的关系）→ 治理清单 → 迁移路线收尾。',
+    kpId: '40'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '短视频平台用户上传视频后需要转码（耗时 1~5 分钟）。用户上传后应立刻看到「处理中」，转码集群按能力消化洪峰。最合适的组合是？',
+      opts: [
+        { t: '上传即投递「转码任务」消息到队列，立即返回；转码消费者组异步处理，完成后推送', why: '对。异步（用户不等）+削峰（洪峰蓄平）+解耦（转码扩容不影响上传）三价值全占。' },
+        { t: '让用户在上传页面等着转码完成再返回', why: '几分钟的同步等待必然超时与流失。' },
+        { t: '用缓存把转码结果存起来', why: '缓存解决重复读，不解决「任务排队」问题。' }
+      ],
+      ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '40', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['38', '35'], 'prev');
+  CX.depChain('#bridge-next', ['59'], 'next');
+
+  /* ---- 动画：快递中转站削峰 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var CONS = 800;
+  var PROD_BASE = 200, PROD_PEAK = 3000, PEAK_FROM = 0.35, PEAK_TO = 0.55, TOTAL = 60; /* 60 秒时间轴 */
+  function rateIn(fr) { return (fr >= PEAK_FROM && fr <= PEAK_TO) ? PROD_PEAK : PROD_BASE; }
+  function draw(t) {
+    /* 计算队列长度曲线 */
+    var dt = 0.002, q = 0, maxQ = 0, ql = [], fr;
+    for (fr = 0; fr <= 1.0001; fr += dt) {
+      q += (rateIn(fr) - CONS) * dt * TOTAL;
+      if (q < 0) q = 0;
+      ql.push(q);
+      if (q > maxQ) maxQ = q;
+    }
+    var idx = Math.min(ql.length - 1, Math.floor(t * ql.length));
+    var curQ = ql[idx], inNow = rateIn(t);
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 生产者 */
+    s += '<rect x="24" y="110" width="110" height="60" rx="10" fill="var(--card)" stroke="var(--accent)"/>';
+    s += '<text x="79" y="135" text-anchor="middle" font-size="12" fill="var(--text)">商家(生产者)</text>';
+    s += '<text x="79" y="155" text-anchor="middle" font-size="11" fill="' + (inNow > 1000 ? 'var(--bad)' : 'var(--text-dim)') + '">' + inNow + ' 件/秒</text>';
+    /* 队列蓄水池 */
+    var qh = Math.min(120, curQ / 3000 * 120);
+    s += '<rect x="250" y="95" width="180" height="130" rx="10" fill="none" stroke="var(--accent-2)" stroke-width="2"/>';
+    s += '<rect x="250" y="' + (225 - qh) + '" width="180" height="' + qh + '" rx="8" fill="var(--accent-2)" opacity=".55"/>';
+    s += '<text x="340" y="85" text-anchor="middle" font-size="12" fill="var(--text)">中转站(MQ)</text>';
+    s += '<text x="340" y="245" text-anchor="middle" font-size="12" fill="' + (curQ > 20000 ? 'var(--bad)' : 'var(--text-dim)') + '">积压 ' + Math.round(curQ) + ' 件</text>';
+    /* 消费者 */
+    s += '<rect x="580" y="110" width="116" height="60" rx="10" fill="var(--card)" stroke="var(--ok)"/>';
+    s += '<text x="638" y="135" text-anchor="middle" font-size="12" fill="var(--text)">快递员(消费者)</text>';
+    s += '<text x="638" y="155" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + CONS + ' 件/秒</text>';
+    /* 流动箭头 */
+    var px = 134 + (t * 4 % 1) * 112;
+    s += '<rect x="' + px + '" y="136" width="16" height="8" rx="4" fill="var(--accent)" opacity=".8"/>';
+    var cx2 = 434 + (t * 4 % 1) * 142;
+    s += '<rect x="' + cx2 + '" y="136" width="16" height="8" rx="4" fill="var(--ok)" opacity=".8"/>';
+    /* 时间轴与峰值区 */
+    s += '<line x1="60" y1="284" x2="660" y2="284" stroke="var(--line)" stroke-width="2"/>';
+    s += '<rect x="' + (60 + PEAK_FROM * 600) + '" y="278" width="' + ((PEAK_TO - PEAK_FROM) * 600) + '" height="6" fill="var(--bad)" opacity=".6"/>';
+    s += '<circle cx="' + (60 + t * 600) + '" cy="284" r="6" fill="var(--accent-2)"/>';
+    s += '<text x="360" y="275" text-anchor="middle" font-size="10" fill="var(--text-dim)">时间轴（红色区=洪峰 3000 件/秒）</text>';
+    s += '</svg>';
+    var cap;
+    if (t < PEAK_FROM) cap = '平日：生产 ' + PROD_BASE + '、消费 ' + CONS + '——消费能力富余，队列基本清空。这就是【解耦】：两头互不认识、各自独立扩缩。';
+    else if (t <= PEAK_TO) cap = '洪峰来临：生产 3000 件/秒 >> 消费 ' + CONS + ' 件/秒，多出的先在队列里【蓄】着——消费者不慌，这就是【削峰】。若没有队列，同步调用早已把下单核心压垮。';
+    else if (curQ > 1) cap = '洪峰已过：生产回落，消费 ' + CONS + ' 件/秒继续消化积压——用户此前拿到的是「排队中」，没人被拒绝。这就是【异步】的代价与价值。';
+    else cap = '积压清零：中转站回到常态。记住三词：解耦、削峰、异步；代价：最终一致与可靠性治理（下一节实验室）。';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 14, onTick: draw });
+  var cs = CX.utils.$('cons-slider');
+  cs.addEventListener('input', function () {
+    CONS = +cs.value;
+    CX.utils.$('cons-out').textContent = CONS + ' 件/秒';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：消息归属 ---- */
+  function resetMsg() {
+    CX.utils.$('msg-status').textContent = '消费者：A 待命 ｜ B 待命 ｜ C 待命';
+    CX.utils.$('lab1-fb').textContent = '';
+    CX.utils.$('lab1-fb').className = 'lab-feedback';
+  }
+  CX.utils.$('msg-ptp').addEventListener('click', function () {
+    var who = ['A', 'B', 'C'][Math.floor(Math.random() * 3)];
+    var parts = ['A', 'B', 'C'].map(function (x) { return x + (x === who ? ' ✅收到并处理' : ' ✗未收到'); });
+    CX.utils.$('msg-status').textContent = '消费者：' + parts.join(' ｜ ');
+    var fb = CX.utils.$('lab1-fb');
+    fb.textContent = '点对点（Queue）：只有 ' + who + ' 抢到这条消息——一条消息一个消费者，适合「活多人干、一人一单」。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('msg-ps').addEventListener('click', function () {
+    CX.utils.$('msg-status').textContent = '消费者：A ✅收到 ｜ B ✅收到 ｜ C ✅收到';
+    var fb = CX.utils.$('lab1-fb');
+    fb.textContent = '发布订阅（Topic）：A、B、C 全部收到——一条消息广播给所有订阅者，正是 35 页「公众号发文、粉丝全收」。';
+    fb.className = 'lab-feedback ok';
+  });
+  resetMsg();
+
+  /* ---- 实验二：削峰计算器 ---- */
+  var calcSlider = CX.utils.$('calc-slider');
+  function calcPeak() {
+    var c = +calcSlider.value;
+    CX.utils.$('calc-out').textContent = c + ' 件/秒';
+    var burst = Math.max(0, (PROD_PEAK - c)) * 20; /* 洪峰20秒的净积压 */
+    /* 简化：洪峰后剩余积压按 (c-200) 的净速率消化 */
+    var after = Math.max(0, burst - Math.max(0, c - PROD_BASE) * (TOTAL - 20));
+    var line = '洪峰 20 秒净积压 ' + Math.max(0, (PROD_PEAK - c)) * 20 + ' 件；洪峰后按净速率 ' + (c - PROD_BASE) + ' 件/秒消化，全部消化约需 ' + (c > PROD_BASE ? Math.ceil(after / (c - PROD_BASE) * 10) / 10 : '∞') + ' 秒';
+    CX.utils.$('calc-line').textContent = line;
+    var fb = CX.utils.$('lab2-fb');
+    if (c <= PROD_BASE) {
+      fb.textContent = '⚠️ 错在哪一步：你的消费速率（' + c + '）低于常态生产速率（' + PROD_BASE + '）——就算没有洪峰，队列也会永久增长，这不是削峰是「蓄洪不泄」。至少要 >200，建议为洪峰留出消化余量。';
+      fb.className = 'lab-feedback bad';
+    } else if (c < 1500) {
+      fb.textContent = '消费 ' + c + ' 件/秒：洪峰被蓄平、约 ' + Math.ceil(after / (c - PROD_BASE)) + ' 秒消化完——用户等得起就是好方案；想更快就给消费者组扩容（加消费者/加分区）。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      fb.textContent = '消费 ' + c + ' 件/秒：几乎随到随消，但请注意成本——为一年几次的洪峰常年养这么大集群不划算，这正是弹性伸缩（39 页）+MQ 的组合价值。';
+      fb.className = 'lab-feedback ok';
+    }
+  }
+  calcPeak();
+  calcSlider.addEventListener('input', calcPeak);
+
+  /* ---- 实验三：可靠性机制匹配 ---- */
+  var rkPairs = [
+    ['生产者投递消息后中转站没收到，消息凭空消失', '本地消息表+投递重试'],
+    ['消费成功但确认丢失，消息被再投一次', '消费方幂等（唯一业务号去重）'],
+    ['一条消息反复重试始终消费失败', '死信队列隔离+人工介入'],
+    ['同一订单的「支付」「取消」事件被乱序消费', '按订单号做分区键，同分区保序']
+  ];
+  var rkL = CX.utils.$('rk-left'), rkR = CX.utils.$('rk-right');
+  var rkSel = null, rkDone = 0;
+  function buildRk() {
+    rkSel = null; rkDone = 0;
+    rkL.innerHTML = ''; rkR.innerHTML = '';
+    CX.utils.$('lab3-fb').textContent = '';
+    rkPairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', rkL).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); rkSel = d;
+        CX.utils.$('lab3-fb').textContent = '已选故障，请在右列点它的机制。';
+      });
+      rkL.appendChild(d);
+    });
+    CX.shuffle(rkPairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!rkSel) { CX.utils.$('lab3-fb').textContent = '先点左列一个故障场景。'; return; }
+        if (rkSel.dataset.k === d.dataset.v) {
+          rkSel.style.opacity = .35; d.style.opacity = .35;
+          rkSel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          rkSel.classList.remove('sel'); rkSel = null; rkDone++;
+          CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + rkDone + '/4';
+          CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab3-fb').textContent = '❌ 「' + d.textContent + '」治不了这个故障——对位思考：丢=先落本地再投（消息表+重试）；重=幂等去重；治不好=死信隔离；乱=分区键保序。';
+          CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      rkR.appendChild(d);
+    });
+  }
+  buildRk();
+  CX.utils.$('rk-reset').addEventListener('click', buildRk);
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

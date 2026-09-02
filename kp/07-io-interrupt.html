@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 · 中断、DMA与总线 · 架构师学堂</title>
+<meta name="description" content="外设按门铃叫CPU（中断），大件自己搬（DMA），公共道路是总线。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★☆☆☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="01-computer-overview.html">前置 01</a></span>
+    <h1>07 · 中断、DMA与总线</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">外设按门铃（中断），大件自己搬（DMA），公共道路是总线。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>嵌入式新人写的采集程序：主循环里不停读磁盘状态寄存器等数据就绪，结果 4 核 CPU 其中一核常年 100%，而系统吞吐只有几 MB/s。前辈看了一眼说：「你在用轮询等外卖，正确姿势是让外卖到了按门铃——大件行李还可以让快递员直接搬进库房。」<b>三种 I/O 方式各是什么？CPU 占用差距有多大？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>他写的是<strong>程序查询</strong>：CPU 反复读状态寄存器干等，占用 100%；改成<strong>中断</strong>：外设就绪后主动发信号，CPU 干自己的活，被叫到才处理，占用骤降；数据量大时再上<strong>DMA</strong>：DMA 控制器（DMAC）接管总线，数据在设备与内存之间直接搬运，CPU 只在开始前配置、结束后收一次中断——「快递员直接搬进库房，签收时叫你一声」。三种方式是 CPU 时间与硬件复杂度之间的逐级交易，本页动画把它画成甘特图。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>01 · 计算机系统组成与体系结构</b>——本页的舞台就是那座城市里的「马路」：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>I/O 控制方式</strong>回答一个问题：外设和 CPU 怎么协作？三档答案——<strong>程序查询</strong>（CPU 主动轮询干等）、<strong>中断</strong>（外设主动通知，CPU 与外设并行）、<strong>DMA</strong>（DMAC 接管总线，数据不经 CPU 直接在设备与内存间成块搬运）。它们跑的「马路」就是<strong>总线</strong>：数据总线传内容、地址总线传门牌、控制总线传命令与时序。</p>
+      <h3>解决什么问题</h3>
+      <p>CPU 快、外设慢，差好几个量级。轮询让最快的部件陪最慢的部件空转；中断让「等」变成「被叫」；DMA 连搬运都不劳烦 CPU——逐级把 CPU 从低效等待中解放出来。</p>
+      <h3>核心机制</h3>
+      <p><strong>中断全流程</strong>：外设发中断请求 → 中断判优（多请求选最高优先级）→ CPU 在<strong>一条指令执行结束</strong>时响应 → 保护现场（保存断点 PC 与寄存器）→ 取<strong>中断向量</strong>（查中断向量表得服务程序入口）→ 执行中断服务程序 → 恢复现场 → 中断返回断点。<strong>多重中断（嵌套）</strong>：优先级更高的请求可以打断低级服务程序；屏蔽字用来「本服务程序运行期间暂时挡住哪些级别」。</p>
+      <p><strong>DMA 流程</strong>：CPU 向 DMAC 写入（源址、目的址、长度、方向）后继续干活 → DMAC 申请总线使用权，<strong>周期挪用/窃取</strong>方式与 CPU 轮流用总线 → 成块搬运不经 CPU → 传输结束 DMAC 发一次中断通知 CPU 收尾。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>方式</th><th>CPU 占用</th><th>数据路径</th><th>适用</th></tr>
+        <tr><td>程序查询</td><td>100% 干等</td><td>设备→CPU→内存</td><td>极简单/慢速场景、无中断硬件的裸机</td></tr>
+        <tr><td>中断</td><td>仅服务程序期间占用</td><td>设备→CPU→内存（每字节/字都过 CPU）</td><td>键盘、鼠标等低速随机事件</td></tr>
+        <tr><td>DMA</td><td>仅初始化+结束中断</td><td>设备↔内存直达</td><td>磁盘、网卡等成块高速传输</td></tr>
+      </table>
+      <p><strong>总线仲裁</strong>（多个主设备抢总线）：集中式三种——链式查询（优先级固定串行传递，省线但低优先级可能饿死）、计数器定时查询（按计数轮询）、独立请求（每设备专线，最快最贵）。<strong>总线带宽</strong> = 工作频率 × 总线宽度 ÷ 8，例：100MHz × 32bit ÷ 8 = 400 MB/s。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①「DMA 不需要 CPU」说过了头：DMA 结束后<strong>仍要以中断方式</strong>通知 CPU；②中断响应时机是「一条指令执行结束」，不是任意时刻；③DMA 请求的总线优先级通常高于普通 I/O 中断（成块传输不能被零敲碎打地打断）；④带宽计算记得「宽度是 bit，带宽要 MB/s」，除以 8 是必做动作。</div>
+      <h3>专业英语小贴士</h3>
+      <p>interrupt（中断）；interrupt vector（中断向量）；ISR = Interrupt Service Routine（中断服务程序）；DMA = Direct Memory Access（直接存储器存取）；cycle stealing（周期挪用/窃取）；bus arbitration（总线仲裁）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>你在屋里办公（CPU），水壶在厨房烧水（外设）：<strong>程序查询</strong>是你每 10 秒跑去厨房看一眼——水没开白跑，水开了也可能错过；<strong>中断</strong>是装了个门铃，水开自动响，你手头这句写完再去关火；<strong>DMA</strong>是请了个小时工（DMAC），整桶水直接搬进库房，搬完按一次门铃让你验收。大家的必经之路是走廊（总线），两家同时要过走廊就得有人协调（总线仲裁=交警）。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>反复跑厨房看水开</td><td>程序查询轮询</td><td>成立</td></tr>
+      <tr><td>门铃响了才去处理</td><td>中断请求与响应</td><td>成立（门铃=中断信号）</td></tr>
+      <tr><td>小时工搬水你全然不知</td><td>DMA 全程不占 CPU</td><td><b>失效</b>：DMA 开始前要你交代、结束后仍按门铃通知你——初始化与收尾离不开 CPU</td></tr>
+      <tr><td>走廊想走就走</td><td>总线随意使用</td><td><b>失效</b>：多个主设备要经仲裁轮流使用总线</td></tr>
+    </table>
+    <div class="rhyme">查询干等最笨拙，中断门铃手头活；<br>DMA 是搬运工，成块直达不啰嗦；<br>响应须等指令毕，嵌套要看优先级；<br>带宽频率乘宽度，记得除八换单位。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画用甘特图对比三种 I/O 方式下 CPU 的占用：上面是 CPU 时间线，下面是外设时间线。拖动「方式」和「数据量」滑块，看 CPU 解放程度怎么变。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>I/O 方式 <input type="range" id="mode-slider" min="0" max="2" value="0"> <span id="mode-out">程序查询</span></label>
+      <label>数据量 <input type="range" id="blk-slider" min="1" max="6" value="3"> <span id="blk-out">3 块</span></label>
+      <span class="kf-caption" id="io-cap"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（拖拽排序）：中断处理全流程</h4>
+      <p class="foreshadow">把卡片拖进槽，排出自「外设请求」起的正确顺序：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：方式与仲裁 ↔ 比喻</h4>
+      <p class="foreshadow">先点左列一个概念，再点右列对应比喻：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（参数实验）：总线带宽计算器 + 挑战</h4>
+      <p class="foreshadow">拖滑块调频率与宽度，挑战：<b>带宽 ≥ 800 MB/s</b>：</p>
+      <label>工作频率 <input type="range" id="f-slider" min="50" max="400" step="10" value="100"> <span id="f-out">100 MHz</span></label><br>
+      <label>总线宽度 <input type="range" id="w-slider" min="16" max="64" step="16" value="32"> <span id="w-out">32 bit</span></label>
+      <p id="bw-out" class="foreshadow"></p>
+      <button class="btn" id="bw-check">检查是否 ≥ 800 MB/s</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>01 页说「总线=马路、五大部件靠它互连」：本页讲这条马路的使用规则——谁先走（仲裁）、怎么少占道（DMA）、等待时干什么（中断）。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「事件来了再处理」升维到操作系统就是 <b>09 · 进程、线程与调度</b> 的阻塞与唤醒；</li>
+    <li>「成块搬运、缓冲同步」在 <b>13 · 文件系统与设备管理</b> 变成设备管理与缓冲区；</li>
+    <li>「按门铃不点名」的解耦思想到 <b>40 · 中间件与事件驱动架构</b> 长成消息队列。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>中断方式</th><th>DMA 方式</th></tr>
+      <tr><td>差异点</td><td>外设通知 CPU「来取」，数据每个字都过 CPU 手</td><td>DMAC 接管总线，数据设备↔内存直达，不过 CPU</td></tr>
+      <tr><td>易错点</td><td>以为中断是「CPU 主动问」</td><td>以为 DMA 全程与 CPU 无关（初始化与结束中断仍需 CPU）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">中断省的是「等」的时间，DMA 连「搬」的活都省了；低速随机事件用中断，成块高速传输用 DMA。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——烧水时你不用一直盯着壶，装个门铃，水开了它会叫你……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 三种 I/O 方式是 CPU 解放三级跳：轮询全占、中断按门铃、DMA 连搬运都外包。</li><li>② 中断流程七步走，响应在指令执行结束，优先级+屏蔽字决定嵌套秩序；DMA 结束仍要发中断。</li><li>③ 总线是公共马路：数据/地址/控制三线，仲裁定先后，带宽=频率×宽度÷8。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '07', domain: 'hw', loc: 'foundation', root: '..',
+  title: '中断、DMA与总线',
+  prev: '06-reliability.html', prevTitle: '06 · 可靠性与RAID',
+  next: '08-embedded-realtime.html', nextTitle: '08 · 嵌入式与实时系统',
+  keywords: ['中断','中断向量','现场保护','DMA','周期挪用','总线','总线仲裁','带宽']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 01） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·01】冯·诺依曼五大部件之间靠什么互连传递指令、数据和地址？',
+    opts: [
+      { t: '总线（数据/地址/控制三线合一的公共道路）', why: '对。01 页的「马路」就是本页的舞台——本页讲谁先走（仲裁）、怎么让路（DMA）。' },
+      { t: '运算器', why: '运算器只管算，不当传话筒。' },
+      { t: '中断向量表', why: '那是本页的中断入口目录，不是部件互连结构。' }
+    ],
+    ans: 0, tag: '回忆:01', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: 'CPU 与低速外设协作，最能提高 CPU 利用率的方式是？',
+      opts: [
+        { t: '程序查询：CPU 反复读状态寄存器', why: '恰恰最差：CPU 全程干等，利用率被外设拖到地板。' },
+        { t: '中断方式：外设就绪时主动通知 CPU', why: '有明显改善：CPU 平时干自己的活，事件到来才处理；但每个数据字仍要 CPU 经手。' },
+        { t: 'DMA 方式：DMAC 接管总线成块搬运', why: '对成块高速数据最佳，但题设是「低速外设」（如键盘）：块小且随机，DMA 的配置开销反而不划算，中断最合适。低速场景下中断是「最能提高利用率」的现实选择。' },
+        { t: '关中断后轮询', why: '关中断等于拆掉门铃，纯倒退。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: 'CPU 响应（可屏蔽）中断的时机是？',
+      opts: [
+        { t: '任意时刻，随到随处理', why: '随意打断会破坏当前指令的执行，硬件不允许。' },
+        { t: '一条指令执行结束时', why: '对。指令是原子边界：先把手头这条干完，再保存断点转入服务程序。' },
+        { t: '每秒固定时刻', why: '中断是事件驱动，与时钟节拍无关（时钟中断本身是事件之一）。' },
+        { t: '主程序执行完毕后', why: '那样紧急事件（如掉电）就来不及处理了。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: 'DMA 成块传输结束时，DMAC 用什么方式把结果告知 CPU？',
+      opts: [
+        { t: '不再通知，CPU 轮询状态寄存器', why: '那又回到轮询老路，DMA 的意义就没了。' },
+        { t: '发一个中断请求通知 CPU 收尾', why: '对。「DMA 不需要 CPU」只指搬运过程；初始化配置与结束处理仍靠 CPU，结束时正是以中断通知。' },
+        { t: '由总线仲裁器代为通知', why: '仲裁器只分配总线使用权，不做应用层通知。' },
+        { t: '直接改写 PC 跳到处理程序', why: '修改 PC 转服务程序是「响应中断」的动作，仍以中断请求为前提，且需 CPU 保存现场。' }
+      ],
+      ans: 1, tag: '机制', src: '仿真题' },
+    { q: '某总线工作频率 100MHz，宽度 32 位，每个周期传送一次数据，总线带宽为？',
+      opts: [
+        { t: '400 MB/s', why: '对。100M 次/秒 × 4 字节/次 = 400 MB/s；宽度是 bit，除 8 换成字节。' },
+        { t: '3200 MB/s', why: '忘除 8 了：3200 是 MB/s 与 Mb/s 的混淆——带宽单位是字节。' },
+        { t: '100 MB/s', why: '只用了频率没乘宽度；每个周期能搬 4 个字节。' },
+        { t: '800 MB/s', why: '宽度当成了 64 位；题目给的是 32 位。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '【交错复习·01】DMA 传输时，数据从磁盘直接写进内存、不经过 CPU，靠的是谁提供的通路？',
+      opts: [
+        { t: '系统总线：DMAC 申请总线使用权后自行支配', why: '对。01 页的「公共马路」在 DMA 期间由 DMAC 这个「临时主设备」使用——周期挪用就是与 CPU 轮流用马路。' },
+        { t: '运算器：ALU 顺路搬运', why: 'ALU 只做算术逻辑运算，不承担数据搬运。' },
+        { t: '专用中断线', why: '中断线只传「通知」信号，不搬数据。' },
+        { t: '必须经 CPU 寄存器中转', why: '那是程序查询/中断方式的数据路径，DMA 的意义恰在于绕开它。' }
+      ],
+      ans: 0, tag: '交错复习:01', src: '仿真题' }
+  ], { kpId: '07', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某工业采集设备：①操作面板每秒最多几十次按键；②固态盘要持续写 100 MB/s 的成块数据。现有同事主张「全部用程序查询，逻辑最简单」，另一人主张「全部用 DMA，性能最好」。',
+    q: '(1) 为两类设备分别选择合适的 I/O 方式并说明理由；(2) 估算若 100 MB/s 的盘用中断方式（每次中断服务开销 2µs、每次搬 4KB）CPU 的中断开销占比，用数据说话；(3) 辨析「全部程序查询」「全部 DMA」两种极端主张。',
+    ref: '(1) 按键是低速随机事件，用中断：事件稀疏且要求及时响应，中断让 CPU 平时全速干正事；成块高速盘写用 DMA：数据量大且连续，DMAC 直达搬运，CPU 只做初始化与结束处理。(2) 每秒中断次数=100MB÷4KB=25600 次/s，年化无必要——直接乘：25600×2µs=51.2ms/s，CPU 中断开销约 5.1%；看似不高，但若每次只搬 512B 则达 40% 以上——中断方式对「块小频率高」的负载急剧劣化，这正是高速块设备改用 DMA 的量化理由。(3) 「全部程序查询」让 CPU 与最慢外设绑死，4 核之一常年 100% 干等的案例就是教训；「全部 DMA」则对键鼠这类小块随机事件过度设计：配置 DMAC 的开销可能超过搬运本身，且中断控制器本来就是为随机事件而生。选型本质是「事件粒度 × 频率」与「管理开销」的权衡。',
+    points: ['按键选中断、盘选 DMA 且理由对应负载特征', '算出中断开销占比并说明「块越小开销越高」的敏感性', '两种极端主张都能指出适用边界而非一刀切'],
+    frame: '答题框架：按「数据粒度、事件频率、实时性要求」给设备画像→方式与画像一一对应→用数值估算支撑→对极端方案给边界条件。',
+    kpId: '07'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '某系统三个中断源：C 掉电告警（最高，不可屏蔽）、B 磁盘完成（中）、A 打印机就绪（低）。CPU 正在执行主程序时依次发生：t1 时刻 A 请求；t2（A 服务中）B 请求；t3（B 服务中，A 仍未返回）C 请求。',
+    q: '(1) 画出/描述中断嵌套次序；(2) 说明各服务程序应如何设置屏蔽字；(3) 若设计成「同级及以下不可打断」，t3 时刻 C 能否被立即响应？如何保证掉电必须被处理？',
+    ref: '(1) 嵌套次序：主程序 → A 服务（t1 进入）→ t2 时 B 优先级更高，打断 A 进入 B 服务 → t3 时 C 不可屏蔽且最高，打断 B 进入 C 服务 → C 返回 B → B 返回 A → A 返回主程序。(2) 屏蔽字原则：每个服务程序屏蔽「自身及更低优先级」，放行更高优先级——A（最低）服务只屏蔽 A；B 服务屏蔽 B、放行 C；C 不可屏蔽，通常接 NMI（不可屏蔽中断）引脚，不受屏蔽字约束。(3) 若「同级及以下不可打断」，t3 时 B 正在服务而 C 优先级更高，仍应立即响应；为保证掉电必须处理，硬件上把 C 接成不可屏蔽中断（NMI），任何屏蔽字都挡不住它，软件上 C 的服务程序只做最紧急的断点保存（保存关键状态到非易失存储），把恢复逻辑留到重启后。',
+    points: ['嵌套次序完整（主→A→B→C→逐级返回）', '屏蔽字「屏蔽自身及以下、放行更高」原则正确', 'NMI 不可屏蔽 + 掉电处理最小化两条都说到位'],
+    frame: '答题框架：先定优先级序→按到达时刻画嵌套栈→屏蔽字逐级推演→对「必须处理」的事件上硬件级保险（NMI）。',
+    kpId: '07'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '前端开发用「按钮点击后触发回调函数」而非「循环里不停检查按钮状态」，这与本页哪种思想同构？',
+    opts: [
+      { t: '程序查询轮询', why: '轮询恰是「不停检查状态」的老路，正是被替换掉的做法。' },
+      { t: '中断：事件到来时由系统回调处理函数，CPU/线程平时干别的', why: '对。回调=软件世界的门铃；这一思想到消息队列（40 页）还会再升级。' },
+      { t: 'DMA 直达搬运', why: 'DMA 管「数据搬运路径」，与「事件通知机制」不是一回事。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '07', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['01'], 'prev');
+  CX.depChain('#bridge-next', ['09', '13']);
+
+  /* ---- 动画：三种 I/O 方式甘特图 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var mode = 0, blocks = 3;
+  function draw(t) {
+    var names = ['程序查询', '中断方式', 'DMA 方式'];
+    var total, cpuSegs = [], devSegs = [], busyPct, cap;
+    if (mode === 0) {
+      total = blocks;
+      cpuSegs.push([0, total, 'wait']);
+      for (var i = 0; i < blocks; i++) devSegs.push([i, 1, 'dev']);
+      busyPct = 100;
+      cap = '程序查询：CPU 全程反复查状态——「水开没？水开没？」占用 ' + busyPct + '%，一核烧满。';
+    } else if (mode === 1) {
+      total = blocks + 0.8;
+      cpuSegs.push([0, blocks, 'work']);
+      cpuSegs.push([blocks, 0.8, 'isr']);
+      devSegs.push([0, blocks, 'dev']);
+      busyPct = (0.8 / total * 100);
+      cap = '中断方式：CPU 与外设并行干活，水开按门铃才停下 0.8 单位处理——占用约 ' + busyPct.toFixed(0) + '%。';
+    } else {
+      total = blocks + 0.6;
+      cpuSegs.push([0, blocks + 0.1, 'work']);
+      cpuSegs.push([blocks + 0.1, 0.5, 'isr']);
+      devSegs.push([0.1, blocks, 'dev']);
+      busyPct = (0.5 / total * 100);
+      cap = 'DMA：小时工（DMAC）接管马路自己搬，CPU 几乎全程干正事，结尾一次门铃——占用约 ' + busyPct.toFixed(1) + '%。';
+    }
+    var x0 = 100, x1 = 700, yC = 70, yD = 160, hgt = 34;
+    var scale = (x1 - x0) / total;
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="20" y="' + (yC + 22) + '" font-size="13" fill="var(--text)">CPU</text>';
+    s += '<text x="20" y="' + (yD + 22) + '" font-size="13" fill="var(--text)">外设</text>';
+    var colors = { work: 'var(--accent)', wait: 'var(--bad)', isr: 'var(--warn)', dev: 'var(--ok)' };
+    var nowT = t * total;
+    function seg(x, y, w, kind, label) {
+      var c = colors[kind];
+      s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + hgt + '" rx="4" fill="' + c + '" opacity=".8"/>';
+      if (w > 46) s += '<text x="' + (x + w / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="11" font-weight="700" fill="var(--bg)">' + label + '</text>';
+    }
+    cpuSegs.forEach(function (sg) {
+      var st = sg[0], w = sg[1] * scale, vis = Math.max(0, Math.min(sg[1], nowT - st)) * scale;
+      if (vis > 0) seg(x0 + st * scale, yC, vis, sg[2], sg[2] === 'work' ? '干自己的活' : (sg[2] === 'isr' ? '中断处理' : '轮询干等'));
+    });
+    devSegs.forEach(function (sg) {
+      var st = sg[0], vis = Math.max(0, Math.min(sg[1], nowT - st)) * scale;
+      if (vis > 0) seg(x0 + st * scale, yD, vis, 'dev', mode === 2 ? 'DMAC 搬运' : '外设准备');
+    });
+    var nowX = x0 + nowT * scale;
+    s += '<line x1="' + nowX.toFixed(1) + '" y1="50" x2="' + nowX.toFixed(1) + '" y2="220" stroke="var(--text)" stroke-width="2" stroke-dasharray="4 3"/>';
+    s += '<text x="400" y="235" text-anchor="middle" font-size="12" fill="var(--text-dim)">方式：' + names[mode] + ' · 数据量：' + blocks + ' 块 · CPU 占用率 ≈ ' + (busyPct === 100 ? '100' : busyPct.toFixed(1)) + '%（教学简化估算）</text>';
+    s += '<text x="100" y="262" font-size="12" fill="var(--text-dim)">图例：<tspan fill="var(--accent)">■ CPU 正事</tspan> <tspan fill="var(--bad)">■ 轮询干等</tspan> <tspan fill="var(--warn)">■ 中断处理</tspan> <tspan fill="var(--ok)">■ 外设/DMAC 搬运</tspan></text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#io-cap').textContent = names[mode] + '：CPU 占用 ≈ ' + (busyPct === 100 ? '100%' : busyPct.toFixed(1) + '%');
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 10, onTick: draw });
+  CX.utils.$('#mode-slider').addEventListener('input', function () {
+    mode = parseInt(this.value, 10);
+    CX.utils.$('#mode-out').textContent = ['程序查询', '中断方式', 'DMA 方式'][mode];
+    draw(anim.t || 0);
+  });
+  CX.utils.$('#blk-slider').addEventListener('input', function () {
+    blocks = parseInt(this.value, 10);
+    CX.utils.$('#blk-out').textContent = blocks + ' 块';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：拖拽排序 ---- */
+  var order = [
+    '外设发出中断请求（IRQ）',
+    '中断判优：多个请求选出最高优先级',
+    'CPU 在当前指令执行结束后响应',
+    '保护现场：保存断点 PC 与寄存器',
+    '取中断向量，转入中断服务程序',
+    '执行中断服务程序处理外设事务',
+    '恢复现场并中断返回断点'
+  ];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab1-fb');
+    if (got.length < 7) { fb.textContent = '还有 ' + (7 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 7; i++) {
+      if (got[i] !== order[i]) {
+        var hint;
+        if (i === 2) hint = '第 3 步错了：CPU 不能说停就停，必须在「当前指令执行结束」这个原子边界响应。';
+        else if (i === 3) hint = '第 4 步错了：跳进服务程序前必须先「保护现场」——不存 PC 和寄存器，回来就找不着断点。';
+        else if (i === 4) hint = '第 5 步错了：先保护现场、再「取中断向量转 ISR」——顺序颠倒会覆盖现场。';
+        else if (i === 6) hint = '收尾是「恢复现场并返回断点」——服务程序干完活要原路回去，主程序才无缝继续。';
+        else hint = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。主线：请求 → 判优 → 指令末响应 → 保护现场 → 取向量进 ISR → 执行 → 恢复返回。';
+        fb.textContent = hint; fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：请求 → 判优 → 指令末响应 → 保护现场 → 取向量 → 执行 ISR → 恢复返回。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：连线匹配 ---- */
+  var pairs = [
+    ['程序查询', 'CPU 反复读状态寄存器干等——站在锅边看水开'],
+    ['中断方式', '外设按门铃，CPU 干完手头指令再来应门'],
+    ['DMA 方式', 'DMAC 接管总线自己搬数据，完事才按一次门铃'],
+    ['总线仲裁', '多个主设备抢马路，由仲裁者决定谁先走']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的比喻。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个概念。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL.dataset.k;
+          var hint = k === '总线仲裁' ? '❌ 仲裁管的是「谁能用总线、谁先走」，不管数据搬运方式——你点的这条说的是等和搬。'
+            : '❌ 分辨三步：谁主动？（查询 CPU 主动/中断外设主动）谁搬数据？（DMA 不过 CPU）谁定路权？（仲裁）——你选的描述属于哪一步？';
+          CX.utils.$('#lab2-fb').textContent = hint;
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验三：带宽计算器 ---- */
+  var fS = CX.utils.$('#f-slider'), wS = CX.utils.$('#w-slider');
+  function calcBW() {
+    var f = parseInt(fS.value, 10), w = parseInt(wS.value, 10);
+    CX.utils.$('#f-out').textContent = f + ' MHz';
+    CX.utils.$('#w-out').textContent = w + ' bit';
+    var bw = f * (w / 8);
+    CX.utils.$('#bw-out').textContent = '带宽 = ' + f + 'M × ' + (w / 8) + 'B = ' + bw + ' MB/s';
+    return bw;
+  }
+  [fS, wS].forEach(function (x) { x.addEventListener('input', calcBW); });
+  calcBW();
+  CX.utils.$('#bw-check').addEventListener('click', function () {
+    var bw = calcBW(), fb = CX.utils.$('#lab3-fb');
+    if (bw >= 800) {
+      fb.textContent = '✅ 达标：' + bw + ' MB/s ≥ 800。观察：频率或宽度翻倍，带宽同倍翻——两个旋钮等价。';
+      fb.className = 'lab-feedback ok';
+    } else {
+      fb.textContent = '❌ 只有 ' + bw + ' MB/s。错在这一步：目标 800MB/s 的门槛组合是「频率×宽度÷8 ≥ 800」，比如 100MHz×64bit=800 或 400MHz×16bit=800——两个参数至少抬一个（别忘除 8 换算成字节）。';
+      fb.className = 'lab-feedback bad';
+    }
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

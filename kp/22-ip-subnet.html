@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22 · IP地址、子网与路由 · 架构师学堂</title>
+<meta name="description" content="子网掩码划出院墙，路由协议是各个路口导航员的信息互通机制。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机网络</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="20-osi-tcpip.html">前置 20</a></span>
+    <h1>22 · IP地址、子网与路由</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">子网掩码划出院墙，路由协议是各个路口导航员的信息互通机制。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>公司申请到 <b>192.168.10.0/24</b> 一个 C 段。研发部 100 台、产品部 50 台、服务器区 20 台，要求三个部门互相隔离，且未来一年各自可能扩容 20%。行政把 IP 拉了个 Excel 手工分配，两周后地址冲突不断。请你用子网划分给个说法：每个部门给哪一段？掩码各是多少？为什么不能「平均分三份」？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>答案在地址里「借位」：192.168.10.0/24 的主机位有 8 位。给研发切 /25（主机位 7 位，可用 2⁷−2=126 ≥ 100✓）、产品切 /26（62 ≥ 50✓）、服务器切 /27（30 ≥ 20✓）。分配时<strong>从最大需求开始切</strong>：研发 192.168.10.0/25，产品 192.168.10.128/26，服务器 192.168.10.192/27，剩下 192.168.10.224/27 留作扩容。「平均分三份」做不到——前缀必须是连续的 1，块大小只能是 2 的幂（128/64/32…），所以子网划分是「对半再对半」的切法。Excel 手工分配的问题：无结构、无法聚合、冲突后难追溯。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>本页展开 20 页分层模型的<strong>网络层</strong>，先回忆 <b>20 · OSI与TCP/IP分层</b>：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><span class="term-tip" title="Internet Protocol version 4，32 位地址，写成 4 段 0~255 的点分十进制，如 192.168.1.1">IPv4 地址</span>是 32 位的「门牌」：前一段是<strong>网络位</strong>（哪个小区），后一段是<strong>主机位</strong>（小区里第几户）。<span class="term-tip" title="Subnet mask，与 IP 等长的 32 位串，连续的 1 标出网络位、0 标出主机位">子网掩码</span>则说明「院墙砌在哪一位」：掩码为 1 的位是网络位。路由器（网络层的导航员）依据「目的网络号」查路由表逐跳转发。</p>
+      <h3>解决什么问题</h3>
+      <p>门牌若是一长串无结构的编号，路由表就得记下全世界每一台主机的位置，根本存不下；分层编址（网络位+主机位）让路由器只需记住「到哪个小区怎么走」。子网划分进一步把大网切小：隔离广播、按需分配地址、便于权限与安全管理——这正是 21 页「切院子」思想在网络层的延续。</p>
+      <h3>核心机制：按位与与三件套</h3>
+      <p><strong>网络地址 = IP 按位与（AND）掩码</strong>；主机位全 1 得<strong>广播地址</strong>；两者都不能分给主机。主机位有 h=32−前缀 位，则<strong>可用主机数 = 2<sup>h</sup>−2</strong>（减去网络地址与广播地址）。CIDR（无类域间路由）用「/前缀长度」取代 A/B/C 分类，掩码不再受 8/16/24 限制。</p>
+      <h3>关键细节</h3>
+      <p><strong>完整划分实例：192.168.1.0/26</strong>（掩码 255.255.255.192，块大小 64）：</p>
+      <table class="tbl">
+        <tr><th>子网</th><th>网络地址</th><th>可用主机范围</th><th>广播地址</th><th>可用数</th></tr>
+        <tr><td>1</td><td>192.168.1.0</td><td>.1 ~ .62</td><td>192.168.1.63</td><td rowspan="4">各 62（2⁶−2）</td></tr>
+        <tr><td>2</td><td>192.168.1.64</td><td>.65 ~ .126</td><td>192.168.1.127</td></tr>
+        <tr><td>3</td><td>192.168.1.128</td><td>.129 ~ .190</td><td>192.168.1.191</td></tr>
+        <tr><td>4</td><td>192.168.1.192</td><td>.193 ~ .254</td><td>192.168.1.255</td></tr>
+      </table>
+      <p><strong>三大路由协议对比</strong>（考点高频）：</p>
+      <table class="tbl">
+        <tr><th></th><th>RIP</th><th>OSPF</th><th>BGP</th></tr>
+        <tr><td>算法类型</td><td>距离向量（听邻居口碑）</td><td>链路状态（自持全城地图）</td><td>路径向量（城际政策协商）</td></tr>
+        <tr><td>度量</td><td>跳数，<b>≤15 跳</b>（16=不可达）</td><td>开销（一般与带宽相关），Dijkstra 算最短路径树</td><td>可达性 + 策略（路径属性）</td></tr>
+        <tr><td>适用范围</td><td>小型 AS 内部</td><td>大中型 AS 内部，可分区（Area 0 骨干区）</td><td>AS 与 AS 之间（互联网骨干）</td></tr>
+        <tr><td>交换内容</td><td>周期性广播整张路由表</td><td>洪泛链路状态通告（LSA），增量更新</td><td>按策略交换可达路径</td></tr>
+        <tr><td>收敛速度</td><td>慢（传闻要一跳跳传）</td><td>快</td><td>慢但可控、重策略</td></tr>
+      </table>
+      <table class="tbl">
+        <tr><th colspan="2">专业英语小贴士</th></tr>
+        <tr><td>subnet mask / broadcast address</td><td>子网掩码 / 广播地址——「AND the address with the mask to get the network」</td></tr>
+        <tr><td>hop count</td><td>跳数——RIP 的度量，15 为上限，16 视为不可达</td></tr>
+        <tr><td>link-state / autonomous system (AS)</td><td>链路状态 / 自治系统——OSPF 在 AS 内、BGP 在 AS 之间</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>① <strong>可用主机数忘减 2</strong>：主机位全 0 是网络地址、全 1 是广播地址，不能分配——2⁶=64 但可用只有 62。② /26 的掩码是 255.255.255.<strong>192</strong>，别与 /25（.128）、/27（.224）记混：256−192=64=块大小。③ 问「子网数」时用的是<strong>借位数 n</strong>（2ⁿ 个），别拿主机位去算。④ 求「某 IP 所在网络」必须按块大小对齐：192.168.1.100/27 的块是 32，100÷32 落在 96~127 块，网络地址是 .96——不是把末位抹零。</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>本域统一比喻：<strong>IP = 门牌，路由 = 导航员</strong>。门牌前几位是「街区」（网络位），后面是「第几户」（主机位）；子网掩码是「院墙位置说明书」；导航员按街区地图指路（路由表），不同导航员有不同的情报来源。</p>
+    <table class="tbl">
+      <tr><th>类比项（街区/导航）</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>门牌=街区+户号</td><td>IP = 网络位 + 主机位</td><td>成立</td></tr>
+      <tr><td>院墙砌在哪由物业图决定</td><td>子网掩码决定网络位长度</td><td>成立</td></tr>
+      <tr><td>导航员按街区查地图指路</td><td>路由器按最长前缀匹配查表转发</td><td>成立</td></tr>
+      <tr><td>RIP=打听邻居口碑，数路过几个路口</td><td>距离向量，跳数度量（≤15）</td><td>成立</td></tr>
+      <tr><td>OSPF=自己手握全城地图算最短路</td><td>链路状态 + Dijkstra</td><td>成立</td></tr>
+      <tr><td>现实中院墙重划后门牌写法不变</td><td>掩码与地址的关系</td><td><b>失效</b>：IP 是同一段位串，每借一位「门牌读法」（掩码）就变——地址与墙是同一串数字的两种读法</td></tr>
+    </table>
+    <div class="rhyme">掩码一遮网络见，主机位里数目算；<br>全零作网全一播，可用主机减二看；<br>RIP 数跳十五断，OSPF 全图最短算；<br>BGP 城际谈条件，最长前缀说了算。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示对 192.168.1.0/24 做子网划分：拖动「前缀长度」滑块借位，地址带被切成 2ⁿ 块，每块的可用主机数按 2ʰ−2 变化；播放可逐个查看每个子网的三件套（网络地址 / 可用范围 / 广播地址）。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>前缀长度 <input type="range" id="pfx-slider" min="24" max="30" step="1" value="26"> <span id="pfx-out">/26</span></label>
+      <span class="kf-caption" id="pfx-info"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：子网计算器</h4>
+      <p class="foreshadow">输入任意 IPv4 地址、拖动前缀滑块，点「计算」——答案旁边给出计算步骤，先自己心算再对答案：</p>
+      <label>IP <input type="text" id="ip-in" value="192.168.1.100" size="16" style="max-width:180px"></label>
+      <label>前缀 <input type="range" id="c-pfx" min="8" max="30" step="1" value="27"> <span id="c-pfx-out">/27</span></label>
+      <button class="btn primary" id="c-go">计算</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+      <div class="kf-caption" id="c-out"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：两台主机在同一子网吗？</h4>
+      <p class="foreshadow">输入两个 IP 与共同前缀，判断它们是否直连可达（同院）还是必须走路由器（跨院）：</p>
+      <label>IP A <input type="text" id="ip-a" value="192.168.1.100" size="15" style="max-width:170px"></label>
+      <label>IP B <input type="text" id="ip-b" value="192.168.1.130" size="15" style="max-width:170px"></label>
+      <label>前缀 <input type="range" id="cmp-pfx" min="24" max="30" step="1" value="26"> <span id="cmp-pfx-out">/26</span></label>
+      <button class="btn primary" id="cmp-go">判断</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：路由协议 ↔ 特征</h4>
+      <p class="foreshadow">先点左列协议，再点右列特征：</p>
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>20 页确立了「IP 与路由器属于网络层」，本页展开网络层的全部考点：地址结构、子网计算与路由协议；21 页「VLAN 切院子」在本页升级为「子网切门牌」——切完后两院要通就得靠本页的路由。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow">
+      <li>包送到了主机，接下来交给谁？<b>23 · TCP与UDP</b> 用端口号接力到进程；</li>
+      <li>防火墙的包过滤规则（如「禁止 192.168.1.0/26 出网」）直接建立在本页的网段概念上，<b>51 · 网络安全防护体系</b> 展开。</li>
+    </ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>RIP（距离向量）</th><th>OSPF（链路状态）</th></tr>
+      <tr><td>差异点</td><td>只信邻居的转述（到各处的距离），周期广播整表，跳数≤15</td><td>每台路由器掌握全网拓扑（链路状态库），用 Dijkstra 自算最短路径树，可分区</td></tr>
+      <tr><td>易错点</td><td>以为「跳数少=一定好」——不看带宽，16 跳即不可达</td><td>以为 OSPF 也限 15 跳——没有此限制，那是 RIP 的口径</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">RIP 听传闻（邻居说什么信什么），OSPF 看地图（拓扑在手自己算）；选型口径：小网 RIP，大网 OSPF，跨 AS 用 BGP。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——门牌号前几位是小区名，后面是第几户；院墙把小区隔开，快递员按小区找路……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 网络地址 = IP 按位与掩码；主机位 h=32−前缀，可用主机 = 2ʰ−2（全 0 网络、全 1 广播不可用）。</li><li>② 划子网=借位：借 n 位得 2ⁿ 个子网，块大小 = 256−末字节掩码值，从最大需求开始切（VLSM）。</li><li>③ 路由三杰：RIP 距离向量跳数≤15、OSPF 链路状态可分区、BGP 域间走策略；路由器按最长前缀匹配转发。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '22', domain: 'net', loc: 'roads', root: '..',
+  title: 'IP地址、子网与路由', prev: '21-lan-vlan.html', prevTitle: '21 · 局域网与以太网',
+  next: '23-tcp-udp.html', nextTitle: '23 · TCP与UDP',
+  keywords: ['IP 地址', '子网掩码', '网络地址', '广播地址', 'CIDR', 'RIP', 'OSPF', 'BGP']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 前置回忆题（指向 20 · OSI与TCP/IP分层） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·20】IP 协议与路由器工作在 OSI 参考模型的哪一层？这一层解决的核心问题是什么？',
+    opts: [
+      { t: '网络层；把分组按目的地址跨多个网络送达', why: '对。本页讲的掩码、子网、路由协议全部发生在这一层——先记住位置，再学机制。' },
+      { t: '数据链路层；在相邻节点间传帧', why: '那是 MAC/交换机的地盘；IP 头只有路由器会读。' },
+      { t: '传输层；端到端可靠传输', why: '传输层（TCP/UDP）是下一页的主角，它建立在 IP 的「尽力而为」之上。' },
+      { t: '应用层；为用户提供服务', why: '应用层是门面，IP 是地下的道路系统，两者隔着好几层。' }
+    ],
+    ans: 0, tag: '回忆:20', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '将 192.168.1.0/24 划分为若干 /26 子网，每个子网的可用主机数是？',
+      opts: [
+        { t: '64', why: '这是 2⁶ 的总值，忘了减 2：主机位全 0 是网络地址、全 1 是广播地址，不能分配。' },
+        { t: '62', why: '对。/26 主机位 6 位，2⁶−2=62；全 0 网络地址与全 1 广播地址各占一个。' },
+        { t: '30', why: '那是 /27（主机位 5 位，2⁵−2）的口径，前缀多借了一位。' },
+        { t: '126', why: '那是 /25（主机位 7 位，2⁷−2）的口径。' }
+      ],
+      ans: 1, tag: '计算·高频易错', src: '仿真题' },
+    { q: '主机 192.168.1.100/27 所在子网的网络地址与广播地址分别是？',
+      opts: [
+        { t: '192.168.1.64 与 192.168.1.95', why: '块对齐错了：/27 块大小是 32，从 0 起的块是 0/32/64/96/128…，100 落在 96~127 块。' },
+        { t: '192.168.1.96 与 192.168.1.127', why: '对。块大小 256−224=32，100÷32 落在起点 96 的块；主机位全 0 得 .96，全 1 得 .127，可用 .97~.126 共 30 台。' },
+        { t: '192.168.1.100 与 192.168.1.131', why: '网络地址必须按块对齐，不能拿 IP 本身当网络地址。' },
+        { t: '192.168.1.96 与 192.168.1.128', why: '广播地址算到了下一块：块内最后一个地址是 .127，.128 已属于下一个子网的网络地址。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '关于 RIP、OSPF、BGP 的对比，正确的是？',
+      opts: [
+        { t: 'RIP 用链路状态算法，适合大型网络', why: '正好说反：RIP 是距离向量（听邻居口碑），跳数≤15，只适合小网。' },
+        { t: 'OSPF 用 Dijkstra 计算最短路径树，RIP 以跳数为度量且上限 15', why: '对。OSPF 自持全城拓扑自算最短路、可分区；RIP 数跳数，16 视为不可达。' },
+        { t: 'BGP 用于自治系统内部，收敛最快', why: 'BGP 是域间（AS 之间）协议，跑的是策略而非最快收敛；AS 内部用 RIP/OSPF。' },
+        { t: '三者都以带宽为度量标准', why: 'RIP 数跳数、BGP 看策略属性，只有 OSPF 的开销一般与带宽相关。' }
+      ],
+      ans: 1, tag: '路由协议', src: '仿真题' },
+    { q: '在 OSI 参考模型中，「路由器」这一设备与其转发依据的「IP 地址」分别属于哪一层？（呼应知识点 20）',
+      opts: [
+        { t: '路由器在网络层，IP 地址也是网络层的编址方案', why: '对。设备与它读的协议头部在同一层：路由器读 IP 头选路，所以是网络层设备。' },
+        { t: '路由器在数据链路层，IP 在网络层', why: '链路层设备（交换机）只读 MAC；跨网段寻址靠网络层。' },
+        { t: '路由器在传输层，IP 在网络层', why: '传输层管端口与端到端可靠性，路由器转发时不看端口（NAT 设备除外，那是额外功能）。' },
+        { t: '路由器在物理层，IP 在链路层', why: '两层都答低了：路由器至少要拆到 IP 头才能做决策。' }
+      ],
+      ans: 0, tag: '交错复习:20', src: '仿真题' },
+    { q: '二层交换机隔离了冲突域但不隔离广播域。要把一个 /24 网段切成 4 个互不干扰、又能受控互通的网段，正确的手段是？（呼应知识点 21）',
+      opts: [
+        { t: '再级联几台二层交换机', why: '级联的二层交换机仍属同一广播域，广播照样洪泛，隔离无从谈起。' },
+        { t: '划分 4 个子网并用路由器/三层交换机互联', why: '对。子网划分在网络层切广播域（每子网一个广播域），互通与管控都汇聚到三层设备——21 页的 VLAN 与本页的子网在三层设备上会师。' },
+        { t: '给每台主机配更大的掩码但不改拓扑', why: '只改掩码不改三层连通，主机之间要么误判同网发 ARP、要么发往网关但没有对应路由，通不了也隔离不干净。' },
+        { t: '全部换成集线器分开接', why: '集线器连冲突域都切不开，是倒退方案。' }
+      ],
+      ans: 1, tag: '交错复习:21', src: '仿真题' }
+  ], { kpId: '22', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '公司持有 192.168.10.0/24。需求：研发 100 台、产品 50 台、服务器 20 台，部门间隔离，一年内各部门可能扩容 20%。原方案是 Excel 手工顺序分配 IP。',
+    q: '(1) 给出 VLSM 子网划分方案（每个部门的前缀、网络地址、广播地址、可用主机数）；(2) 说明为什么必须从最大需求开始切；(3) 指出 Excel 手工分配的两大缺陷。',
+    ref: '(1) 研发 192.168.10.0/25（网络 .0，广播 .127，可用 126≥120✓）；产品 192.168.10.128/26（网络 .128，广播 .191，可用 62≥60✓）；服务器 192.168.10.192/27（网络 .192，广播 .223，可用 30≥24✓）；剩余 192.168.10.224/27（可用 30）预留。(2) 前缀只能连续借位、块大小是 2 的幂：若先切小的，大需求就找不到连续整块，产生地址碎片；从大到小切保证每步都有足够的连续空间。(3) 缺陷一：无结构——地址与部门/用途无对应关系，排障要靠翻表；缺陷二：不可聚合——路由表与防火墙规则只能逐条写，且人工分配易冲突、难追溯。',
+    points: ['三个子网的前缀/网络地址/广播地址/可用数全部正确且满足扩容后需求', '答出「块大小是 2 的幂，从大到小切避免碎片」', '手工分配至少指出两个缺陷（无结构、不可聚合/易冲突）'],
+    frame: '答题框架：列需求（含冗余）→ 选前缀（2ʰ−2 ≥ 需求×1.2）→ 顺序切块（从大到小）→ 列三件套（网络/范围/广播）→ 预留。 subnet 题永远把三件套写全。',
+    kpId: '22'
+  });
+  CX.renderCase('#case2', {
+    stem: '园区网有 2 台核心交换机、30 多台三层接入交换机分布 6 栋楼，要求链路故障秒级切换；出口双线对接两家运营商。',
+    q: '(1) 内部路由协议选 RIP 还是 OSPF？给至少 3 条理由；(2) 说明 OSPF 分区（Area 0）的作用；(3) 出口为什么必须用 BGP 而不是 OSPF/RIP。',
+    ref: '(1) 选 OSPF。理由：①30+ 台路由器、多楼层的规模已超 RIP 适用范围；②RIP 跳数上限 15 且以跳数为度量，会选出「跳数少但带宽差」的路径，OSPF 开销与带宽相关；③RIP 周期广播整表、收敛慢（可能数分钟），OSPF 增量更新、收敛秒级，满足故障切换要求。(2) Area 0 为骨干区，非骨干区域间流量必须经骨干区中转：把拓扑变化的影响限制在本区域内，LSA 洪泛与 SPF 计算规模可控，路由器压力与故障传播范围都变小。(3) 出口跨自治系统：运营商与公司分属不同 AS，策略（选哪条线、发布哪些网段）比「最短路径」重要；BGP 是路径向量协议，专为域间策略设计，OSPF/RIP 是域内协议，不具备跨 AS 的策略能力。',
+    points: ['选 OSPF 且理由覆盖规模、度量合理性、收敛速度三条以上', '说清 Area 0 骨干区限制故障传播/计算规模', '出口选 BGP 的理由落在「跨 AS、策略优先」'],
+    frame: '答题框架：先给结论 → 用「规模/度量/收敛」三把尺子对比 → 补充分区与出口的特殊性（域内 vs 域间）。协议选型题固定这三步。',
+    kpId: '22'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '居民身份证前 6 位表示省市区，邮局看到前 6 位就能把信送到区县邮局，无需知道完整门牌。这与 IP 编址的哪个性质同源？',
+    opts: [
+      { t: '分层前缀编址：按前缀聚合路由，路由表只需记「街区」不需记每户', why: '对。网络位/主机位分层让路由器按网络号转发，前缀相同的路由可聚合成一条——门牌结构与寻路效率同源。' },
+      { t: '等价于「按位与掩码求主机地址」', why: '按位与是计算手法，不是编址性质；题干强调的是「前缀可分层寻路」。' },
+      { t: '等价于子网掩码必须连续', why: '掩码连续是规则细节，与「按前缀聚合」的编址思想不是一回事。' },
+      { t: '说明身份证号也是 32 位', why: '位数长短与分层思想无关，属于无关类比。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '22', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['20', '21'], 'prev');
+  CX.depChain('#bridge-next', ['23', '51'], 'next');
+
+  /* ---- 工具函数 ---- */
+  function ipToInt(s) {
+    var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec((s || '').replace(/\s/g, ''));
+    if (!m) return null;
+    var o = [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10), parseInt(m[4], 10)];
+    for (var i = 0; i < 4; i++) if (!(o[i] >= 0 && o[i] <= 255)) return null;
+    return o;
+  }
+  function maskArr(p) {
+    var m = [0, 0, 0, 0], full = Math.floor(p / 8), r = p % 8, i;
+    for (i = 0; i < full; i++) m[i] = 255;
+    if (r > 0) m[full] = 256 - Math.pow(2, 8 - r);
+    return m;
+  }
+  function netOf(ip, m) { return [ip[0] & m[0], ip[1] & m[1], ip[2] & m[2], ip[3] & m[3]]; }
+  function bcastOf(net, m) { return [net[0] | (255 - m[0]), net[1] | (255 - m[1]), net[2] | (255 - m[2]), net[3] | (255 - m[3])]; }
+  function s4(a) { return a.join('.'); }
+
+  /* ---- 动画：子网切分 + 前缀滑块 ---- */
+  var stage = document.getElementById('demo1-stage');
+  var curT = 0, pfx = 26;
+  function draw(t) {
+    curT = t;
+    var n = pfx - 24, count = Math.pow(2, n), h = 32 - pfx;
+    var hosts = h >= 2 ? Math.pow(2, h) - 2 : 0;
+    var block = 256 / count;
+    var x0 = 36, x1 = 684, W = x1 - x0;
+    var idx = Math.min(count - 1, Math.floor(t * count));
+    var s = '<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="子网切分">';
+    s += '<rect width="720" height="240" rx="12" fill="var(--bg-soft)"/>';
+    s += '<text x="360" y="26" text-anchor="middle" font-size="13" fill="var(--text-dim)">192.168.1.0/24 的地址带（256 个地址，从左到右 .0 → .255）</text>';
+    for (var i = 0; i < count; i++) {
+      var bx = x0 + i * (W / count), bw = W / count;
+      var on = i === idx;
+      s += '<rect x="' + (bx + 1.5) + '" y="46" width="' + (bw - 3) + '" height="66" rx="5" fill="' + (on ? 'var(--accent-2)' : 'var(--card)') + '" opacity="' + (on ? '.92' : '1') + '" stroke="var(--line)" stroke-width="1.5"/>';
+      s += '<text x="' + (bx + bw / 2) + '" y="' + (on ? 84 : 76) + '" text-anchor="middle" font-size="' + (count > 16 ? 9 : 11) + '" font-weight="' + (on ? 'bold' : 'normal') + '" fill="' + (on ? 'var(--bg)' : 'var(--text-dim)') + '">.' + (i * block) + '</text>';
+      if (on) {
+        s += '<text x="' + (bx + bw / 2) + '" y="132" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--accent-2)">子网 ' + (i + 1) + '</text>';
+      }
+    }
+    s += '<line x1="' + x0 + '" y1="150" x2="' + x1 + '" y2="150" stroke="var(--line)" stroke-width="2"/>';
+    var start = idx * block, end = start + block - 1;
+    s += '<text x="360" y="176" text-anchor="middle" font-size="13" fill="var(--text)">子网 ' + (idx + 1) + '：网络地址 <tspan font-weight="bold">192.168.1.' + start + '</tspan> ｜ 可用 <tspan font-weight="bold">.' + (start + 1) + ' ~ .' + (end - 1) + '</tspan> ｜ 广播 <tspan font-weight="bold">.' + end + '</tspan></text>';
+    s += '<text x="360" y="204" text-anchor="middle" font-size="13" fill="var(--text-dim)">/' + pfx + '：借 ' + n + ' 位 → 子网数 2^' + n + '=' + count + '；主机位 ' + h + ' 位 → 每子网可用 2^' + h + '−2=' + hosts + ' 台；块大小 ' + block + '（掩码末字节 ' + (256 - block) + '）</text>';
+    s += '<text x="360" y="226" text-anchor="middle" font-size="11" fill="var(--text-dim)">易错提醒：可用主机数减 2（网络地址与广播地址不可分配）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', '子网 ' + (idx + 1) + '/' + count + '：192.168.1.' + start + ' ~ 192.168.1.' + end + '，其中可用主机 .' + (start + 1) + '~.' + (end - 1) + '（' + hosts + ' 台）——拖动前缀滑块看切块与主机数如何此消彼长');
+  }
+  CX.makeAnim('#demo1-ctl', { steps: 8, duration: 10, onTick: draw });
+  var pslider = document.getElementById('pfx-slider');
+  pslider.addEventListener('input', function () {
+    pfx = parseInt(pslider.value, 10);
+    document.getElementById('pfx-out').textContent = '/' + pfx;
+    document.getElementById('pfx-info').textContent = '/24 是 1 个大院子；前缀每 +1，子网翻倍、每子网主机数减半';
+    draw(curT);
+  });
+  document.getElementById('pfx-info').textContent = '/24 是 1 个大院子；前缀每 +1，子网翻倍、每子网主机数减半';
+  draw(0);
+
+  /* ---- 实验一：子网计算器 ---- */
+  var fb1 = document.getElementById('lab1-fb');
+  document.getElementById('c-pfx').addEventListener('input', function () {
+    document.getElementById('c-pfx-out').textContent = '/' + this.value;
+  });
+  document.getElementById('c-go').addEventListener('click', function () {
+    var ip = ipToInt(document.getElementById('ip-in').value);
+    var p = parseInt(document.getElementById('c-pfx').value, 10);
+    if (!ip) { fb1.textContent = '❌ IP 格式不合法：应为 4 段 0~255 的点分十进制，例如 192.168.1.100。'; fb1.className = 'lab-feedback bad'; return; }
+    var m = maskArr(p), net = netOf(ip, m), bc = bcastOf(net, m), h = 32 - p;
+    var hosts = h >= 2 ? Math.pow(2, h) - 2 : 0;
+    var block = Math.pow(2, h);
+    var firstUse = net.slice(), lastUse = bc.slice();
+    if (h >= 2) { firstUse[3] += 1; lastUse[3] -= 1; }
+    var steps = '① 掩码：' + s4(m) + '（/' + p + '）' +
+      ' ② 主机位 h = 32−' + p + ' = ' + h + ' 位 → 可用主机 2^' + h + '−2 = <b>' + hosts + '</b>（全 0 网络地址、全 1 广播地址扣掉）' +
+      ' ③ 块大小 = ' + block + '：IP 末段 ' + ip[3] + ' 所在块的起点是 ' + (Math.floor(ip[3] / block) * block) +
+      ' ④ 网络地址 = <b>' + s4(net) + '</b>（IP 按位与掩码）' +
+      ' ⑤ 广播地址 = <b>' + s4(bc) + '</b>（网络位不变、主机位全 1）' +
+      (hosts > 0 ? ' ⑥ 可用范围 = <b>' + s4(firstUse) + ' ~ ' + s4(lastUse) + '</b>' : ' ⑥ 主机位不足 2 位，无可用主机地址（特殊前缀）');
+    document.getElementById('c-out').innerHTML = '✅ 步骤（先自己心算再核对）：' + steps;
+    fb1.textContent = '';
+    fb1.className = 'lab-feedback ok';
+  });
+
+  /* ---- 实验二：同子网判断器 ---- */
+  var fb2 = document.getElementById('lab2-fb');
+  document.getElementById('cmp-pfx').addEventListener('input', function () {
+    document.getElementById('cmp-pfx-out').textContent = '/' + this.value;
+  });
+  document.getElementById('cmp-go').addEventListener('click', function () {
+    var a = ipToInt(document.getElementById('ip-a').value), b = ipToInt(document.getElementById('ip-b').value);
+    var p = parseInt(document.getElementById('cmp-pfx').value, 10);
+    if (!a || !b) { fb2.textContent = '❌ 有 IP 格式不合法（4 段 0~255）。'; fb2.className = 'lab-feedback bad'; return; }
+    var m = maskArr(p);
+    var na = netOf(a, m), nb = netOf(b, m);
+    var same = s4(na) === s4(nb);
+    fb2.className = 'lab-feedback ' + (same ? 'ok' : 'bad');
+    fb2.innerHTML = (same ? '✅ 同院：' : '❌ 跨院：') +
+      ' A 的网络地址 = ' + s4(na) + '，B 的网络地址 = ' + s4(nb) +
+      '（/' + p + '，掩码 ' + s4(m) + '）。' +
+      (same ? '两台主机按位与掩码后落在同一块，同网段直连，ARP 即可互相找到，不经过路由器。'
+            : '按位与掩码后落在不同块——它们属于不同子网，通信必须交给默认网关（路由器）按目的网络转发。出错常在这一步：忘了「先与掩码、再比较」，直接比 IP 前缀。');
+  });
+
+  /* ---- 实验三：连线匹配 ---- */
+  var pairs = [
+    ['RIP', '距离向量，听邻居口碑数跳数，上限 15'],
+    ['OSPF', '链路状态，自持全图用 Dijkstra 算最短路，可分区'],
+    ['BGP', '路径向量，自治系统之间按策略交换可达性'],
+    ['最长前缀匹配', '路由器查表规则：掩码最长的那条路由优先']
+  ];
+  var lBox = document.getElementById('match-left'), rBox = document.getElementById('match-right');
+  var selL = null, done = 0, fb3 = document.getElementById('lab3-fb');
+  function buildMatch() {
+    selL = null; done = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        var all = lBox.querySelectorAll('.match-opt');
+        for (var i = 0; i < all.length; i++) all[i].classList.remove('sel');
+        d.classList.add('sel'); selL = d;
+        fb3.textContent = '已选「' + p[0] + '」，请在右列点它的特征。';
+        fb3.className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { fb3.textContent = '先点左列一个协议/规则。'; fb3.className = 'lab-feedback bad'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35;
+          selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; done++;
+          fb3.textContent = '✅ 配对成功 ' + done + '/4。记忆锚点：RIP 听传闻、OSPF 看地图、BGP 谈政策。';
+          fb3.className = 'lab-feedback ok';
+        } else {
+          fb3.textContent = '❌ 「' + selL.dataset.k + '」不对应这条特征。先问：它跟「邻居学」还是「自己算」还是「跨城谈」？';
+          fb3.className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  document.getElementById('match-reset').addEventListener('click', function () { buildMatch(); fb3.textContent = ''; fb3.className = 'lab-feedback'; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

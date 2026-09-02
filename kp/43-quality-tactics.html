@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>43 · 质量属性战术 · 架构师学堂</title>
+<meta name="description" content="战术是达成质量属性的可选招式：冗余保可用、缓存提性能、封装利修改。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🔍 质检评估院</span><span class="badge freq">考频 ★★★★★</span><span class="badge diff">难度 ★★★★☆</span>
+    <span class="badge dep"><a href="42-quality-attributes.html">前置 42</a></span>
+    <h1>43 · 质量属性战术</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">战术是达成属性的招式：冗余保可用、缓存提性能、封装利修改。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>42 页那张验收单终于批下来了：「主库失效后 30 秒内自动切换，数据零丢失」。评审会上领导问：架构上拿什么保证这三条？你脱口而出「做主备呗」——追问一句：主备之间怎么知道对方活着？切换的瞬间数据怎么办？改造后商品价格天天调，能不能不发版就生效？——每追问一次，都需要一条具体的招式。</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>「知道对方活着」用<strong>心跳</strong>（错误检测类战术）；「切换瞬间数据不丢」靠<strong>备件+回滚/重新同步</strong>（错误恢复类）；「不发版改价格」靠<strong>配置文件/延迟绑定</strong>（可修改性类）。这些经过验证的招式就是<strong>质量属性战术</strong>——连接「质量场景」与「架构决策」的中间层：场景是靶子（42），战术是箭（本页），评估是环数（44）。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>42 · 质量属性与质量场景</b>：场景的响应度量是选战术的量化靶子。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>战术（tactic）是针对<strong>某个质量属性</strong>的设计招式，是 SEI 归纳的「属性 → 设计决策」对照清单。在质检评估院里它是<strong>加固招式手册</strong>：验收指标（42 页）定了要抗震几级，手册告诉你有哪些成熟的加固做法。本页覆盖考试最常考的四类：可用性、性能、可修改性、安全性。</p>
+      <h3>解决什么问题</h3>
+      <p>没有战术清单，每个团队都在重新发明「主备切换」「缓存」「配置化」，且说不清自己做的改造<strong>到底提升哪个属性、属于哪一类</strong>。战术清单让设计决策有名字、有归类、有代价——这也是案例分析题「给出措施并说明所属战术」的直接考点。</p>
+      <h3>核心机制</h3>
+      <p>记忆框架是三层：<strong>属性 → 设计关注点（类别）→ 具体战术</strong>。答题时先定属性，再定类别，最后点名具体战术。注意：战术是<strong>可选项</strong>而非套餐，每条都有成本与副作用——冗余提升可用性却增加成本与一致性复杂度；缓存提速却引入失效同步问题。</p>
+      <h3>关键细节</h3>
+      <p><strong>可用性战术</strong>（三段式：检测 → 恢复 → 预防）：</p>
+      <table class="tbl">
+        <tr><th>类别</th><th>具体战术</th><th>城市比喻（加固招式）</th></tr>
+        <tr><td>错误检测</td><td>Ping/Echo（探测应答）、心跳（Heartbeat）、异常（Exceptions）、投票（Voting/表决）</td><td>巡更打卡：巡更棒没按时打点，就知道出事了</td></tr>
+        <tr><td>错误恢复</td><td>回滚（Rollback）、备件（Spare/主备切换）、冗余（Redundancy）；善后：重试、降级、重新同步</td><td>备用发电机顶上；装修前先拍照，不满意恢复原样</td></tr>
+        <tr><td>错误预防</td><td>从服务移除（计划检修）、事务（Transactions）、可预测模型</td><td>定期停电检修、转账必须两清，把事故消灭在发生前</td></tr>
+      </table>
+      <p><strong>性能战术</strong>（三环节：需求 → 管理 → 仲裁）：</p>
+      <table class="tbl">
+        <tr><th>类别</th><th>具体战术</th><th>城市比喻</th></tr>
+        <tr><td>资源需求</td><td>减少计算开销（优化算法）、减少事件数（采样/聚合/限流）</td><td>少派车：合并顺路的快递，别一单跑一趟</td></tr>
+        <tr><td>资源管理</td><td>引入并发（多线程/多进程）、维护副本（缓存）、增加资源（扩容）</td><td>多开收银台、社区便利店备货、再修一条马路</td></tr>
+        <tr><td>资源仲裁</td><td>FIFO、固定优先级、动态优先级（另见静态调度）</td><td>红绿灯配时；救护车一路绿灯=动态优先</td></tr>
+      </table>
+      <p><strong>可修改性战术</strong>（三招：圈住它 → 挡住它 → 晚点定）：</p>
+      <table class="tbl">
+        <tr><th>类别</th><th>具体战术</th><th>城市比喻</th></tr>
+        <tr><td>局部化修改</td><td>维持语义一致性、预期变更、泛化（把模块做得更通用）</td><td>把常改的店铺集中到一条美食街，改造只动一条街</td></tr>
+        <tr><td>防止级联</td><td>信息隐藏、封装、接口与中介者（另有限制通信路径/依赖）</td><td>管线藏进墙里：换电线不必砸整栋楼</td></tr>
+        <tr><td>延迟绑定</td><td>配置文件（部署期生效）、多态/运行时注册（运行期生效）</td><td>家具进场再定摆法：墙砌好了，家具随搬随换</td></tr>
+      </table>
+      <p><strong>安全性战术</strong>（三段式：拦 → 察 → 恢）：</p>
+      <table class="tbl">
+        <tr><th>类别</th><th>具体战术</th><th>城市比喻</th></tr>
+        <tr><td>抵抗攻击</td><td>身份认证、授权、限制访问（另见加密、限制暴露）</td><td>门禁刷卡+分区权限：不是谁都能进机房</td></tr>
+        <tr><td>检测攻击</td><td>入侵检测系统（IDS）、入侵防御</td><td>监控摄像头+保安巡逻</td></tr>
+        <tr><td>从攻击中恢复</td><td>恢复可用性（同可用性恢复战术）、审计追踪（Audit Trail）</td><td>录像存档可回查，事后追责、还原现场</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①战术归属于「服务的目标属性」而不是「技术名词」：Redis 缓存作性能战术（资源管理-维护副本）时，同时会伤害一致性——答题先问它服务谁；②「错误检测/恢复/预防」是可用性战术的三类，别与安全性的「抵抗/检测/恢复」混淆——都带「检测」但对象不同（故障 vs 攻击）；③案例失分：只答「用了缓存」不给「性能-资源管理-维护副本（缓存）」的完整归类；④心跳间隔既是招式参数也是权衡点——它在 44 页会再次出场。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>tactic（战术）· heartbeat（心跳）· information hiding（信息隐藏）。英语题常用句式：A heartbeat mechanism detects faults and triggers failover to a spare component.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>战术手册就是质检评估院的<strong>加固招式手册</strong>：验收指标写「楼要抗八级地震」，手册翻到「可用性章」——巡更打卡（心跳）、备用发电机（备件）、定期检修（从服务移除）；翻到「性能章」——多开收银台（并发）、社区便利店（缓存）、救护车优先（动态优先级）。类比在「成熟做法可归类」上成立；失效边界在于：发电机顶上时间没有上限，备机接管却有数据同步窗口，切换瞬间可能丢请求——现实应急没有「零丢失」的免费午餐。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>巡更打卡</td><td>心跳 / Ping-Echo（错误检测）</td><td>成立</td></tr>
+      <tr><td>备用发电机顶上</td><td>备件切换（错误恢复）</td><td>成立</td></tr>
+      <tr><td>定期停电检修</td><td>从服务移除（错误预防）</td><td>成立</td></tr>
+      <tr><td>多开收银台 / 便利店备货</td><td>引入并发 / 缓存（资源管理）</td><td>成立</td></tr>
+      <tr><td>救护车一路绿灯</td><td>动态优先级（资源仲裁）</td><td>成立</td></tr>
+      <tr><td>发电机顶多久都行</td><td>备件无缝接管</td><td><b>失效</b>：切换有检测与同步窗口，必须用响应度量（30 秒、RPO=0）把承诺写实</td></tr>
+    </table>
+    <div class="rhyme">检测恢复与预防，可用三段记心上；<br>少算事件缓开销，缓存并发扩机房；<br>仲裁排队定先后，高峰调度不慌张；<br>局部修改防级联，延迟绑定变更畅；<br>抵抗检测再恢复，安全三招守城墙。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示可用性战术的时间线：主库宕机后，心跳（错误检测）多久发现、备件（错误恢复）多久接管。拖动滑块调「心跳间隔」与「切换耗时」，播放看一次故障的完整处置。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>心跳间隔 H <input type="range" id="hb-slider" min="0.5" max="5" step="0.5" value="2"> <span id="hb-out">2.0 s</span></label>
+      <label>切换耗时 S <input type="range" id="sw-slider" min="0.5" max="5" step="0.5" value="1.0"> <span id="sw-out">1.0 s</span></label>
+      <span class="kf-caption">心跳越密发现越快、开销越大；间隔本身就是一个「权衡点」——44 页评估会重点盘问它。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（归类实验）：给 8 条改造措施选所属战术类别</h4>
+      <p class="foreshadow">先点一条措施，再点它服务的属性筐；归类错误会指出错在哪一步。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <div class="drag-slot" id="cat-avail" style="flex:1;min-width:180px"><b>🛡️ 可用性</b><div class="cat-items"></div></div>
+        <div class="drag-slot" id="cat-perf" style="flex:1;min-width:180px"><b>⚡ 性能</b><div class="cat-items"></div></div>
+        <div class="drag-slot" id="cat-mod" style="flex:1;min-width:180px"><b>🔧 可修改性</b><div class="cat-items"></div></div>
+        <div class="drag-slot" id="cat-sec" style="flex:1;min-width:180px"><b>🔒 安全性</b><div class="cat-items"></div></div>
+      </div>
+      <button class="btn" id="lab1-check">检查归类</button>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：措施 ↔ 具体战术名</h4>
+      <p class="foreshadow">先点左列一条措施，再点右列它的战术名：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="lab2-left"></div>
+        <div id="lab2-right"></div>
+      </div>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：一次故障处置的正确时间线</h4>
+      <p class="foreshadow">把处置步骤按发生顺序拖入槽中（对应可用性战术的三段式）：</p>
+      <div id="lab3-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="lab3-slot"></div>
+      <button class="btn" id="lab3-check">检查顺序</button>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（战术归类）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>42 · 质量属性与质量场景给了靶子：每条战术都是为了把某条「响应度量」从做不到变成做得到——先有验收单，才有加固招式。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>44 · 架构评估：ATAM 的「识别架构方法」一步，就是把本页的战术从图纸里点名出来逐条追责；心跳间隔会被当成权衡点盘问。</li><li>39 · 云原生：容器编排的探针（liveness/readiness）就是 Ping/Echo 战术的工程化；弹性扩缩容就是「增加资源」战术自动化。</li><li>45 · 架构演化：可修改性战术（局部化/防级联/延迟绑定）是让系统能「边营业边改造」的前置投资。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>战术（tactic）</th><th>架构风格（style，34~36 页）</th></tr>
+      <tr><td>差异点</td><td>针对<strong>单个质量属性</strong>的局部设计手法（心跳、缓存、多态）</td><td>针对<strong>整体结构</strong>的顶层组织套路（分层、微内核、管道过滤器）</td></tr>
+      <tr><td>易错点</td><td>把「用了缓存」当架构风格；战术数量多、颗粒小</td><td>风格一套系统只有少数几个，回答「整体怎么组织」</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">风格是功能分区套路（这座城怎么布局），战术是加固招式（这面墙怎么补强）；案例里「提升某属性的措施」答战术，「系统整体组织方式」答风格。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——小区要防火防盗，保安有很多招：巡逻、备用门、监控……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 战术=达成质量属性的可选招式，答题按「属性→类别→具体战术」三层落笔。</li><li>② 四类必背：可用性（检测/恢复/预防）、性能（需求/管理/仲裁）、可修改性（局部化/防级联/延迟绑定）、安全性（抵抗/检测/恢复）。</li><li>③ 战术有代价有副作用：缓存伤一致性、冗余加成本、心跳间隔是可用性与开销的拉锯点。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '43', domain: 'qa', loc: 'inspection', root: '..',
+  title: '质量属性战术', prev: '42-quality-attributes.html', prevTitle: '42 · 质量属性与质量场景',
+  next: '44-arch-evaluation.html', nextTitle: '44 · 架构评估：SAAM/ATAM/CBAM',
+  keywords: ['战术', '错误检测', '心跳', '冗余', '资源仲裁', '信息隐藏', '延迟绑定', '审计追踪']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 42） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·42】质量场景六要素中，「200ms 内完成切换、数据零丢失」属于哪一要素？',
+    opts: [
+      { t: '刺激', why: '刺激是「发起切换」这一事件本身，不带达标数字。' },
+      { t: '响应', why: '响应是「完成切换且服务不中断」这一活动；带数字的达标口径属于下一项。' },
+      { t: '响应度量', why: '对。响应度量=做到什么程度，必须可量化：时间（200ms）+数据损失（RPO=0）。' },
+      { t: '制品', why: '制品是被作用的部件（数据库主从集群）。' }
+    ],
+    ans: 2, tag: '回忆:42', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '「主库每 2 秒向备库发送心跳，连续 3 次未收到即触发切换」——心跳属于可用性战术的哪一类？',
+      opts: [
+        { t: '错误检测', why: '对。心跳、Ping/Echo、异常、投票都属于错误检测：先要知道出事了。' },
+        { t: '错误恢复', why: '恢复是触发切换之后的备件顶上、回滚与重新同步。' },
+        { t: '错误预防', why: '预防是从服务移除、事务、可预测模型，目的在事故发生前。' },
+        { t: '资源仲裁', why: '资源仲裁是性能战术（FIFO/优先级调度），与可用性检测无关。' }
+      ],
+      ans: 0, tag: '可用性战术', src: '仿真题' },
+    { q: '下列哪组全部属于「性能-资源管理」战术？',
+      opts: [
+        { t: '减少计算开销、采样降低事件数', why: '这两条属于「资源需求」：让活变少变轻，不是管理已有资源。' },
+        { t: '引入并发、维护缓存副本、增加资源', why: '对。并发、副本（缓存）、扩容都是资源管理：把资源调度起来用。' },
+        { t: 'FIFO、固定优先级', why: '这是「资源仲裁」：决定谁先用的规则。' },
+        { t: '心跳、投票表决', why: '这是可用性的错误检测战术，跑题了。' }
+      ],
+      ans: 1, tag: '性能战术', src: '仿真题' },
+    { q: '「促销规则外置到配置文件，热更新即生效；算法层用多态适配不同规则」——这两招属于？',
+      opts: [
+        { t: '局部化修改', why: '局部化修改是「维持语义一致性/预期变更/泛化」，本题招式核心是推迟决策时机。' },
+        { t: '防止级联', why: '防级联靠信息隐藏/封装/中介者，与配置热更新不同。' },
+        { t: '延迟绑定', why: '对。把绑定时机推迟到部署期（配置文件）或运行期（多态），正是延迟绑定。' },
+        { t: '错误预防', why: '这是可用性战术，与可修改性无关。' }
+      ],
+      ans: 2, tag: '可修改性战术', src: '仿真题' },
+    { q: '【交错复习:42】质量场景「运维人员发起主从切换，系统 200ms 内完成切换、数据零丢失」。为该场景选战术时，「200ms、RPO=0」的作用是？',
+      opts: [
+        { t: '装饰性描述，选战术时可省略', why: '恰恰相反：没有量化靶子就无法判断战术是否达标。' },
+        { t: '选型靶子：决定心跳间隔与切换机制的量化目标', why: '对。响应度量是战术选型的量化靶子——200ms 决定心跳间隔上限，RPO=0 决定必须同步复制。' },
+        { t: '属于刺激要素', why: '刺激是「发起切换」这一事件，数字在响应度量里。' },
+        { t: '只与安全性有关', why: '与安全无关，这是可用性场景的度量。' }
+      ],
+      ans: 1, tag: '交错复习:42', src: '仿真题' },
+    { q: '入侵检测系统（IDS）在安全性战术中属于？',
+      opts: [
+        { t: '抵抗攻击', why: '抵抗是认证、授权、限制访问——把攻击挡在门外。' },
+        { t: '检测攻击', why: '对。IDS 的职责是发现正在发生的攻击，属于检测类。' },
+        { t: '从攻击中恢复', why: '恢复是恢复可用性与审计追踪——攻击得手之后的事。' },
+        { t: '错误预防', why: '这是可用性战术的类别，安全性的三段是抵抗/检测/恢复。' }
+      ],
+      ans: 1, tag: '安全性战术', src: '仿真题' }
+  ], { kpId: '43', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某电商大促改造清单：① 数据库主从部署，节点间互发心跳，故障自动切换；② 首页与商品详情静态化，热点数据放入 Redis 缓存；③ 运费、优惠规则外置到配置中心，支持热更新；④ 登录与支付环节增加短信双因子校验；⑤ 全量操作日志接入审计系统，可追溯到人。',
+    q: '(1) 逐条指出措施所属的属性与战术类别；(2) 说明①中「心跳间隔」设置过长/过短各有什么问题；(3) ②在提升性能的同时引入了什么新问题？给出至少一种缓解手段。',
+    ref: '(1) ①可用性-错误检测（心跳）+错误恢复（备件切换）；②性能-资源管理（维护副本/缓存）+减少计算开销（静态化）；③可修改性-延迟绑定（配置文件）；④安全性-抵抗攻击（身份认证）；⑤安全性-从攻击中恢复（审计追踪）。(2) 过长：故障发现晚、停机窗口变大，可用性受损；过短：心跳流量与 CPU 开销增加，且网络抖动易误判引发「脑裂」式误切换——心跳间隔是可用性与性能开销的权衡点。(3) 引入缓存一致性问题（价格/库存已改而缓存仍是旧值）：可采用「先更新库再删除缓存」+TTL 兜底、热点数据更新时主动失效、大促期间对非关键数据声明「短暂不一致可接受」的降级口径。',
+    points: ['五条措施都落到「属性-战术类别（可加具体战术）」两级，而不是只说属性', '心跳间隔两面性：发现速度 vs 开销与误判，能点出「权衡」', '主动说出缓存一致性新问题并给至少一种缓解手段', '术语准确：错误检测、延迟绑定、审计追踪'],
+    frame: '答题框架：逐条映射（属性→战术类别→具体战术）→ 参数两面性分析（过长/过短各论）→ 副作用与缓解 → 用「权衡」一词衔接架构评估（44）。',
+    kpId: '43'
+  });
+  CX.renderCase('#case2', {
+    stem: '某直播平台高峰期弹幕端到端延迟从 1 秒恶化到 8 秒：服务器 CPU 80%，热门房间单机消息广播成为瓶颈，弹幕量是平峰期的 40 倍。',
+    q: '请从性能战术的「资源需求、资源管理、资源仲裁」三类各给出至少一条改造措施，并分别说明其有效的原因与预期效果。',
+    ref: '资源需求：弹幕聚合批量下发、按抽样比例展示、限流——减少事件数与计算开销，从源头把 40 倍流量削到可处理规模；资源管理：房间服务多线程/多进程并发分发，弹幕经消息队列分片转发（维护副本+引入并发），房间服务水平扩容（增加资源）——把广播从单机瓶颈改为并行处理，预期延迟回到秒级；资源仲裁：消息按房间设固定优先级、礼物/连麦消息设更高动态优先级，FIFO 兜底——保证高价值流量在拥塞时优先被处理。三类组合使用效果最佳，并注意聚合会引入毫秒级 batching 延迟的副作用。',
+    points: ['三类战术每类至少一条且归类正确', '每条措施说清原理（减少事件数/副本/优先级）', '有量化预期（如延迟从 8s 回到 1s 量级）', '能指出至少一条副作用（聚合延迟、扩容成本）'],
+    frame: '答题框架：定位瓶颈（单点广播+流量倍增）→ 按三类逐一给招式 → 每招式对应原理与预期收益 → 提示组合使用与副作用。',
+    kpId: '43'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成网关场景：「秒杀网关按用户等级设置多级队列，支付类请求永远优先处理」——这属于哪类战术？',
+    opts: [
+      { t: '性能-资源仲裁', why: '对。多级队列+优先级决定「谁先用资源」，正是资源仲裁（固定/动态优先级）。' },
+      { t: '可用性-错误检测', why: '错误检测是心跳/投票这类「发现故障」的招式，与排队无关。' },
+      { t: '可修改性-延迟绑定', why: '延迟绑定是配置文件/多态这类「晚点做决定」，与队列优先级无关。' },
+      { t: '安全性-抵抗攻击', why: '抵抗是认证/授权/限制访问；限流若有「防恶意刷单」动机才沾边，本题按优先级调度归类。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '43', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['42'], 'prev');
+  CX.depChain('#bridge-next', ['44', '39', '45'], 'next');
+
+  /* ---- 动画：心跳检测与备件切换 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var H = 2, S = 1;            /* 心跳间隔、切换耗时（秒） */
+  var T_TOTAL = 20, T_FAIL = 8;
+  function detTime() { return (Math.floor(T_FAIL / H) + 1) * H; } /* 下一次心跳到达时刻：故障落在两次心跳之间，最坏停机≈H+S */
+  function draw(t) {
+    var now = t * T_TOTAL;
+    var det = detTime(), done = det + S;
+    var x0 = 40, W = 620, yBar = 200, hBar = 26;
+    var px = function (sec) { return x0 + (sec / T_TOTAL) * W; };
+    var primaryAlive = now < T_FAIL;
+    var standbyActive = now >= done;
+    var s = '<svg viewBox="0 0 700 270" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="270" rx="12" fill="var(--bg-soft)"/>';
+    /* 两座楼 */
+    s += '<rect x="80" y="60" width="110" height="95" rx="8" fill="' + (primaryAlive ? 'var(--ok)' : 'var(--bad)') + '" opacity="' + (primaryAlive ? '.30' : '.35') + '" stroke="' + (primaryAlive ? 'var(--ok)' : 'var(--bad)') + '"/>';
+    s += '<text x="135" y="105" text-anchor="middle" font-size="13" fill="var(--text)">主库</text>';
+    s += '<text x="135" y="126" text-anchor="middle" font-size="12" fill="' + (primaryAlive ? 'var(--ok)' : 'var(--bad)') + '">' + (primaryAlive ? '运行中' : '宕机!') + '</text>';
+    s += '<rect x="510" y="60" width="110" height="95" rx="8" fill="' + (standbyActive ? 'var(--ok)' : 'var(--card-2)') + '" opacity=".35" stroke="' + (standbyActive ? 'var(--ok)' : 'var(--line)') + '"/>';
+    s += '<text x="565" y="105" text-anchor="middle" font-size="13" fill="var(--text)">备库</text>';
+    s += '<text x="565" y="126" text-anchor="middle" font-size="12" fill="' + (standbyActive ? 'var(--ok)' : 'var(--text-dim)') + '">' + (standbyActive ? '已接管' : '待命') + '</text>';
+    s += '<line x1="200" y1="107" x2="500" y2="107" stroke="var(--line)" stroke-dasharray="4 5"/>';
+    s += '<text x="350" y="98" text-anchor="middle" font-size="12" fill="var(--text-dim)">心跳每 ' + H + ' 秒一次（错误检测）</text>';
+    /* 时间线 */
+    s += '<rect x="' + x0 + '" y="' + yBar + '" width="' + W + '" height="' + hBar + '" rx="6" fill="var(--ok)" opacity=".22" stroke="var(--line)"/>';
+    var outW = Math.max(2, px(done) - px(T_FAIL));
+    s += '<rect x="' + px(T_FAIL) + '" y="' + yBar + '" width="' + outW + '" height="' + hBar + '" fill="var(--bad)"/>';
+    for (var k = 1; k * H <= T_TOTAL && k <= 80; k++) {
+      var bx = px(k * H);
+      var missed = k * H > T_FAIL;
+      s += '<circle cx="' + bx + '" cy="' + (yBar - 12) + '" r="4" fill="' + (missed ? 'var(--bad)' : 'var(--ok)') + '" opacity="' + (k * H <= now ? 1 : .25) + '"/>';
+    }
+    var cx = px(Math.min(now, T_TOTAL));
+    s += '<line x1="' + cx + '" y1="' + (yBar - 24) + '" x2="' + cx + '" y2="' + (yBar + hBar + 8) + '" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="350" y="256" text-anchor="middle" font-size="13" fill="var(--text-dim)">红色段=停机窗口（发现延迟 + 切换）· 圆点=计划心跳，红色=未收到</text>';
+    s += '<text x="350" y="40" text-anchor="middle" font-size="14" fill="var(--text)">最坏停机 ≈ 心跳间隔 H + 切换耗时 S = ' + H + ' + ' + S + ' = ' + (H + S) + ' 秒</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (now < T_FAIL) cap = '每 ' + H + ' 秒一次心跳，备库持续监听——这就是错误检测战术（心跳 / Ping-Echo / 异常 / 投票同类）。';
+    else if (now < det) cap = '第 ' + T_FAIL + ' 秒主库宕机！心跳停发。备库最迟要等到下一个心跳点（第 ' + det + ' 秒）才能确认——间隔越长，发现越慢。';
+    else if (now < done) cap = '确认故障，备件顶上（错误恢复），切换耗时 ' + S + ' 秒；之后还要数据重新同步。';
+    else cap = '备库接管完成。本次停机 ≈ ' + (done - T_FAIL) + ' 秒 = 检测延迟 + 切换时间；心跳间隔正是 44 页评估会要盘问的权衡点。';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 12, onTick: draw });
+  var hb = CX.utils.$('#hb-slider'), ho = CX.utils.$('#hb-out');
+  var sw = CX.utils.$('#sw-slider'), swo = CX.utils.$('#sw-out');
+  hb.addEventListener('input', function () { H = +hb.value; ho.textContent = H.toFixed(1) + ' s'; draw(anim.t || 0); });
+  sw.addEventListener('input', function () { S = +sw.value; swo.textContent = S.toFixed(1) + ' s'; draw(anim.t || 0); });
+
+  /* ---- 实验一：8 条措施归类 ---- */
+  var M1 = [
+    { t: '主备节点每秒互发心跳，失联自动切换', k: 'avail', why: '可用性——心跳属于错误检测，自动切换属于错误恢复（备件）。' },
+    { t: '热点商品数据放入 Redis 缓存', k: 'perf', why: '性能——缓存是资源管理中的「维护数据副本」。' },
+    { t: '营销规则外置配置中心，热更新生效', k: 'mod', why: '可修改性——配置文件热更新属于延迟绑定。' },
+    { t: '登录与支付启用双因子认证', k: 'sec', why: '安全性——双因子认证属于抵抗攻击（认证）。' },
+    { t: '三台服务器冗余部署并投票表决', k: 'avail', why: '可用性——投票属于错误检测，冗余部署支撑错误恢复。' },
+    { t: '高峰期按固定优先级调度，支付请求优先', k: 'perf', why: '性能——优先级调度属于资源仲裁。' },
+    { t: '订单模块只通过接口暴露，隐藏内部实现', k: 'mod', why: '可修改性——信息隐藏/接口属于防止级联。' },
+    { t: '全量操作日志接入审计系统可追溯到人', k: 'sec', why: '安全性——审计追踪属于从攻击中恢复。' }
+  ];
+  var m1Pool = CX.utils.$('#lab1-pool'), m1Sel = null;
+  CX.shuffle(M1.map(function (m, i) { m.i = i; return m; })).forEach(function (m) {
+    var d = document.createElement('button');
+    d.className = 'drag-item match-opt'; d.textContent = m.t; d.dataset.k = m.k; d.style.margin = '4px'; d.style.textAlign = 'left';
+    d.addEventListener('click', function () {
+      if (d.parentElement !== m1Pool) { m1Pool.appendChild(d); d.classList.remove('sel'); m1Sel = null; return; }
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选「' + m.t.slice(0, 12) + '…」，点下面的属性筐归类；点筐里的卡片可放回。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('#lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  [['cat-avail', 'avail', '可用性'], ['cat-perf', 'perf', '性能'], ['cat-mod', 'mod', '可修改性'], ['cat-sec', 'sec', '安全性']].forEach(function (p) {
+    CX.utils.$('#' + p[0]).addEventListener('click', function (e) {
+      if (e.target.classList.contains('drag-item')) return;
+      if (!m1Sel) { fb1('先点选一条措施。', 'bad'); return; }
+      CX.utils.$('#' + p[0] + ' .cat-items').appendChild(m1Sel);
+      m1Sel.classList.remove('sel'); m1Sel = null;
+    });
+  });
+  var lab1Root = CX.utils.$('#lab1');
+  function m1Chip(t) {
+    return CX.utils.$$('.match-opt', lab1Root).filter(function (x) { return x.textContent === t; })[0];
+  }
+  CX.utils.$('#lab1-check').addEventListener('click', function () {
+    var wrong = [], placed = 0;
+    M1.forEach(function (m) {
+      var chip = m1Chip(m.t);
+      if (!chip) return;
+      var bucket = chip.closest('.drag-slot');
+      if (!bucket) { return; }
+      placed++;
+      if (bucket.dataset.cat !== m.k) wrong.push('「' + m.t.slice(0, 12) + '…」放错：' + m.why);
+    });
+    if (placed < M1.length) { fb1('还有 ' + (M1.length - placed) + ' 条措施没归类。', 'bad'); return; }
+    if (wrong.length) { fb1('有 ' + wrong.length + ' 条归类错误：' + wrong.join(' ｜ '), 'bad'); return; }
+    fb1('✅ 全部正确！记住答题格式：先定属性，再定战术类别，最后点名具体战术。', 'ok');
+  });
+  CX.utils.$('#lab1-reset').addEventListener('click', function () {
+    M1.forEach(function (m) {
+      var chip = m1Chip(m.t);
+      if (chip) { m1Pool.appendChild(chip); chip.classList.remove('sel'); }
+    });
+    m1Sel = null; fb1('已重置。', '');
+  });
+  /* 给筐补 data-cat */
+  CX.utils.$('#cat-avail').dataset.cat = 'avail';
+  CX.utils.$('#cat-perf').dataset.cat = 'perf';
+  CX.utils.$('#cat-mod').dataset.cat = 'mod';
+  CX.utils.$('#cat-sec').dataset.cat = 'sec';
+
+  /* ---- 实验二：措施 ↔ 战术名连线 ---- */
+  var L2_PAIRS = [
+    ['节点间定时互发探测信号', 'Ping/Echo（错误检测）'],
+    ['故障后恢复到操作前的一致状态', '回滚（错误恢复）'],
+    ['转账操作要么全部生效要么全不生效', '事务（错误预防）'],
+    ['相同数据存两处，读走快的那份', '维护副本/缓存（资源管理）'],
+    ['热门消息优先于普通日志被处理', '固定/动态优先级（资源仲裁）'],
+    ['算法细节藏进模块内部，只留接口', '信息隐藏（防止级联）'],
+    ['按用户身份决定能否访问该数据', '授权（抵抗攻击）'],
+    ['摄像头发现端口扫描并告警', 'IDS（检测攻击）']
+  ];
+  var l2L = CX.utils.$('#lab2-left'), l2R = CX.utils.$('#lab2-right'), l2Sel = null, l2Done = 0;
+  function fb2(msg, cls) { var f = CX.utils.$('#lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  function buildL2() {
+    l2Sel = null; l2Done = 0; l2L.innerHTML = ''; l2R.innerHTML = '';
+    L2_PAIRS.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', l2L).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); l2Sel = d;
+        fb2('已选「' + p[0] + '」，请在右列点它的战术名。');
+      });
+      l2L.appendChild(d);
+    });
+    CX.shuffle(L2_PAIRS).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!l2Sel) { fb2('先点左列一条措施。', 'bad'); return; }
+        if (l2Sel.dataset.k === d.dataset.v) {
+          l2Sel.style.opacity = .35; d.style.opacity = .35;
+          l2Sel.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          l2Sel.classList.remove('sel'); l2Sel = null; l2Done++;
+          fb2('✅ 配对成功 ' + l2Done + '/8', 'ok');
+        } else {
+          fb3Wrong(l2Sel.dataset.k, d.textContent);
+        }
+      });
+      l2R.appendChild(d);
+    });
+  }
+  function fb3Wrong(measure, tactic) {
+    fb2('❌ 「' + measure + '」不是「' + tactic + '」。判别方法：先问这条措施服务的目标属性（可用性/性能/安全），再问它处在哪一段（检测故障→恢复故障→预防故障 / 挡住攻击→发现攻击→事后追责）。', 'bad');
+  }
+  buildL2();
+  CX.utils.$('#lab2-reset').addEventListener('click', function () { buildL2(); fb2(''); });
+
+  /* ---- 实验三：故障处置时间线排序 ---- */
+  var L3_ORDER = [
+    '主库进程崩溃（故障发生）',
+    '连续 3 次心跳未收到，判定故障（错误检测）',
+    '备库自动顶上接管服务（错误恢复-备件）',
+    '数据重新同步、半点重试补齐（错误恢复-善后）',
+    '故障节点下线计划检修（错误预防-从服务移除）'
+  ];
+  var l3Pool = CX.utils.$('#lab3-pool'), l3Slot = CX.utils.$('#lab3-slot');
+  CX.shuffle(L3_ORDER.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    l3Pool.appendChild(d);
+  });
+  l3Slot.addEventListener('dragover', function (e) { e.preventDefault(); l3Slot.classList.add('hot'); });
+  l3Slot.addEventListener('dragleave', function () { l3Slot.classList.remove('hot'); });
+  l3Slot.addEventListener('drop', function (e) {
+    e.preventDefault(); l3Slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = l3Pool.querySelector('[data-t="' + t + '"]');
+    if (src) l3Slot.appendChild(src);
+  });
+  function fb3(msg, cls) { var f = CX.utils.$('#lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('#lab3-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(l3Slot.children, function (c) { return c.dataset.t; });
+    if (got.length < L3_ORDER.length) { fb3('还有 ' + (L3_ORDER.length - got.length) + ' 张卡片没拖进槽。', 'bad'); return; }
+    for (var i = 0; i < L3_ORDER.length; i++) {
+      if (got[i] !== L3_ORDER[i]) {
+        fb3('第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。可用性战术的时间逻辑是：故障先发生 → 检测发现 → 恢复接管 → 善后同步 → 预防复发；「预防」永远在最后，因为它是为下一次故障准备的。', 'bad');
+        return;
+      }
+    }
+    fb3('✅ 顺序正确：故障 → 检测 → 恢复 → 善后 → 预防。可用性三段式（检测/恢复/预防）就长在这个时间线上。', 'ok');
+  });
+  CX.utils.$('#lab3-reset').addEventListener('click', function () {
+    Array.prototype.slice.call(l3Slot.children).forEach(function (c) { l3Pool.appendChild(c); });
+    fb3('已重置。', '');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>46 · 设计原则与GoF总览 · 架构师学堂</title>
+<meta name="description" content="开闭原则是总纲：对扩展开放、对修改关闭，23 个模式都是它的具体打法；七大原则 + GoF 三分类 + 模式层级表。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">📐 标准图纸馆</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="29-oo-basics.html">前置 29</a></span>
+    <h1>46 · 设计原则与GoF总览</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">开闭原则是总纲：对扩展开放、对修改关闭，23 个模式都是它的具体打法。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某车联网计费平台三年接了 12 家运营商：每接一家，都要打开核心结算类，在一串 if-else 里塞新分支，然后全量回归。上个月接第 12 家时改漏了一个 else，导致部分流量错计费。现在第 13 家要接入，业务方问架构师：「能不能承诺，接新运营商不再碰核心代码？」你敢承诺吗？靠什么承诺？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>敢——靠<strong>开闭原则</strong>：把「会变化的部分」抽成抽象接口（如「运营商计费接口」），每家运营商做一个实现子类，核心结算类只依赖抽象。以后每接一家 = <strong>新增一个实现类 + 注册一行</strong>，核心类一行不改、回归范围缩到新类本身。这就是本页主线：七大设计原则是「宪法」，GoF 的 23 个模式是按宪法写好的 23 张「定型设计图」——接下来三页（47/48/49）逐一展开这些图纸。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>29 · 面向对象基础</b>：封装、继承、多态是设计模式的「语法基础」——先确认这三件还认得。</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>设计原则</strong>是面向对象设计的目标与评价标准（「写代码要往哪儿靠」）；<strong>设计模式</strong>是前人反复验证过的、可复用的类与对象协作方案（「别人是怎么靠上去的」）。GoF（四人帮，Gang of Four）在《设计模式》一书中总结了 <strong>23 个</strong>经典模式，按目的分三柜：<strong>创建型 5 个、结构型 7 个、行为型 11 个</strong>。</p>
+      <h3>解决什么问题</h3>
+      <p>需求永远在变。没有原则约束的代码，每次变化都要「砸墙改承重结构」：牵一发动全身、回归全量、缺陷常新。设计原则教我们把<strong>稳定的部分</strong>和<strong>易变的部分</strong>分开，让变化以「新增」而不是「修改」的方式发生。</p>
+      <h3>核心机制：七大原则，每条一句话 + 一个反例</h3>
+      <table class="tbl">
+        <tr><th>原则</th><th>一句话</th><th>反例（违反现场）</th></tr>
+        <tr><td><b>开闭原则</b>（OCP，总纲）</td><td>对扩展开放、对修改关闭：加功能靠新增代码，不靠改老代码</td><td>每新增一种会员价，就到 8 处 if-else 里各塞一个分支</td></tr>
+        <tr><td><b>单一职责</b>（SRP）</td><td>一个类只有一个让它变化的原因</td><td>UserService 同时干登录校验、报表导出、发短信三件事</td></tr>
+        <tr><td><b>里氏替换</b>（LSP）</td><td>任何父类出现的地方，子类换上去行为必须依然正确</td><td>正方形继承长方形后，setWidth 把高度也改了，调用方结果错乱</td></tr>
+        <tr><td><b>依赖倒置</b>（DIP）</td><td>面向接口（抽象）编程，高层不依赖低层细节</td><td>业务层直接 new 具体数据库驱动类，换库就要改业务代码</td></tr>
+        <tr><td><b>接口隔离</b>（ISP）</td><td>不强迫客户依赖它用不到的方法</td><td>「多功能设备」胖接口逼打印机空实现 scan() 和 fax()</td></tr>
+        <tr><td><b>迪米特法则</b>（LoD，最少知识）</td><td>只和直接朋友说话，不 strangers 的方法一路调到底</td><td>a.getB().getC().getD().do() 一路钻进别人家里办事</td></tr>
+        <tr><td><b>合成复用</b>（CRP）</td><td>多用组合/聚合，少用继承来复用代码</td><td>为了复用 log() 方法，订单类去继承日志工具类</td></tr>
+      </table>
+      <h3>关键细节 1：GoF 23 模式三分类名单（必背）</h3>
+      <table class="tbl">
+        <tr><th>柜子</th><th>管什么</th><th>名单（23 个）</th></tr>
+        <tr><td><b>创建型（5）</b></td><td>对象<strong>怎么造</strong>（把 new 收归工厂）</td><td>工厂方法、抽象工厂、单例、建造者、原型</td></tr>
+        <tr><td><b>结构型（7）</b></td><td>类与对象<strong>怎么拼</strong>（组成更大结构）</td><td>适配器、装饰器、代理、外观、桥接、组合、享元</td></tr>
+        <tr><td><b>行为型（11）</b></td><td>对象之间<strong>怎么协作、职责怎么分</strong></td><td>观察者、模板方法、策略、职责链、状态、迭代器、命令、备忘录、访问者、中介者、解释器</td></tr>
+      </table>
+      <p>记忆锚点：5+7+11=23。创建管「生」，结构管「拼」，行为管「处」。</p>
+      <h3>关键细节 2：架构风格 vs 架构模式 vs 设计模式 vs 惯用法（高频层级表）</h3>
+      <table class="tbl">
+        <tr><th>层级</th><th>作用尺度</th><th>例子</th></tr>
+        <tr><td><b>架构风格</b></td><td>整个系统的拓扑套路（最大）</td><td>分层、管道-过滤器、事件驱动、C/S</td></tr>
+        <tr><td><b>架构模式</b></td><td>子系统级构件组织方案</td><td>MVC（POSA 口径称架构模式；教材常在「风格」章讲，见 36 页，答题以题面口径为准）</td></tr>
+        <tr><td><b>设计模式</b></td><td>类与对象一级（GoF 23）</td><td>单例、工厂方法、观察者</td></tr>
+        <tr><td><b>惯用法</b></td><td>具体语言级写法（最小）</td><td>驼峰命名、getters/setters 约定</td></tr>
+      </table>
+      <p><b>三类简化 UML 骨架图</b>（后续三页所有模式类图都长这样，先混个脸熟——空心三角箭头=泛化/实现（指向父或接口），空心菱形=聚合（菱形在「整体」一端））：</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin:10px 0">
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="依赖倒置类图">
+            <rect x="12" y="16" width="116" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="70" y="34" text-anchor="middle" font-size="12" fill="var(--text)">高层业务模块</text>
+            <line x1="12" y1="41" x2="128" y2="41" stroke="var(--line)"/>
+            <text x="70" y="58" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 下单()</text>
+            <line x1="128" y1="42" x2="226" y2="42" stroke="var(--text)" stroke-dasharray="5 4"/>
+            <polyline points="226,42 217,38 226,42 217,46" fill="none" stroke="var(--text)"/>
+            <text x="176" y="34" text-anchor="middle" font-size="10" fill="var(--text-dim)">依赖抽象</text>
+            <rect x="228" y="16" width="120" height="56" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="288" y="32" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="288" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">计费接口</text>
+            <line x1="228" y1="54" x2="348" y2="54" stroke="var(--line)"/>
+            <text x="288" y="68" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ calc()</text>
+            <polygon points="288,72 278,90 298,90" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="278" y1="90" x2="170" y2="158" stroke="var(--text)"/>
+            <line x1="298" y1="90" x2="310" y2="158" stroke="var(--text)"/>
+            <rect x="110" y="158" width="120" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="170" y="176" text-anchor="middle" font-size="12" fill="var(--text)">微信计费实现</text>
+            <line x1="110" y1="183" x2="230" y2="183" stroke="var(--line)"/>
+            <text x="170" y="200" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ calc()</text>
+            <rect x="250" y="158" width="104" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="302" y="176" text-anchor="middle" font-size="12" fill="var(--text)">联通计费实现</text>
+            <line x1="250" y1="183" x2="354" y2="183" stroke="var(--line)"/>
+            <text x="302" y="200" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ calc()</text>
+            <text x="180" y="230" text-anchor="middle" font-size="11" fill="var(--accent)">实现子类可无限新增——上层代码一行不改</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 A · 依赖倒置：高层只依赖接口，新实现即插即用</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="开闭骨架类图">
+            <rect x="14" y="20" width="112" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="70" y="38" text-anchor="middle" font-size="12" fill="var(--text)">结算上下文</text>
+            <line x1="14" y1="45" x2="126" y2="45" stroke="var(--line)"/>
+            <text x="70" y="62" text-anchor="middle" font-size="10" fill="var(--text-dim)">（稳定不动）</text>
+            <polygon points="126,46 138,39 150,46 138,53" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="150" y1="46" x2="224" y2="46" stroke="var(--text)"/>
+            <rect x="226" y="20" width="122" height="56" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>
+            <text x="287" y="36" text-anchor="middle" font-size="10" fill="var(--text-dim)">«interface»</text>
+            <text x="287" y="52" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--text)">计价策略</text>
+            <line x1="226" y1="58" x2="348" y2="58" stroke="var(--line)"/>
+            <text x="287" y="72" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ price()</text>
+            <polygon points="286,68 276,86 296,86" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="276" y1="86" x2="170" y2="154" stroke="var(--text)"/>
+            <line x1="296" y1="86" x2="305" y2="154" stroke="var(--text)"/>
+            <rect x="108" y="154" width="124" height="44" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="170" y="172" text-anchor="middle" font-size="12" fill="var(--text)">策略 A（现有）</text>
+            <line x1="108" y1="179" x2="232" y2="179" stroke="var(--line)"/>
+            <text x="170" y="193" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ price()</text>
+            <rect x="246" y="154" width="108" height="44" rx="6" fill="var(--card)" stroke="var(--ok)"/>
+            <text x="300" y="172" text-anchor="middle" font-size="12" fill="var(--ok)">策略 B（后加）</text>
+            <line x1="246" y1="179" x2="354" y2="179" stroke="var(--ok)"/>
+            <text x="300" y="193" text-anchor="middle" font-size="10" fill="var(--ok)">+ price() 新增</text>
+            <text x="180" y="226" text-anchor="middle" font-size="11" fill="var(--accent)">B 是后来新增的：不碰上面两个框——开闭</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 B · 开闭骨架：抽象 + 多实现 + 聚合注入（菱形在整体端）</figcaption>
+        </figure>
+        <figure style="flex:1 1 300px;min-width:280px;margin:0">
+          <div class="demo-stage"><svg viewBox="0 0 360 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="合成复用对比类图">
+            <rect x="24" y="16" width="112" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="80" y="34" text-anchor="middle" font-size="12" fill="var(--text)">日志工具类</text>
+            <line x1="24" y1="41" x2="136" y2="41" stroke="var(--line)"/>
+            <text x="80" y="58" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ log()</text>
+            <polygon points="80,68 70,86 90,86" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <line x1="80" y1="86" x2="80" y2="150" stroke="var(--text)"/>
+            <rect x="24" y="150" width="112" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="80" y="168" text-anchor="middle" font-size="12" fill="var(--text)">订单服务</text>
+            <line x1="24" y1="175" x2="136" y2="175" stroke="var(--line)"/>
+            <text x="80" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 下单()</text>
+            <text x="86" y="122" text-anchor="start" font-size="13" fill="var(--bad)">✗ 继承复用</text>
+            <text x="80" y="222" text-anchor="middle" font-size="11" fill="var(--text-dim)">反例：为复用而继承（耦合死）</text>
+            <rect x="228" y="16" width="116" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="286" y="34" text-anchor="middle" font-size="12" fill="var(--text)">日志器</text>
+            <line x1="228" y1="41" x2="344" y2="41" stroke="var(--line)"/>
+            <text x="286" y="58" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ log()</text>
+            <line x1="286" y1="68" x2="286" y2="132" stroke="var(--text)"/>
+            <polygon points="286,132 294,141 286,150 278,141" fill="var(--bg-soft)" stroke="var(--text)"/>
+            <rect x="222" y="150" width="128" height="52" rx="6" fill="var(--card)" stroke="var(--line)"/>
+            <text x="286" y="168" text-anchor="middle" font-size="12" fill="var(--text)">订单服务</text>
+            <line x1="222" y1="175" x2="350" y2="175" stroke="var(--line)"/>
+            <text x="286" y="192" text-anchor="middle" font-size="10" fill="var(--text-dim)">+ 下单()</text>
+            <text x="292" y="112" text-anchor="start" font-size="13" fill="var(--ok)">✓ 组合复用</text>
+            <text x="286" y="222" text-anchor="middle" font-size="11" fill="var(--text-dim)">正例：聚合持有，可换实现</text>
+          </svg></div>
+          <figcaption class="kf-caption">图 C · 合成复用：要 log() 的能力，聚合它而不是继承它</figcaption>
+        </figure>
+      </div>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①开闭 ≠ 绝对不许修改：bug 该修还得修，它约束的是「<strong>新增功能</strong>尽量不动老代码」；②里氏替换 ≠ 「子类不能加方法」——它禁止的是<strong>加强前置条件、削弱后置条件</strong>（父类约定好输入 1~100 都能算对，子类却对某区间抛异常）；③七大原则之间会互相牵制（如单一职责拆太碎会违反接口隔离的「小而专」初衷），按场景<strong>权衡</strong>，原则是方向不是法律；④高频层级混淆：把「单例模式」说成架构风格、把「分层风格」说成设计模式——按作用尺度对号入座；⑤「简单工厂」常被顺带提及但<strong>不属于 GoF 23 个模式</strong>，可视为工厂方法的简写形态。</div>
+      <div class="callout"><span class="t">🔤 专业英语小贴士</span>Open-Closed Principle（开闭原则）· Liskov Substitution Principle（里氏替换原则）· design pattern（设计模式）。英语题常用句式：The open-closed principle requires software entities to be open for extension but closed for modification.</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>本域的分区是 <b>📐 标准图纸馆</b>：馆里最前面一排柜子放「<strong>总设计规范</strong>」——七大原则（开闭那条贴在柜顶，是总纲）；往里 23 张「<strong>定型设计图</strong>」分装三个抽屉（创建/结构/行为）；再往里才是「<strong>施工口诀</strong>」（惯用法）。规范管「图该长什么样」，图管「具体这一类楼怎么盖」，口诀管「这颗螺丝怎么拧」——尺度逐级变小。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>馆前总设计规范</td><td>七大设计原则</td><td>成立</td></tr>
+      <tr><td>规范柜顶那条红字</td><td>开闭原则（总纲）</td><td>成立</td></tr>
+      <tr><td>三个抽屉的定型图集</td><td>GoF 23 三分类</td><td>成立</td></tr>
+      <tr><td>规范→图集→施工口诀</td><td>原则→模式→惯用法的层级</td><td>成立</td></tr>
+      <tr><td>拿着图集照抄一定能盖好楼</td><td>套模式必好</td><td><b>失效</b>：模式按「意图」选型，硬套会过度设计——图集要按地块（场景）选</td></tr>
+    </table>
+    <div class="rhyme">原则七条心莫慌，开闭总纲挂头行；<br>扩展开放修改关，单一职责一个岗；<br>里氏换父行不改，依赖接口不倚墙；<br>隔离胖口迪米特，组合复用少继承；<br>二十三图分三柜，创建结构行为清。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示开闭原则：播放看第 1~N 家运营商依次接入，左侧「if-else 老城」每接一家就砸墙改核心并全量回归，右侧「接口新城」只盖新楼、插上抽象接口；拖动滑块改变要接入的运营商总数。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>接入运营商数 <input type="range" id="n-slider" min="1" max="8" value="5"> <span id="n-out">5</span></label>
+      <span class="kf-caption">每多接一家：老城核心被多砸一次墙（风险叠加），新城核心依然是 0 次修改——差距随接入数线性拉大。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（判类·原则版）：这段代码违反了哪条设计原则？</h4>
+      <p class="foreshadow">先点一条「违规现场」，再点下方你判断的原则名；判错会指出你混淆在哪。</p>
+      <div id="lab1-pool"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn" data-p="ocp">开闭</button>
+        <button class="btn" data-p="srp">单一职责</button>
+        <button class="btn" data-p="lsp">里氏替换</button>
+        <button class="btn" data-p="dip">依赖倒置</button>
+        <button class="btn" data-p="isp">接口隔离</button>
+        <button class="btn" data-p="lod">迪米特</button>
+        <button class="btn" data-p="crp">合成复用</button>
+      </div>
+      <button class="btn" id="lab1-reset">重置</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽归类）：把 9 张模式卡放进正确的柜子</h4>
+      <p class="foreshadow">把下方卡片拖进三个柜子：创建型管「怎么造」、结构型管「怎么拼」、行为型管「怎么协作」。放错会告诉你该模式的意图。</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 120px"><div class="drag-slot" id="lab2-slot-create" data-cat="create"><b>创建型柜</b></div></div>
+        <div style="flex:1 1 120px"><div class="drag-slot" id="lab2-slot-structure" data-cat="structure"><b>结构型柜</b></div></div>
+        <div style="flex:1 1 120px"><div class="drag-slot" id="lab2-slot-behavior" data-cat="behavior"><b>行为型柜</b></div></div>
+      </div>
+      <div id="lab2-pool" style="min-height:50px;margin-top:6px"></div>
+      <button class="btn" id="lab2-check">检查归类</button>
+      <button class="btn" id="lab2-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：按「解决问题尺度」从大到小排</h4>
+      <p class="foreshadow">架构风格 &gt; 架构模式 &gt; 设计模式 &gt; 惯用法——把四张卡按尺度从大到小拖入槽中：</p>
+      <div id="lab3-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="lab3-slot"></div>
+      <button class="btn" id="lab3-check">检查顺序</button>
+      <button class="btn" id="lab3-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 2 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念（开闭原则）：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>29 · 面向对象基础 给了模式的「语法」：封装让细节可藏、继承让结构可复用、<strong>多态让「同一接口不同实现」在运行时可换</strong>——没有多态，开闭原则只是口号；本页把 29 页的「会用」升级为「设计纪律」。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>47/48/49 三页把 23 张图按「创建/结构/行为」三个抽屉逐一展开，判题口诀都在本页奠定；</li><li>当协作尺度从「类与对象」上升到「构件与子系统」，设计模式就长成了 34~40 页的架构风格与微服务——层级表就是那张地图；</li><li>开闭、依赖倒置也是 38 页「微服务接口契约」与 43 页「可修改性战术」的类级投影。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>设计原则</th><th>设计模式</th></tr>
+      <tr><td>差异点</td><td>目标与评价标准：「代码该往哪儿靠」（如开闭）</td><td>可复用的具体解法：「这一类问题就这么协作」（如观察者）</td></tr>
+      <tr><td>易错点</td><td>以为背熟原则就够——原则不给实现步骤</td><td>以为硬套模式就设计好——脱离意图的套用是过度设计</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">原则是「宪法」，模式是「按宪法写好的判例」；每个模式都能反推出它服务的原则（开闭是多数模式的总纲）。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——图纸馆门口贴着一条总规矩：想加新东西，别拆旧房子，直接在旁边盖新楼接上去……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 七大原则各记「一句话+反例」：开闭是总纲，其余六条（单一职责/里氏替换/依赖倒置/接口隔离/迪米特/合成复用）是它在不同侧面的展开。</li><li>② GoF 23 分三柜：创建 5（工厂方法/抽象工厂/单例/建造者/原型）、结构 7（适配器/装饰器/代理/外观/桥接/组合/享元）、行为 11（观察者/模板方法/策略/职责链/状态/迭代器/命令/备忘录/访问者/中介者/解释器）。</li><li>③ 层级别混：架构风格 &gt; 架构模式 &gt; 设计模式 &gt; 惯用法，按作用尺度从系统到代码逐级变小。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '46', domain: 'pt', loc: 'blueprint', root: '..',
+  title: '设计原则与GoF总览', prev: '45-arch-evolution.html', prevTitle: '45 · 架构演化与重构',
+  next: '47-creational.html', nextTitle: '47 · 创建型模式',
+  keywords: ['开闭原则', '单一职责', '里氏替换', '依赖倒置', '接口隔离', '迪米特法则', '合成复用', '设计模式']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 29） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·29】「同一个『计算()』消息，发给微信计费对象和联通计费对象，各自执行自己的版本」——这依赖面向对象的什么机制？',
+    opts: [
+      { t: '封装', why: '封装是藏细节，管的是「看不见」，不管「各干各的」。' },
+      { t: '多态', why: '对。同一接口、不同实现对象、各自行为——多态是开闭原则能落地的语言基础，本页马上到处用它。' },
+      { t: '继承', why: '继承只是让子类拿到父类的结构，静态绑定下换不了行为。' },
+      { t: '重载', why: '重载是同一个类里同名不同参，编译期就定死，不是运行时替换。' }
+    ],
+    ans: 1, tag: '回忆:29', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '关于开闭原则（OCP），下列说法最准确的是？',
+      opts: [
+        { t: '代码一旦写完就一个字都不能改', why: '绝对化了：修 bug、重构内部实现都允许；它约束的是「新增功能尽量不动老代码」。' },
+        { t: '对扩展开放、对修改关闭：新增功能靠新增代码实现', why: '对。变化以「新增类/模块」发生，稳定核心不被反复打开，这就是 23 个模式的共同目标。' },
+        { t: '所有功能都要预留配置项，把变化全塞进配置文件', why: '配置化只是手段之一，滥用会造出「配置地狱」，且复杂逻辑仍需抽象。' },
+        { t: '开闭原则只适用于新建系统，老系统不适用', why: '老系统恰恰最需要：重构就是朝着开闭方向逐步靠拢。' }
+      ],
+      ans: 1, tag: '开闭原则', src: '仿真题' },
+    { q: '「正方形类继承长方形类，重写 setWidth 时把 height 一并改掉，导致依赖长方形的算法算错面积」——这直接违反了哪条原则？',
+      opts: [
+        { t: '接口隔离', why: '接口隔离管「胖接口逼人空实现」，这里接口不胖，是行为被破坏。' },
+        { t: '迪米特法则', why: '迪米特管「不要跨层深挖别人的内部」，与继承行为无关。' },
+        { t: '里氏替换', why: '对。子类加强了约束（改宽必须改高），父类出现的地方换成子类行为不再正确——违反里氏替换；从建模上看「正方形 is-a 长方形」本就值得质疑。' },
+        { t: '单一职责', why: '单一职责管「一个类多个变化原因」，本题问题出在继承契约上。' }
+      ],
+      ans: 2, tag: '里氏替换', src: '仿真题' },
+    { q: '下列「知识点归位」正确的是？',
+      opts: [
+        { t: '单例模式属于架构风格层', why: '单例是类与对象一级的方案，属于设计模式层；架构风格管整个系统的拓扑。' },
+        { t: '驼峰命名属于设计模式层', why: '命名约定是语言级写法，属于惯用法层，尺度最小。' },
+        { t: '分层风格属于架构风格层、GoF 模式属于设计模式层', why: '对。按作用尺度：分层是全系统拓扑（风格层），GoF 23 是类与对象级（设计模式层）。' },
+        { t: '架构风格比设计模式的尺度更小', why: '方向反了：风格管整个系统的套路，尺度最大；设计模式只管类与对象，尺度更小。' }
+      ],
+      ans: 2, tag: '模式层级', src: '仿真题' },
+    { q: '【交错复习:29】依赖倒置、开闭等设计原则之所以能在面向对象语言中落地，最依赖的机制是？',
+      opts: [
+        { t: '多态：同一接口引用可在运行时指向不同实现', why: '对。29 页的动态多态让「依赖抽象、替换实现」真正可运行——没有多态，抽象接口只是注释。' },
+        { t: '递归调用', why: '递归是一种控制结构，与依赖方向无关。' },
+        { t: '指针运算', why: '底层机制，与设计原则的语义无关。' },
+        { t: '静态变量', why: '静态变量反而常造成全局耦合，与依赖倒置方向相反。' }
+      ],
+      ans: 0, tag: '交错复习:29', src: '仿真题' },
+    { q: '【交错复习:30】后续三页的模式类图会大量出现「空心三角箭头」。在 UML 类图中它表示？',
+      opts: [
+        { t: '聚合关系，箭头指向部分', why: '聚合用空心菱形（菱形在整体端），不用三角。' },
+        { t: '泛化/实现关系，箭头指向父类或接口', why: '对。30 页讲过：空心三角实线=泛化（继承），空心三角虚线=实现接口；方向都是「子指向父」。后续读模式类图全靠它。' },
+        { t: '依赖关系，箭头指向被依赖者', why: '依赖是虚线开箭头，不是三角。' },
+        { t: '组合关系，箭头指向整体', why: '组合是实心菱形，且菱形在整体端，与三角无关。' }
+      ],
+      ans: 1, tag: '交错复习:30', src: '仿真题' }
+  ], { kpId: '46', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '延续开场场景：车联网计费平台的核心结算类 3000 行，内部用 if-else 依次判断 12 家运营商并各自计价；同时它还负责话单解析、对账报表生成。每接一家新运营商需修改该类并全量回归 3 天，上个月因改漏分支导致错计费。',
+    q: '(1) 指出该设计至少违反的两条设计原则并逐条说明理由；(2) 给出重构后的类图要素（类/接口名、关系类型与箭头方向）；(3) 说明重构后如何满足开闭原则，并指出它与 43 页可修改性战术的对应关系。',
+    ref: '(1) 违反开闭原则：每新增一家运营商都要修改核心结算类（修改而非扩展）；违反单一职责：结算类同时承担路由判断、计价、话单解析、报表多种职责，任何一类变化都会动它；违反依赖倒置：高层结算逻辑直接依赖各运营商具体实现（if-else 硬编码）；违反合成复用：用硬编码分支而非组合抽象来复用（答两条以上即可）。(2) 类图要素：定义「计费接口」（抽象产品，含 calc() 方法）；每家运营商一个实现类（如微信计费实现、联通计费实现），用空心三角实线指向接口（实现/泛化关系）；「结算上下文」聚合接口（空心菱形在上下文一端，指向接口），只依赖抽象；可选配一个工厂/注册表负责创建实现。(3) 重构后新增运营商 = 新增一个实现类并注册，核心类零修改，回归范围缩到新类单元测试+冒烟——即对扩展开放、对修改关闭；对应 43 页可修改性战术中的「抽象（信息隐藏）、局部化修改、延迟绑定（运行时选择实现）」。',
+    points: ['至少两条原则判定准确且能结合材料说明违反现场', '类图要素完整：接口+多实现+三角箭头方向正确，上下文与接口为聚合/依赖关系', '能说清「新增即扩展、核心零修改」的开闭达成路径', '能对应 43 页可修改性战术（抽象/局部化修改/延迟绑定至少一条）'],
+    frame: '答题框架：原则判定（逐条：现象→违反了什么）→ 重构方案（抽象什么、谁依赖谁）→ 类图要素（接口/实现/三角/菱形方向）→ 开闭验证（新需求来了动哪不动哪）→ 与质量战术呼应。',
+    kpId: '46'
+  });
+  CX.renderCase('#case2', {
+    stem: '某团队编写《架构设计说明书》时，把「分层风格」「MVC」「单例模式」「数据库表命名规范」四项并列写在同一节，并论述：「我们系统最重要的设计模式是分层风格，同时遵守单例原则。」',
+    q: '(1) 指出该论述中的层级错误并重新归位；(2) 辨析论述中「单例模式」与「单例原则」的说法错误；(3) 论证「开闭原则是设计模式的總纲」。',
+    ref: '(1) 层级错误：四项尺度不同不能并列混排。归位：分层风格→架构风格层（系统拓扑）；MVC→架构模式（POSA 口径；教材常在风格章讲，答题按题面口径）；单例模式→设计模式层（类与对象级）；表命名规范→惯用法层（语言/规范级）。(2) 「单例原则」不存在——单例是创建型设计模式（保证一个类仅一个实例并提供全局访问点），不是七条设计原则之一；设计原则是开闭、单一职责、里氏替换、依赖倒置、接口隔离、迪米特、合成复用七条。(3) 论证：设计模式要解决的核心矛盾是「需求会变而代码要稳」，开闭原则给出的判据正是「扩展开放、修改关闭」——创建型把「造什么」的变化隔离在工厂子类，结构型把「怎么加功能/怎么兼容」做成包装而非改源码，行为型把「算法/状态/通知」抽象成可替换协作者，都是「新增而非修改」的具体化。故一般认为开闭是多数设计模式共同服务的总纲，其余原则是它的展开与保障。',
+    points: ['四项按风格/架构模式/设计模式/惯用法正确归位，且指出「并列混排」本身是层级错误', '辨析出「单例模式≠单例原则」：单例是创建型模式，七条原则中并无单例', '开闭总纲论证有逻辑链：变化与稳定的矛盾→扩展开放修改关闭→三类模式分别隔离哪类变化', '对 MVC 归属口径分歧有交代（答题以题面口径为准）'],
+    frame: '答题框架：先分层（尺度从大到小排队）→ 再纠错（术语逐个过筛：是原则还是模式）→ 后论证（原则与模式的关系：目标/评价标准 vs 可复用解法，总纲与具体化）。',
+    kpId: '46'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '换成网关场景：「新接入协议要求以插件形式注册进网关，内核代码不因新协议而修改，运行时按请求选择协议处理器」——这最直接体现了哪条原则？',
+    opts: [
+      { t: '迪米特法则', why: '迪米特管「少认识陌生人」，插件注册的核心诉求不是少认识谁。' },
+      { t: '开闭原则（依赖倒置作支撑）', why: '对。新协议=新增插件（扩展开放），内核零修改（修改关闭）；运行时可换实现靠面向接口的多态（依赖倒置）支撑。' },
+      { t: '单一职责', why: '单一职责管「一个类一个变化原因」，虽然内核保持单一职责有助益，但题干核心诉求是「不动内核加能力」。' },
+      { t: '接口隔离', why: '接口隔离管「别强迫实现用不到的方法」，题干没有胖接口场景。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '46', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['29'], 'prev');
+  CX.depChain('#bridge-next', ['47', '48', '49'], 'next');
+
+  /* ---- 动画：开闭原则对比 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var N = 5;
+  function draw(t) {
+    var k = Math.min(N, Math.floor(t * N + 1e-6));
+    var s = '<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 左：if-else 老城 */
+    s += '<text x="175" y="26" text-anchor="middle" font-size="14" fill="var(--text-dim)">老城：if-else 串成串（每接一家就砸墙）</text>';
+    s += '<rect x="112" y="58" width="126" height="140" rx="8" fill="var(--card)" stroke="var(--bad)" stroke-width="' + (k > 0 ? 3 : 1) + '"/>';
+    s += '<text x="175" y="120" text-anchor="middle" font-size="13" fill="var(--text)">核心结算类</text>';
+    s += '<text x="175" y="140" text-anchor="middle" font-size="10" fill="var(--text-dim)">if…else if…</text>';
+    for (var i = 0; i < k; i++) {
+      var yy = 62 + i * 17;
+      s += '<rect x="26" y="' + yy + '" width="78" height="14" rx="4" fill="var(--bad)" opacity=".8"/>';
+      s += '<text x="65" y="' + (yy + 11) + '" text-anchor="middle" font-size="9" fill="var(--bg)">运营商' + (i + 1) + '分支</text>';
+      s += '<line x1="104" y1="' + (yy + 7) + '" x2="112" y2="' + (yy + 7) + '" stroke="var(--bad)" stroke-width="2"/>';
+    }
+    if (k > 0) {
+      s += '<text x="175" y="216" text-anchor="middle" font-size="15" fill="var(--bad)">🔨 第 ' + k + ' 次砸墙改造</text>';
+    }
+    /* 右：接口新城 */
+    s += '<text x="520" y="26" text-anchor="middle" font-size="14" fill="var(--text-dim)">新城：抽象接口 + 新增实现（核心零修改）</text>';
+    s += '<rect x="390" y="58" width="260" height="26" rx="6" fill="var(--card)" stroke="var(--accent-2)"/>';
+    s += '<text x="520" y="76" text-anchor="middle" font-size="12" font-weight="bold" fill="var(--accent-2)">«interface» 计费接口（稳定）</text>';
+    for (var j = 0; j < k; j++) {
+      var bx = 392 + (j % 4) * 66, by = 128 + Math.floor(j / 4) * 0;
+      var byy = 128 + Math.floor(j / 4) * 44;
+      s += '<rect x="' + bx + '" y="' + byy + '" width="58" height="38" rx="5" fill="var(--card)" stroke="var(--ok)"/>';
+      s += '<text x="' + (bx + 29) + '" y="' + (byy + 23) + '" text-anchor="middle" font-size="10" fill="var(--ok)">运' + (j + 1) + '实现</text>';
+      s += '<line x1="' + (bx + 29) + '" y1="' + byy + '" x2="' + (bx + 29) + '" y2="84" stroke="var(--ok)" stroke-dasharray="3 3"/>';
+      s += '<polygon points="' + (bx + 29) + ',84 ' + (bx + 25) + ',92 ' + (bx + 33) + ',92" fill="var(--bg-soft)" stroke="var(--ok)"/>';
+    }
+    if (k > 0) s += '<text x="520" y="216" text-anchor="middle" font-size="15" fill="var(--ok)">🏗️ 盖新楼接入，核心 0 修改</text>';
+    /* 底部计数 */
+    s += '<line x1="20" y1="232" x2="680" y2="232" stroke="var(--line)"/>';
+    s += '<text x="350" y="258" text-anchor="middle" font-size="13" fill="var(--text)">核心类修改次数：老城 ' + k + ' 次 · 新城 0 次　|　新增文件：老城 0 · 新城 ' + k + '　|　回归范围：全量 vs 新类单元+冒烟</text>';
+    s += '<text x="350" y="282" text-anchor="middle" font-size="11" fill="var(--text-dim)">接入数越多，两条路线的维护成本差距越大——开闭原则是让变化「做加法」的纪律</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    CX.setCap('#demo1-ctl', k === 0
+      ? '初始布局：左边把 12 家运营商的分支全塞在一个类里；右边先立一根稳定的抽象接口主干道。'
+      : '第 ' + k + ' 家运营商接入：老城第 ' + k + ' 次砸墙改核心、全量回归；新城只新增一栋实现楼插上接口——对扩展开放、对修改关闭。');
+  }
+  var animObj = CX.makeAnim('#demo1-ctl', { steps: 8, duration: 10, onTick: draw });
+  var ns = CX.utils.$('n-slider');
+  ns.addEventListener('input', function () { N = +ns.value; CX.utils.$('n-out').textContent = N; draw(animObj.t || 0); });
+
+  /* ---- 实验一：原则判类 ---- */
+  var M1 = [
+    { t: '报表类既负责取数、又负责渲染 Excel、还负责发邮件', k: 'srp', why: '单一职责：一个类有多个变化原因（取数变/格式变/渠道变都动它）。' },
+    { t: '每新增一种会员价，就要到 8 个 if-else 里各改一处', k: 'ocp', why: '开闭原则：加功能应新增实现类，而不是反复打开核心改分支。' },
+    { t: '业务层直接 new 了 Oracle 驱动类，换数据库要改业务代码', k: 'dip', why: '依赖倒置：高层应依赖抽象（DAO 接口），不依赖具体实现。' },
+    { t: '正方形继承长方形，setWidth 时把 height 一起改了，调用方算错面积', k: 'lsp', why: '里氏替换：子类替换父类后行为不再正确（加强了前置约束）。' },
+    { t: '为了复用 log() 方法，订单类去继承日志工具类', k: 'crp', why: '合成复用：要能力就聚合它（持有一个 Logger），别为复用而继承。' },
+    { t: 'a.getB().getC().getD().do() 一路钻进别人的内部链路办事', k: 'lod', why: '迪米特：只和直接朋友说话，减少对陌生对象内部结构的了解。' },
+    { t: '「多功能设备」胖接口逼普通打印机空实现 scan() 和 fax()', k: 'isp', why: '接口隔离：别强迫客户依赖用不到的方法，按角色拆小接口。' }
+  ];
+  var m1Sel = null, m1Correct = 0, m1Done = 0;
+  var m1Pool = CX.utils.$('lab1-pool');
+  M1.forEach(function (item) {
+    var d = document.createElement('div');
+    d.className = 'drag-item match-opt'; d.textContent = item.t; d.style.cursor = 'pointer';
+    d.addEventListener('click', function () {
+      if (d.dataset.done) return;
+      CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); });
+      d.classList.add('sel'); m1Sel = d;
+      fb1('已选这条「违规现场」，点下方原则名作答。');
+    });
+    m1Pool.appendChild(d);
+  });
+  function fb1(msg, cls) { var f = CX.utils.$('lab1-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$$('.lab button[data-p]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!m1Sel) { fb1('先点选一条「违规现场」。', 'bad'); return; }
+      var item = null;
+      M1.forEach(function (x) { if (x.t === m1Sel.textContent) item = x; });
+      m1Done++;
+      if (btn.getAttribute('data-p') === item.k) {
+        m1Correct++;
+        m1Sel.style.borderColor = 'var(--ok)'; m1Sel.style.opacity = .5;
+        m1Sel.classList.remove('sel'); m1Sel.dataset.done = '1'; m1Sel = null;
+        fb1('✅ 正确：' + item.why + '（' + m1Correct + '/' + m1Done + '）', 'ok');
+      } else {
+        fb1('❌ 判错了。你选的是「' + btn.textContent + '」，但这题错在：' + item.why + ' 判别口诀：加功能动老码=开闭；多件事一锅炖=单一职责；写死实现=依赖倒置；换子出错=里氏；为复用而继承=合成；链式深挖=迪米特；胖接口空实现=隔离。', 'bad');
+        m1Sel.classList.remove('sel'); m1Sel = null;
+      }
+      if (m1Correct === M1.length) fb1('✅ 7 条全对！七条原则各认得一张「违规现场」照片，考试就是拿现场考你原则名。', 'ok');
+    });
+  });
+  CX.utils.$('lab1-reset').addEventListener('click', function () {
+    m1Correct = 0; m1Done = 0; m1Sel = null;
+    CX.utils.$$('.match-opt', m1Pool).forEach(function (x) { x.classList.remove('sel'); x.style.borderColor = ''; x.style.opacity = ''; delete x.dataset.done; });
+    fb1('已重置。', '');
+  });
+
+  /* ---- 实验二：三分类拖拽 ---- */
+  var L2 = [
+    { t: '工厂方法', c: 'create', why: '管「对象由哪个子类造」——创建型。' },
+    { t: '单例', c: 'create', why: '管「全局只有一份实例」——创建型。' },
+    { t: '建造者', c: 'create', why: '管「分步组装复杂对象」——创建型。' },
+    { t: '适配器', c: 'structure', why: '管「转换不兼容接口」——结构型。' },
+    { t: '装饰器', c: 'structure', why: '管「同接口层层加功能」——结构型。' },
+    { t: '代理', c: 'structure', why: '管「控制对对象的访问」——结构型。' },
+    { t: '观察者', c: 'behavior', why: '管「一对多状态通知」——行为型。' },
+    { t: '策略', c: 'behavior', why: '管「算法可整体替换」——行为型。' },
+    { t: '责任链', c: 'behavior', why: '管「请求沿链传递找人处理」——行为型。' }
+  ];
+  var l2Pool = CX.utils.$('lab2-pool');
+  CX.shuffle(L2.map(function (x, i) { return { t: x.t, c: x.c }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    l2Pool.appendChild(d);
+  });
+  ['create', 'structure', 'behavior'].forEach(function (cat) {
+    var slot = CX.utils.$('lab2-slot-' + cat);
+    slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+    slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+    slot.addEventListener('drop', function (e) {
+      e.preventDefault(); slot.classList.remove('hot');
+      var t = e.dataTransfer.getData('text');
+      var src = l2Pool.querySelector('[data-t="' + t + '"]') || document.querySelector('.drag-slot [data-t="' + t + '"]');
+      if (src) slot.appendChild(src);
+    });
+  });
+  function fb2(msg, cls) { var f = CX.utils.$('lab2-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('lab2-check').addEventListener('click', function () {
+    var placed = 0, wrong = null;
+    ['create', 'structure', 'behavior'].forEach(function (cat) {
+      var slot = CX.utils.$('lab2-slot-' + cat);
+      Array.prototype.forEach.call(slot.querySelectorAll('.drag-item'), function (c) {
+        placed++;
+        if (!wrong && L2.filter(function (x) { return x.t === c.dataset.t; })[0].c !== cat) wrong = c;
+      });
+    });
+    if (placed < L2.length) { fb2('还有 ' + (L2.length - placed) + ' 张卡片没入柜。', 'bad'); return; }
+    if (wrong) {
+      var it = L2.filter(function (x) { return x.t === wrong.dataset.t; })[0];
+      fb2('❌ 「' + wrong.dataset.t + '」放错柜了：' + it.why + ' 判柜口诀：生=创建、拼=结构、处=行为。把卡片拖回正确柜子。', 'bad');
+      return;
+    }
+    fb2('✅ 9 张全对！记住三柜口诀：创建管生（工厂/单例/建造者…），结构管拼（适配/装饰/代理…），行为管处（观察/策略/责任链…）。', 'ok');
+  });
+  CX.utils.$('lab2-reset').addEventListener('click', function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.drag-slot .drag-item'), function (c) { l2Pool.appendChild(c); });
+    fb2('已重置。', '');
+  });
+
+  /* ---- 实验三：层级排序 ---- */
+  var L3_ORDER = [
+    '架构风格：分层风格（全系统拓扑）',
+    '架构模式：MVC（子系统级构件组织）',
+    '设计模式：单例（类与对象级）',
+    '惯用法：驼峰命名（语言级写法）'
+  ];
+  var l3Pool = CX.utils.$('lab3-pool'), l3Slot = CX.utils.$('lab3-slot');
+  CX.shuffle(L3_ORDER.slice()).forEach(function (txt) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = txt; d.dataset.t = txt;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', txt); });
+    l3Pool.appendChild(d);
+  });
+  l3Slot.addEventListener('dragover', function (e) { e.preventDefault(); l3Slot.classList.add('hot'); });
+  l3Slot.addEventListener('dragleave', function () { l3Slot.classList.remove('hot'); });
+  l3Slot.addEventListener('drop', function (e) {
+    e.preventDefault(); l3Slot.classList.remove('hot');
+    var txt = e.dataTransfer.getData('text');
+    var src = l3Pool.querySelector('[data-t="' + txt + '"]') || l3Slot.querySelector('[data-t="' + txt + '"]');
+    if (src) l3Slot.appendChild(src);
+  });
+  function fb3(msg, cls) { var f = CX.utils.$('lab3-fb'); f.textContent = msg; f.className = 'lab-feedback ' + (cls || ''); }
+  CX.utils.$('lab3-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(l3Slot.children, function (c) { return c.dataset.t; });
+    if (got.length < L3_ORDER.length) { fb3('还有 ' + (L3_ORDER.length - got.length) + ' 张卡片没拖进槽。', 'bad'); return; }
+    for (var i = 0; i < L3_ORDER.length; i++) {
+      if (got[i] !== L3_ORDER[i]) {
+        fb3('第 ' + (i + 1) + ' 位错了：你放了「' + got[i] + '」。判尺子：管整座城怎么分区（风格）＞ 管一个片区怎么组织（架构模式）＞ 管一栋楼的户型（设计模式）＞ 管一块砖怎么砌（惯用法）。', 'bad');
+        return;
+      }
+    }
+    fb3('✅ 顺序正确：架构风格 ＞ 架构模式 ＞ 设计模式 ＞ 惯用法。注意 MVC 的归属有教材口径分歧（36 页按考试常见口径放在风格章讲），考试以题面口径为准。', 'ok');
+  });
+  CX.utils.$('lab3-reset').addEventListener('click', function () {
+    Array.prototype.slice.call(l3Slot.children).forEach(function (c) { l3Pool.appendChild(c); });
+    fb3('已重置。', '');
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

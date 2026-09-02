@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>56 · 进度管理与关键路径 · 架构师学堂</title>
+<meta name="description" content="关键路径是最长的工期主线，它上的活一天都延误不得，总时差为零；正推取大、反推取小。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">项目管理与管理数学</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="55-pm-framework.html">前置 55</a></span>
+    <h1>56 · 进度管理与关键路径</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">关键路径是最长的工期主线，总时差为零，一天都延误不得。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>智慧园区项目要上线，领导问项目经理：「还能再快两周吗？」项目经理看了一下计划：文档编写（不在关键路径上，还剩 5 天机动）和核心链路开发（关键路径，0 机动）并行。他让全组加班<strong>把文档提前写完</strong>，两周后总工期纹丝不动，领导很生气。<b>为什么拼命干完一件事，工期却一天没提前？要提前工期该动哪条线？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>因为文档编写<strong>不在关键路径上</strong>。决定总工期的只有关键路径——从开工到竣工<strong>最长</strong>的那条活动链，它上面的活动<strong>总时差为 0</strong>（没有一天机动）。非关键活动再快，省下的时间只是白还回去的机动，总工期一毫米不动。要压缩工期只有三个杠杆：<strong>赶工</strong>（加资源，花钱换时间，必须压在关键活动上）、<strong>快速跟进</strong>（本来串行的活动改并行，代价是返工风险）、<strong>改范围/改逻辑</strong>。而且压完要重新算网络图——关键路径可能「搬家」（本页动画滑块能亲眼看到搬家瞬间）。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>55 · 项目管理框架</b>——进度管理就是指挥部里那本「工期主线」台账：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>网络图</strong>把项目拆成活动并画上先后关系，是进度计划的数学模型。两种画法：<strong>双代号（箭线图 AoA）</strong>——箭线表示活动、节点是事件，虚箭线「虚活动」只表示逻辑不占时间；<strong>单代号（节点图 AoN）</strong>——框表示活动、箭线只表示紧前关系（考试案例题最常用，本页动画即单代号）。画好图后用<strong>正推、反推</strong>两趟算出每个活动的时间参数。</p>
+      <h3>解决什么问题</h3>
+      <p>几十个活动互相咬合，哪个活动延误才真正耽误交期？哪里有富余人力可抽调？工期要压缩时钱花在刀刃上？——靠拍脑袋必错，靠算<strong>时间参数</strong>就一目了然。</p>
+      <h3>核心机制</h3>
+      <p><strong>正推法（从左到右，求最早）</strong>：活动 ES = 各紧前活动 EF 的<strong>最大值</strong>（多个紧前取大——最慢的干完你才能开工）；EF = ES + 工期。起点活动 ES=0。<strong>总工期 = 所有活动 EF 的最大值</strong>。<br>
+      <strong>反推法（从右到左，求最迟）</strong>：终点活动 LF = 总工期；活动 LF = 各紧后活动 LS 的<strong>最小值</strong>（多个紧后取小——最急的下游在等你）；LS = LF − 工期。</p>
+      <p>每个活动六个数，常画成框里的两行三列（六时标注法）：</p>
+      <table class="tbl">
+        <tr><th colspan="3" style="text-align:center">单代号节点六时标注</th></tr>
+        <tr><td>最早开始 ES</td><td>工期 d</td><td>最早完成 EF</td></tr>
+        <tr><td>最迟开始 LS</td><td>总时差 TF</td><td>最迟完成 LF</td></tr>
+      </table>
+      <h3>关键细节</h3>
+      <p><strong>关键路径 = 从起点到终点最长的那条路 = 总时差为 0 的活动连成的路线</strong>。三条铁律：①关键路径是<strong>最长</strong>路径（工期最长，不是活动个数最多）；②关键活动<strong>总时差为 0</strong>，延误一天总工期就延一天；③关键路径可能不止一条，且压缩后可能<strong>转移</strong>。</p>
+      <table class="tbl">
+        <tr><th></th><th>总时差 TF</th><th>自由时差 FF</th></tr>
+        <tr><td>定义</td><td>LS − ES（= LF − EF），不影响<strong>总工期</strong>的最大机动</td><td>不影响<strong>紧后活动最早开始</strong>的最大机动 = min(紧后ES) − EF</td></tr>
+        <tr><td>取值关系</td><td>对关键活动为 0</td><td>FF ≤ TF，恒成立</td></tr>
+        <tr><td>用掉的影响</td><td>用满则本活动变「新关键」，总工期逼近延长</td><td>用满不影响总工期，但下游全部顺延</td></tr>
+        <tr><td>记忆锚</td><td>「总」是对全项目负责</td><td>「自由」是只管自己不拖累下游</td></tr>
+      </table>
+      <p><strong>完整算例</strong>（本页动画同款）：A(2) 无紧前；B(4)、C(3) 紧前 A；D(3) 紧前 B；E(5) 紧前 C；F(2) 紧前 D、E；G(4) 紧前 D。正推：A 0→2；B 2→6；C 2→5；D 6→9；E 5→10；F max(9,10)=10→12；G 9→13。<strong>总工期 13</strong>。反推：G 9←13；F 11←13；E 6←11；D LF=min(9,11)=9→LS 6；C 3←6；B 2←6；A 0←2。TF：A/B/D/G=0，C/E/F=1。<strong>关键路径 A→B→D→G（2+4+3+4=13 天）</strong>。看活动 C：TF=1 但 FF=ES(E)−EF(C)=5−5=<strong>0</strong>——总时差不等于自由时差的活教材。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①总时差 = <strong>LS − ES</strong>（不是 LS − LF，也不是 EF − ES），公式写错整题全崩；②关键活动总时差必为 0，但<strong>总时差为 0 才是判定标准</strong>，「看起来工期长」的活动不在最长链上就不是关键活动；③自由时差 ≤ 总时差，两者经常不相等——别拿 FF 当 TF 答「不影响总工期」的题；④正推多紧前<strong>取大</strong>、反推多紧后<strong>取小</strong>，方向记反必错；⑤虚活动（双代号虚箭线）不耗时间资源，画时间参数时工期按 0；⑥压缩工期先压<strong>关键活动</strong>，且每压一步重算关键路径。</div>
+      <h3>专业英语小贴士</h3>
+      <p>critical path（关键路径）；total float（总时差）；free float（自由时差）；forward pass / backward pass（正推法 / 反推法）；activity-on-node（单代号网络图）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>指挥部里管进度的台账就是<strong>工期主线</strong>：把一栋楼的施工想成一桌年夜饭——<strong>炖汤</strong>要先泡发香菇再慢炖 90 分钟，<strong>炒菜</strong> 45 分钟就够，两件事可以并行。开饭时间由最慢的那条线（泡发→炖汤）决定，它就是<strong>关键路径</strong>：炖汤拖 10 分钟开饭就晚 10 分钟（总时差 0）；炒菜可以晚开 45 分钟也不误开饭（总时差 45），但如果炒菜要等炖好的汤吊味（紧后依赖），它真正「自由」的余量可能只有几分钟（自由时差小）。类比的失效边界：现实中厨师可以给炒菜加人手并行加速，网络图里活动工期是给定的——「加资源缩短工期」是赶工，要重新画图重算。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>开饭时间由最慢一条线决定</td><td>关键路径决定总工期</td><td>成立</td></tr>
+      <tr><td>炖汤线一分钟都拖不起</td><td>关键活动总时差 0</td><td>成立</td></tr>
+      <tr><td>炒菜晚开也不误开饭</td><td>非关键活动有时差</td><td>成立（限总时差以内）</td></tr>
+      <tr><td>菜越多饭越晚</td><td>活动多的路径是关键路径</td><td><b>失效</b>：看工期长短，不看活动个数</td></tr>
+      <tr><td>让炒菜提前 30 分钟，开饭提前 30 分钟</td><td>压非关键活动缩总工期</td><td><b>失效</b>：非关键活动压缩不缩总工期</td></tr>
+    </table>
+    <div class="rhyme">正推取大往前算，反推取小往回还；<br>最迟最早一相减，总时差到手中间；<br>零差连串关键线，最长那条定终天；<br>自由时差管下游，别拿它把总期安。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画把 7 活动网络图<strong>完整算一遍</strong>：正推逐个填 ES/EF → 定总工期 → 反推逐个填 LS/LF → 算总时差、点亮红色关键路径。拖动「活动 C 工期」滑块，亲眼看关键路径<strong>搬家</strong>的瞬间。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>活动 C 工期 <input type="range" id="c-slider" min="1" max="8" step="1" value="3"> <span id="c-out">3 天</span></label>
+      <span class="kf-caption" id="c-cap">C=3 天：关键路径 A→B→D→G，总工期 13 天。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+    <p class="foreshadow">节点框内：上排 ES｜工期｜EF，下排 LS｜总时差｜LF。「·」表示该格尚未推出。</p>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（点选挑战）：找出这张网络图的关键路径</h4>
+      <p class="foreshadow">网络：A(2) 无紧前；B(4)、C(7) 紧前 A；D(3) 紧前 B；E(1) 紧前 C；F(2) 紧前 D、E。<b>点击你认为是关键活动的牌子（可多选），再点检查。</b></p>
+      <div id="cp-btns"></div>
+      <button class="btn" id="cp-check">检查我的关键路径</button>
+      <button class="btn" id="cp-reset">重选</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：排好 CPM 的完整计算流程</h4>
+      <p class="foreshadow">把卡片拖进槽，排出求关键路径的正确步骤：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（压缩决策）：花最少的钱把总工期从 13 天压到 11 天</h4>
+      <p class="foreshadow">用动画那张网络图（A2 B4 C3 D3 E5 F2 G4，当前关键路径 A→B→D→G）。点「−1天」按钮压缩活动，每张按钮标注了压缩单价与限量。目标：总工期 ≤ 11 天且总费用最少。压错会白花钱——系统会指出你错在哪一步。</p>
+      <div id="crash-btns"></div>
+      <p class="foreshadow" id="crash-status">已花费用：0 千元｜当前总工期：13 天｜当前关键路径：A→B→D→G</p>
+      <button class="btn" id="crash-check">提交压缩方案</button>
+      <button class="btn" id="crash-reset">恢复原图</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 3、4 题为先前知识点交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>55 · 项目管理框架给出了进度管理这本「工期主线」台账在全局的位置；本页把台账变成可计算的数学模型。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>工期线上每项活动都有预算，预算执行得好不好，<b>57 · 挣值分析</b>用三个数给你算清楚；</li><li>「工期压缩要花钱、花钱要选最省」的权衡思想，<b>58 · 管理科学与决策分析</b>的线性规划/决策树是它的数学升级版。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>总时差 TF</th><th>自由时差 FF</th></tr>
+      <tr><td>差异点</td><td>不影响<strong>总工期</strong>的机动（对全项目负责）</td><td>不影响<strong>紧后活动最早开始</strong>的机动（只对下游负责）</td></tr>
+      <tr><td>易错点</td><td>公式记成 EF−ES（那是工期）或以为 TF=FF；用 FF 判断「不影响总工期」虽然常常碰巧对，但判定依据是 TF</td><td>以为「不影响总工期」就是 FF；FF ≤ TF，用尽 FF 可能仍占用 TF 拖延总工期</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">TF 答「误不误交期」，FF 答「拖不拖下游」；算例中的活动 C：TF=1、FF=0——拖一天不误交期，但下游 E 必须等它。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——做年夜饭的时候，最慢的那道菜决定几点开饭……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 正推取大求最早（ES/EF），反推取小求最迟（LS/LF），总工期 = 最大 EF。</li>
+    <li>② 关键路径 = 最长路径 = 总时差为 0 的活动链；总时差 = LS−ES，自由时差 = min(紧后ES)−EF，FF ≤ TF。</li>
+    <li>③ 压缩工期只认关键路径：赶工/快速跟进都压在关键活动上，且每压一步重算——关键路径会搬家。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '56', domain: 'pm', loc: 'command', root: '..',
+  title: '进度管理与关键路径',
+  prev: '55-pm-framework.html', prevTitle: '55 · 项目管理框架',
+  next: '57-earned-value.html', nextTitle: '57 · 成本估算与挣值分析',
+  keywords: ['关键路径', '总时差', '自由时差', '最早开始时间', '最迟开始时间', '正推法', '反推法', '总工期']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ================= CPM 引擎（动画与实验三共用） ================= */
+  function calc(list) {
+    var byId = {}; list.forEach(function (a) { byId[a.id] = a; });
+    list.forEach(function (a) {
+      var es = 0;
+      a.preds.forEach(function (p) { es = Math.max(es, byId[p].es + byId[p].dur); });
+      a.es = es; a.ef = es + a.dur;
+    });
+    var T = 0; list.forEach(function (a) { T = Math.max(T, a.ef); });
+    for (var i = list.length - 1; i >= 0; i--) {
+      var a = list[i], lf = T;
+      list.forEach(function (s) { if (s.preds.indexOf(a.id) >= 0) lf = Math.min(lf, s.ls); });
+      a.lf = lf; a.ls = lf - a.dur;
+      a.tf = a.ls - a.es;
+      var ff = T;
+      list.forEach(function (s) { if (s.preds.indexOf(a.id) >= 0) ff = Math.min(ff, s.es); });
+      a.ff = ff - a.ef;
+      a.cp = a.tf === 0;
+    }
+    return T;
+  }
+  function edgeSVG(a, b, hot) {
+    var x1 = a.x + 55, y1 = a.y, x2 = b.x - 55, y2 = b.y;
+    var ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+    var col = hot ? 'var(--bad)' : 'var(--line)';
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + (x2 - 5) + '" y2="' + y2 + '" stroke="' + col + '" stroke-width="' + (hot ? 3.5 : 2) + '"/>' +
+      '<polygon points="0,-5 9,0 0,5" fill="' + col + '" transform="translate(' + x2 + ',' + y2 + ') rotate(' + ang.toFixed(1) + ')"/>';
+  }
+  function nodeSVG(a, v) {
+    var w = 110, h = 58, x0 = a.x - w / 2, y0 = a.y - h / 2;
+    var crit = v.tf && a.cp;
+    var s = '<g>';
+    s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + w + '" height="' + h + '" rx="8" fill="var(--card)" stroke="' +
+      (crit ? 'var(--bad)' : 'var(--line)') + '" stroke-width="' + (crit ? 3 : 1.5) + '"/>';
+    s += '<line x1="' + x0 + '" y1="' + (y0 + h / 2) + '" x2="' + (x0 + w) + '" y2="' + (y0 + h / 2) + '" stroke="var(--line)" stroke-width="1"/>';
+    s += '<line x1="' + (x0 + w / 3) + '" y1="' + y0 + '" x2="' + (x0 + w / 3) + '" y2="' + (y0 + h) + '" stroke="var(--line)" stroke-width="1"/>';
+    s += '<line x1="' + (x0 + 2 * w / 3) + '" y1="' + y0 + '" x2="' + (x0 + 2 * w / 3) + '" y2="' + (y0 + h) + '" stroke="var(--line)" stroke-width="1"/>';
+    function cell(cx, cy, val, show, col) {
+      return '<text x="' + cx + '" y="' + cy + '" text-anchor="middle" font-size="14" font-weight="700" fill="' + (show ? (col || 'var(--text)') : 'var(--line)') + '">' + (show ? val : '·') + '</text>';
+    }
+    var c1 = x0 + w / 6, c2 = x0 + w / 2, c3 = x0 + 5 * w / 6;
+    var r1 = y0 + 20, r2 = y0 + 48;
+    s += '<text x="' + (x0 + 10) + '" y="' + (y0 - 7) + '" font-size="13" font-weight="800" fill="' + (crit ? 'var(--bad)' : 'var(--text-dim)') + '">' + a.id + '(' + a.dur + ')</text>';
+    s += cell(c1, r1, a.es, v.fwd);
+    s += cell(c2, r1, a.dur, true, 'var(--text-dim)');
+    s += cell(c3, r1, a.ef, v.fwd);
+    s += cell(c1, r2, a.ls, v.bwd);
+    s += cell(c2, r2, a.tf, v.tf, crit ? 'var(--bad)' : 'var(--ok)');
+    s += cell(c3, r2, a.lf, v.bwd);
+    s += '</g>';
+    return s;
+  }
+  function netSVG(list, T, step) {
+    var fwdN = Math.max(0, Math.min(list.length, step));            /* 步1..7 正推个数 */
+    var bwdN = step >= 9 ? Math.min(list.length, step - 8) : 0;     /* 步9..15 反推个数 */
+    var tfOn = step >= 16, totalOn = step >= 8;
+    var fwdOrder = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    var bwdOrder = ['G', 'F', 'E', 'D', 'C', 'B', 'A'];
+    var s = '<svg viewBox="0 0 700 290" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="290" rx="12" fill="var(--bg-soft)"/>';
+    var vmap = {};
+    list.forEach(function (a) {
+      vmap[a.id] = {
+        fwd: fwdOrder.indexOf(a.id) < fwdN,
+        bwd: bwdOrder.indexOf(a.id) < bwdN,
+        tf: tfOn
+      };
+    });
+    list.forEach(function (a) {
+      a.preds.forEach(function (p) {
+        var pa = list.filter(function (q) { return q.id === p; })[0];
+        var hot = tfOn && pa.cp && a.cp;
+        s += edgeSVG(pa, a, hot);
+      });
+    });
+    list.forEach(function (a) { s += nodeSVG(a, vmap[a.id]); });
+    s += '<text x="352" y="22" text-anchor="middle" font-size="15" font-weight="800" fill="' + (totalOn ? 'var(--accent-2)' : 'var(--line)') + '">' +
+      (totalOn ? '总工期 = ' + T + ' 天' : '总工期 = ?') + '</text>';
+    if (tfOn) {
+      var cpIds = list.filter(function (a) { return a.cp; }).map(function (a) { return a.id; });
+      s += '<text x="352" y="278" text-anchor="middle" font-size="13" font-weight="700" fill="var(--bad)">关键路径：' + cpIds.join('→') + '</text>';
+    }
+    s += '</svg>';
+    return s;
+  }
+
+  /* ---- 动画数据 ---- */
+  var acts = [
+    { id: 'A', dur: 2, preds: [], x: 95, y: 150 },
+    { id: 'B', dur: 4, preds: ['A'], x: 255, y: 95 },
+    { id: 'C', dur: 3, preds: ['A'], x: 255, y: 220 },
+    { id: 'D', dur: 3, preds: ['B'], x: 420, y: 95 },
+    { id: 'E', dur: 5, preds: ['C'], x: 420, y: 220 },
+    { id: 'F', dur: 2, preds: ['D', 'E'], x: 590, y: 220 },
+    { id: 'G', dur: 4, preds: ['D'], x: 590, y: 95 }
+  ];
+  var caps = [
+    '单代号网络图：框=活动，箭线=紧前关系。框内上排 ES｜工期｜EF，下排 LS｜总时差｜LF。',
+    '正推① A：无紧前，ES=0，EF=0+2=2。',
+    '正推② B：紧前 A 的 EF=2 → ES(B)=2，EF=2+4=6。',
+    '正推③ C：紧前 A 的 EF=2 → ES(C)=2，EF=2+3=5。',
+    '正推④ D：紧前只有 B，ES=6，EF=6+3=9。',
+    '正推⑤ E：紧前只有 C，ES=5，EF=5+5=10。',
+    '正推⑥ F：紧前 D、E 两个，取最大 → ES=max(9,10)=10，EF=12。',
+    '正推⑦ G：紧前 D，ES=9，EF=9+4=13。',
+    '总工期 = 所有活动 EF 的最大值 = max(12,13) = 13 天。F 先干完也要等项目收尾。',
+    '反推① G（终点活动）：LF=总工期 13，LS=13−4=9。',
+    '反推② F（终点活动）：LF=13，LS=13−2=11。',
+    '反推③ E：紧后 F，LF=LS(F)=11，LS=11−5=6。',
+    '反推④ D：紧后 G、F 两个，取最小 → LF=min(9,11)=9，LS=9−3=6。',
+    '反推⑤ C：紧后 E，LF=LS(E)=6，LS=6−3=3。',
+    '反推⑥ B：紧后 D，LF=LS(D)=6，LS=6−4=2。',
+    '反推⑦ A：紧后 B、C 取最小 → LF=min(2,3)=2，LS=0。',
+    '总时差 TF=LS−ES：A0、B0、C1、D0、E1、F1、G0。TF=0 的 A→B→D→G 就是关键路径（红色）！',
+    '再看 C：TF=1，但自由时差 FF=ES(E)−EF(C)=5−5=0——拖一天不误总工期，下游 E 却必须等它。总工期 13 天。'
+  ];
+  var stage = CX.utils.$('demo1-stage');
+  function T() { return calc(acts); }
+  function drawAt(step) {
+    step = Math.max(0, Math.min(caps.length - 1, step));
+    stage.innerHTML = netSVG(acts, T(), step);
+    CX.setCap('#demo1-ctl', caps[step]);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: caps.length, duration: 27, onTick: function (t) {
+    drawAt(Math.min(caps.length - 1, Math.floor(t * caps.length)));
+  } });
+  var csl = CX.utils.$('c-slider');
+  csl.addEventListener('input', function () {
+    acts[2].dur = +csl.value;
+    CX.utils.$('c-out').textContent = csl.value + ' 天';
+    var t2 = T();
+    var cpList = acts.filter(function (a) { return a.cp; });
+    var cpIds = cpList.map(function (a) { return a.id; }).join('→');
+    var msg = 'C=' + csl.value + ' 天：总工期 ' + t2 + ' 天，关键路径 ' + cpIds + '。';
+    if (t2 === 2 + csl.value + 5 + 2 && csl.value > 4) msg += ' A→C→E→F（2+' + csl.value + '+5+2=' + (9 + csl.value) + '）超过了 A→B→D→G——关键路径搬家了！';
+    else if (+csl.value === 4) msg += ' 两条路径并列关键（2+4+3+4=2+4+5+2=13），全线总时差都为 0。';
+    else if (t2 === 13 && csl.value < 3) msg += ' C 更短，A→C→E→F 更闲，主线不变。';
+    CX.utils.$('c-cap').textContent = msg;
+    drawAt(Math.min(caps.length - 1, Math.floor((anim ? anim.t : 0) * caps.length)));
+  });
+
+  /* ---- 回忆题（前置 55） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·55】在十大知识领域中，统领其余九大领域、贯穿五大过程组的是？',
+    opts: [
+      { t: '范围管理', why: '范围只是「做什么」这一本台账，管不了全局。' },
+      { t: '整合管理', why: '对：整合管理统领九大领域，含整体变更控制，是唯一横跨全部五大过程组的领域。' },
+      { t: '风险管理', why: '风险管「不确定」，是十本台账中的一本，不是统领。' }
+    ],
+    ans: 1, tag: '回忆:55', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '某活动工期 5 天，ES=5、EF=10，其紧后活动的 LS=13。该活动的总时差是多少？',
+      opts: [
+        { t: '3 天', why: '对：LF=紧后 LS=13，LS=13−5=8，TF=LS−ES=8−5=3。' },
+        { t: '8 天', why: '8 是 LS，不是 TF；TF=LS−ES 还要再减一次最早开始。' },
+        { t: '13 天', why: '13 是紧后活动的 LS（本活动 LF），不是时差。' },
+        { t: '0 天', why: 'TF=0 意味着是关键活动，这里明显有机动。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '关于关键路径，下列说法正确的是？',
+      opts: [
+        { t: '是活动个数最多的路径', why: '比的是工期总长短，不是活动个数多少——4 个长活动可以赢过 6 个短活动。' },
+        { t: '是工期最长的路径，其上活动总时差为 0', why: '对：最长=决定总工期；总时差为 0 是判定关键活动的标准，两者互为表里。' },
+        { t: '是资源消耗最多的路径', why: '资源与关键性无必然关系，关键看时间。' },
+        { t: '任何项目中关键路径有且只有一条', why: '可能有多条并列关键路径，压缩后还会转移。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·06】网络图与可靠性框图都爱用「串行链」建模：三个可靠度均为 0.9 的子系统串联，系统整体可靠度是？（顺带体会：串联可靠性连乘，串联工期连加）',
+      opts: [
+        { t: '0.9', why: '0.9 是单机水平，串联只会更不可靠。' },
+        { t: '0.729', why: '对：串联 R=0.9³=0.729。与关键路径同构：链上的环节一个接一个，任何一环弱都拖累整体。' },
+        { t: '0.99', why: '0.99 是两台 0.9 并联的结果，方向反了。' },
+        { t: '0.81', why: '0.81 是两个 0.9 串联，少乘了一次。' }
+      ],
+      ans: 1, tag: '交错复习:06', src: '仿真题' },
+    { q: '【交错复习·55】「给每个活动定工期、排逻辑、算时差」这套动作属于哪本台账（知识领域），且主要落在哪个过程组？',
+      opts: [
+        { t: '进度管理 · 规划过程组', why: '对：排活动、估工期、编进度计划是规划过程组的核心工作（制定进度计划）。' },
+        { t: '进度管理 · 监控过程组', why: '监控是「对照计划盯偏差」，本例动作是在「造计划」。' },
+        { t: '成本管理 · 规划过程组', why: '估的是时间不是钱，台账选错。' },
+        { t: '整合管理 · 执行过程组', why: '整合管全局协调，执行管「照计划干活」。' }
+      ],
+      ans: 0, tag: '交错复习:55', src: '仿真题' },
+    { q: '活动 C 总时差 2 天、自由时差 0 天。C 推迟 1 天开工，后果是？',
+      opts: [
+        { t: '总工期延后 1 天', why: 'TF=2 > 1，占用时差未超限，总工期不动。' },
+        { t: '总工期不变，但紧后活动最早开始被迫推迟 1 天', why: '对：FF=0 说明它一推迟下游立刻顺延（占用了下游的时差），而 TF=2 说明总工期还有 1 天缓冲。' },
+        { t: '毫无影响', why: 'FF=0，下游必受影响，只是还不到拖垮总工期的程度。' },
+        { t: 'C 变成关键活动且总工期延后', why: '再拖 1 天（累计 2 天）C 的时差用尽才会逼近关键；现在还没到。' }
+      ],
+      ans: 1, tag: '易混', src: '仿真题' }
+  ], { kpId: '56', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某企业数据中台项目的活动清单（工期单位：周）：A 需求调研 3（无紧前）；B 数据治理方案 4（紧前 A）；C 平台选型 6（紧前 A）；D 环境搭建 2（紧前 B、C）；E 数据迁移开发 5（紧前 D）；F 报表开发 3（紧前 D）。',
+    q: '(1) 画出单代号网络图，指出关键路径与总工期；(2) 求活动 B 的总时差与自由时差；(3) 领导要求总工期压缩到 14 周。各活动压缩成本与限量：A 2千/周（≤1周）、B 1千/周（≤2周）、C 2千/周（≤1周）、D 4千/周（≤1周）、E 1千/周（≤2周）、F 不可压。给出总费用最少的压缩方案，并说明压缩后要注意什么。',
+    ref: '(1) 路径分析：A→B→D→E=3+4+2+5=14；A→B→D→F=3+4+2+3=12；A→C→D→E=3+6+2+5=16；A→C→D→F=3+6+2+3=14。关键路径 A→C→D→E，总工期 16 周。(2) 反推：LF(B)=LS(D)。LS(D)：LF(D)=min(LS(E),LS(F))，E、F 均以总工期 16 收尾，LS(E)=11、LS(F)=13，故 LF(D)=11、LS(D)=9；LF(B)=9、LS(B)=9−4=5；TF(B)=LS−ES=5−3=2；FF(B)=ES(D)−EF(B)=9−7=2。(3) 只能压关键路径上的活动（A/C/D/E）。E 最便宜（1千/周、可压2周）：E 压 2 周后 A→C→D→E=14，同时 A→C→D→F 也=14 变成并列关键路径，总工期 14 周，费用 2 千元。方案：压缩 E 两周，费用 2 千元。注意：压缩后出现两条关键路径（A→C→D→E 与 A→C→D→F），后续任何再压缩都必须两条线同时压（或压公共活动 A/C/D），且每步压缩后要重新计算网络图，防止关键路径转移导致白花钱。',
+    points: ['四条路径逐一枚举或正确正反推，得出关键路径 A→C→D→E、总工期 16 周', 'B 的 TF=LS−ES=2、FF=ES(D)−EF(B)=2，公式与代入过程都写出来', '压缩方案只选关键活动且给出费用（压 E 两周 2 千元），能指出 B 更便宜但不在关键路径上、压了无效', '说出压缩后关键路径转移/并列的后果与重算必要性'],
+    frame: '答题框架：画图列路径 → 定关键路径与总工期 → 逐活动写 TF=LS−ES、FF=min(紧后ES)−EF → 压缩只看关键路径、按单价从低到高且每步重算 → 收尾说风险（转移/并列/质量）。',
+    kpId: '56'
+  });
+  CX.renderCase('#case2', {
+    stem: '接知识卡片那张 7 活动网络图（总工期 13 天，关键路径 A→B→D→G；E 的 TF=1、FF=0；F 的 TF=1、FF=1）。执行中发生两个延误：① 活动 E 因接口联调失败延误 2 天；② 活动 F 因等评审意见延误 1 天。团队有人说：「E、F 都不是关键活动，所以总工期不受影响。」',
+    q: '(1) 分别分析两个延误对紧后活动和总工期的影响，判断该说法是否正确；(2) 给出延误①发生后的两种应对措施及代价；(3) 说明进度监控为什么不能只盯当前关键路径。',
+    ref: '(1) 说法错误。延误①：E 的 FF=0，且 E 本来就是控制 F 开始的紧前（EF(E)=10＞EF(D)=9），推迟 2 天使 F 的最早开始直接顺延 2 天（F 的 ES 从 10 变 12）；又 E 的 TF=1，超出的 1 天使总工期从 13 变为 14 天，且 F 的时差被吃光（F 变为关键）。延误②：F 的 TF=1 ≥ 1 且 FF=1 ≥ 1，时差足以吸收，总工期不变（F 已是收尾活动，无下游可拖）。(2) 措施一：赶工——给 E 增派联调人力把 2 天延误追回 1 天以上，代价是加班/增人成本；措施二：快速跟进——E 的收尾与 F 的准备活动部分并行，代价是返工风险；也可与客户协商顺延或调整范围（成本是合同与商誉）。(3) 非关键活动延误一旦耗尽总时差就会「变成关键」，关键路径会转移；还应盯「次关键路径」（总时差接近 0 的路径，如本图的 C/E/F 线 TF=1），用趋势预警而不是只看一条固定的红线。',
+    points: ['用 FF=0/TF=1 的数据逐步推延误①：先拖下游、再拖总工期 1 天，不是笼统说「有影响」', '延误②用时差吸收、总工期不变，两句结论分开说', '应对措施与代价成对出现（赶工/快速跟进/协商）', '点出关键路径会转移、要监控次关键路径'],
+    frame: '答题框架：逐延误套「FF→拖不拖下游；TF→拖不拖总期」两问 → 判断说法对错并给数据依据 → 措施+代价 → 升华到关键路径动态性与次关键路径监控。',
+    kpId: '56'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '年夜饭时间表：泡发香菇(30分钟)→炖汤(60分钟)；洗切配菜(20分钟)→炒菜(25分钟)；蒸鱼(35分钟)。各线并行开工，「炒菜」这条线的总时差是？',
+    opts: [
+      { t: '0 分钟', why: '0 是炖汤线（关键路径）的时差，炒菜线没那么紧。' },
+      { t: '45 分钟', why: '对：开饭由最慢的汤线决定=90 分钟；炒菜线 20+25=45 分钟，TF=90−45=45 分钟。' },
+      { t: '55 分钟', why: '误用了 90−35（蒸鱼线），对象搞错了。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['55'], 'prev');
+  CX.depChain('#bridge-next', ['57', '58'], 'next');
+
+  /* ================= 实验一：点选关键路径 ================= */
+  var cpActs = [
+    { id: 'A', dur: 2, preds: [] },
+    { id: 'B', dur: 4, preds: ['A'] },
+    { id: 'C', dur: 7, preds: ['A'] },
+    { id: 'D', dur: 3, preds: ['B'] },
+    { id: 'E', dur: 1, preds: ['C'] },
+    { id: 'F', dur: 2, preds: ['D', 'E'] }
+  ];
+  var cpAnswer = ['A', 'C', 'E', 'F'];
+  var btnBox = CX.utils.$('cp-btns');
+  cpActs.forEach(function (a) {
+    var b = document.createElement('button');
+    b.className = 'btn cp-pick'; b.textContent = a.id + '（' + a.dur + '天）'; b.dataset.id = a.id;
+    b.style.margin = '4px';
+    b.addEventListener('click', function () {
+      if (b.style.borderColor === 'var(--accent-2)') { b.style.borderColor = ''; b.style.opacity = ''; }
+      else { b.style.borderColor = 'var(--accent-2)'; b.style.opacity = 1; }
+    });
+    btnBox.appendChild(b);
+  });
+  function picked() {
+    return Array.prototype.map.call(btnBox.querySelectorAll('.cp-pick'), function (b) {
+      return b.style.borderColor === 'var(--accent-2)' ? b.dataset.id : null;
+    }).filter(function (x) { return x; });
+  }
+  CX.utils.$('cp-check').addEventListener('click', function () {
+    var got = picked(), fb = CX.utils.$('lab1-fb');
+    var extra = got.filter(function (x) { return cpAnswer.indexOf(x) < 0; });
+    var miss = cpAnswer.filter(function (x) { return got.indexOf(x) < 0; });
+    if (!got.length) { fb.textContent = '先点选活动，再检查。'; fb.className = 'lab-feedback'; return; }
+    if (!extra.length && !miss.length) {
+      fb.textContent = '✅ 完全正确！A→C→E→F = 2+7+1+2 = 12 天；另一条 A→B→D→F = 11 天。B 线活动多却更短——数环节个数没用，要算总时长。';
+      fb.className = 'lab-feedback ok'; return;
+    }
+    var msgs = [];
+    extra.forEach(function (x) {
+      var paths = { B: 'A→B→D→F = 2+4+3+2 = 11 天 < 12 天', D: 'A→B→D→F = 11 天 < 12 天' };
+      msgs.push('「' + x + '」不在关键路径：含它的最长链是 ' + (paths[x] || '') + '，比关键路径短，它有时差可挥霍。');
+    });
+    miss.forEach(function (x) {
+      msgs.push('漏了「' + x + '」：正推算它的 ES——C 的 EF=9，E 紧随其后 ES=9、EF=10，F 要等 E 干完（max 取大），所以 E 在主线上。');
+    });
+    fb.textContent = '❌ ' + msgs.join(' ');
+    fb.className = 'lab-feedback bad';
+  });
+  CX.utils.$('cp-reset').addEventListener('click', function () {
+    Array.prototype.forEach.call(btnBox.querySelectorAll('.cp-pick'), function (b) { b.style.borderColor = ''; });
+    CX.utils.$('lab1-fb').textContent = '';
+  });
+
+  /* ================= 实验二：拖拽排序 ================= */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var order = ['列出活动、工期与紧前关系', '绘制网络图（单代号：框=活动）', '正推法：求各活动最早开始 ES / 最早完成 EF', '定总工期：取所有 EF 的最大值', '反推法：求各活动最迟开始 LS / 最迟完成 LF', '算总时差 TF=LS−ES，TF=0 的活动连成关键路径'];
+  CX.shuffle(order.map(function (t) { return { t: t }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab2-fb');
+    if (got.length < 6) { fb.textContent = '还有 ' + (6 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 6; i++) {
+      if (got[i] !== order[i]) {
+        var hints = {
+          0: '第一步必须有活动清单和紧前关系，否则图无从画起。',
+          1: '有了清单才画图：单代号「框=活动」，双代号「箭线=活动」。',
+          2: '图画好后先正推（从左到右求最早），正推要多紧前取大。',
+          3: '总工期由正推结果直接读出（最大 EF），它还没轮到反推之前。',
+          4: '反推从总工期倒着走（求最迟），要多紧后取小。',
+          5: '最后才能算时差：TF=LS−ES，TF=0 连成关键路径。'
+        };
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。' + hints[i];
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 流程正确：清单 → 画图 → 正推 → 定总工期 → 反推 → 算时差定关键路径。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ================= 实验三：压缩决策 ================= */
+  var crashData = { A: { cost: 1, max: 1 }, B: { cost: 2, max: 2 }, C: { cost: 1, max: 1 }, D: { cost: 3, max: 1 }, E: { cost: 1, max: 2 }, F: { cost: 1, max: 1 }, G: { cost: 2, max: 2 } };
+  var crashActs = [
+    { id: 'A', dur: 2, preds: [], x: 95, y: 150 },
+    { id: 'B', dur: 4, preds: ['A'], x: 255, y: 95 },
+    { id: 'C', dur: 3, preds: ['A'], x: 255, y: 220 },
+    { id: 'D', dur: 3, preds: ['B'], x: 420, y: 95 },
+    { id: 'E', dur: 5, preds: ['C'], x: 420, y: 220 },
+    { id: 'F', dur: 2, preds: ['D', 'E'], x: 590, y: 220 },
+    { id: 'G', dur: 4, preds: ['D'], x: 590, y: 95 }
+  ];
+  var baseDur = {}; crashActs.forEach(function (a) { baseDur[a.id] = a.dur; });
+  var spent = 0, spentLog = [];
+  var cbox = CX.utils.$('crash-btns');
+  Object.keys(crashData).forEach(function (id) {
+    var b = document.createElement('button');
+    b.className = 'btn'; b.dataset.id = id;
+    b.style.margin = '4px';
+    function label() {
+      var left = crashData[id].max - (baseDur[id] - crashActs.filter(function (a) { return a.id === id; })[0].dur);
+      b.textContent = id + ' −1天（' + crashData[id].cost + '千元/天，剩' + left + '次）';
+      b.disabled = left <= 0;
+      b.style.opacity = left <= 0 ? .4 : 1;
+    }
+    b.addEventListener('click', function () {
+      var a = crashActs.filter(function (q) { return q.id === id; })[0];
+      if (a.dur <= 1) { return; }
+      a.dur -= 1; spent += crashData[id].cost;
+      spentLog.push(id);
+      label(); refreshCrash();
+    });
+    label();
+    cbox.appendChild(b);
+  });
+  function refreshCrash() {
+    var t = calc(crashActs);
+    var cpIds = crashActs.filter(function (a) { return a.cp; }).map(function (a) { return a.id; }).join('→');
+    CX.utils.$('crash-status').textContent = '已花费用：' + spent + ' 千元｜当前总工期：' + t + ' 天｜当前关键路径：' + cpIds;
+    CX.utils.$('lab3-stage').innerHTML = netSVG(crashActs, t, 16);
+  }
+  var labStage = document.createElement('div');
+  labStage.className = 'demo-stage'; labStage.id = 'lab3-stage';
+  CX.utils.$('lab3').insertBefore(labStage, CX.utils.$('crash-status'));
+  CX.utils.$('crash-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab3-fb');
+    var t = calc(crashActs);
+    var nonCpSpent = spentLog.filter(function (id) {
+      var a = crashActs.filter(function (q) { return q.id === id; })[0];
+      return !a.cp;
+    });
+    if (t > 11) {
+      fb.textContent = '❌ 还没达标：当前总工期 ' + t + ' 天 > 11 天。提示：只有关键路径上的活动压缩才缩总工期，看状态栏当前红线是谁。';
+      fb.className = 'lab-feedback bad'; return;
+    }
+    if (spent > 3) {
+      var m = '❌ 达标但不是最省：花了 ' + spent + ' 千元（最少 3 千元）。';
+      if (nonCpSpent.length) m += '你在「' + Array.from(new Set(nonCpSpent)).join('、') + '」身上花了冤枉钱——提交那一刻它已不在关键路径上，压它不缩总工期。';
+      else m += '存在更便宜的组合：先压最便宜的关键活动，再看压缩后新的关键路径在哪。';
+      fb.textContent = m; fb.className = 'lab-feedback bad'; return;
+    }
+    fb.textContent = '✅ 总工期 ' + t + ' 天、费用 ' + spent + ' 千元，最优方案！注意此时两条路径并列成为关键路径——再要压就得两边同时压了。';
+    fb.className = 'lab-feedback ok';
+  });
+  CX.utils.$('crash-reset').addEventListener('click', function () {
+    crashActs.forEach(function (a) { a.dur = baseDur[a.id]; });
+    spent = 0; spentLog = [];
+    Array.prototype.forEach.call(cbox.children, function (b) {
+      var id = b.dataset.id;
+      var left = crashData[id].max;
+      b.disabled = false; b.style.opacity = 1;
+      b.textContent = id + ' −1天（' + crashData[id].cost + '千元/天，剩' + left + '次）';
+    });
+    CX.utils.$('lab3-fb').textContent = '';
+    refreshCrash();
+  });
+  refreshCrash();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

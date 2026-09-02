@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>29 · 面向对象基础 · 架构师学堂</title>
+<meta name="description" content="封装藏细节、继承接家产、多态同一说法不同对象有不同做法。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">软件工程</span><span class="badge freq">考频 ★★★★☆</span><span class="badge diff">难度 ★★☆☆☆</span>
+    <span class="badge dep"><a href="25-process-models.html">前置 25</a></span>
+    <h1>29 · 面向对象基础</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">封装藏细节、继承接家产、多态同一说法不同做法。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>工地项目部的对讲机里，总指挥喊了一句「开工！」：电工班开始布线，瓦工班开始砌墙，塔吊司机开始吊装——同一句话，三种不同反应，没人给他解释每个班该怎么干。另外，新来的精装修班组没拿到完整图纸，只拿到「毛坯房格局图+自己的装修任务书」，照样顺利进场。这两件工地日常，分别对应面向对象的哪两个机制？</div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>第一件是<strong>多态</strong>：同一条消息（开工）发给不同对象，各自按自己的方式响应。第二件是<strong>封装</strong>：班组只暴露「能被安排的接口」（进场、开工），内部怎么干活（细节）藏起来，调用方无需知道。至于精装班「继承」毛坯格局再加自己的东西——那就是<strong>继承</strong>。三大特征加起来，让软件像工地一样可以按专业分工、独立替换、统一指挥。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>25 · 软件过程模型</b>（哪个模型天生面向对象）：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>面向对象（OO）方法以<strong>对象</strong>为中心组织系统：对象是属性（数据）与操作（行为）的统一体。<strong>类（Class）是图纸，对象（Object）是照图纸盖出的房子</strong>——图纸定义「有哪些房间、水电怎么走」，每栋房子是它的一个实例，各有各的住址和住户。面向对象方法贯穿三步：<strong>OOA 面向对象分析</strong>（认清要哪些对象、做什么）、<strong>OOD 面向对象设计</strong>（定类的关系与接口）、<strong>OOP 面向对象程序设计</strong>（用对象语言实现）。</p>
+      <h3>解决什么问题</h3>
+      <p>结构化方法按「功能」切分系统，功能一变结构就散；面向对象按「事物」切分，客观世界里事物相对稳定——把易变的行为封进对象内部，系统更贴近业务、更容易复用与修改。它也呼应 28 页的目标：类天然追求<strong>高内聚</strong>（属性与操作围绕同一事物），对象间靠<strong>消息</strong>通信追求<strong>低耦合</strong>。</p>
+      <h3>核心机制：三大特征（每个配一个无代码比喻）</h3>
+      <table class="tbl">
+        <tr><th>特征</th><th>定义要点</th><th>生活比喻</th><th>好处</th></tr>
+        <tr><td>封装</td><td>属性与操作捆在一起，内部细节对外隐藏，只留公开接口（信息隐藏）</td><td>物业前台：报修只打电话（接口），不用进配电室动线路（细节）</td><td>改内部不影响调用方，降低耦合</td></tr>
+        <tr><td>继承</td><td>子类自动拥有父类的属性与操作，并可增加或改造（泛化关系，is-a）</td><td>精装房继承毛坯房的格局，再添自己的装修</td><td>复用父类代码，层次化表达共性</td></tr>
+        <tr><td>多态</td><td>同一消息发给不同类对象，各自有不同响应（配合重写与动态绑定）</td><td>对讲机喊「开工」：电工布线、瓦工砌墙</td><td>统一接口，新增类型不改调用代码</td></tr>
+      </table>
+      <h3>关键细节：重载 vs 重写（高频易混）</h3>
+      <table class="tbl">
+        <tr><th></th><th>重载 Overload</th><th>重写 Override（覆盖）</th></tr>
+        <tr><td>发生位置</td><td>同一个类里（或父子类间同名）</td><td>子类对父类方法</td></tr>
+        <tr><td>方法签名</td><td><strong>同名不同参数</strong>（个数/类型/顺序不同）</td><td><strong>同名同参数</strong>同返回</td></tr>
+        <tr><td>绑定时机</td><td><strong>编译期</strong>静态绑定（看参数选方法）</td><td><strong>运行期</strong>动态绑定（看对象实际类型选方法）</td></tr>
+        <tr><td>比喻</td><td>前台「订房」：报日期订客房、报日期报人数订会议室——同一柜台按你报什么走不同流程</td><td>父类「装修规范」被子类「精装规范」取代执行</td></tr>
+      </table>
+      <p>其他基础概念：<strong>抽象</strong>（提取同类事物的共性忽略细节，先于封装）；<strong>消息</strong>（对象间通信的唯一方式：调用对方的操作）；<strong>接口</strong>（对外承诺的操作集合）；实例化（由类创建对象的过程）。</p>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①重载是<strong>编译期</strong>根据参数决定调谁，重写是<strong>运行期</strong>根据对象实际类型决定调谁——绑定时机是单选高频坑；②多态≠重载：多态靠重写+动态绑定实现；③继承表达 is-a（「卡车是一种车辆」），如果只想复用代码但不是 is-a，应优先组合——这是 30 页类图关系和 46 页设计原则的伏笔；④类是抽象概念、对象是具体实例，说「给类分配了房间」就错了。</div>
+      <div class="callout"><span class="t">🔤 专业英语</span>encapsulation 封装 · inheritance 继承 · polymorphism 多态 · overload 重载 · override 重写 · instance 实例</div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>在建设工地上：<strong>类是图纸，对象是房子</strong>——一套图纸可以盖 N 栋楼，每栋楼（对象）有自己的门牌和住户（属性值），但格局一致（结构相同）。封装是「只开售楼处窗口，不开放配电室」；继承是「精装房沿用毛坯格局」；多态是「对讲机喊开工，各班组各干各的」。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>一套图纸盖 N 栋楼</td><td>类实例化出多个对象</td><td>成立</td></tr>
+      <tr><td>只经售楼处窗口办事</td><td>封装与公开接口</td><td>成立</td></tr>
+      <tr><td>精装房沿用毛坯格局</td><td>继承（is-a）</td><td>成立</td></tr>
+      <tr><td>对讲机喊「开工」各班各干各的</td><td>多态与动态绑定</td><td>成立</td></tr>
+      <tr><td>两栋楼共用一面承重墙</td><td>对象间共享数据</td><td><b>失效</b>：对象之间只通过消息（调用）通信，不共享内部状态；「共墙」反倒是高耦合反例</td></tr>
+    </table>
+    <div class="rhyme">类是图纸对象房，实例施工各住各；<br>封装上锁留门窗，内部装修客不见；<br>继承家产格局在，精装毛坯一代传；<br>多态一令各显长，重载编译重写运行场。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示「类→对象」的实例化：一张图纸陆续盖出 N 栋楼（滑块调 N），随后总指挥广播「开工」消息，每栋楼里的班组给出不同响应（多态）。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>实例数 N <input type="range" id="ins-slider" min="1" max="5" step="1" value="3"> <span id="ins-out">3 栋</span></label>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（场景判断）：重载还是重写？</h4>
+      <p class="foreshadow">逐条判断，判错会指出你错在「位置、签名还是时机」哪一步：</p>
+      <div id="ov-list"></div>
+      <div class="lab-feedback" id="lab1-fb">点击第一条开始。</div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（连线匹配）：三大特征 ↔ 比喻 ↔ 作用</h4>
+      <p class="foreshadow">先点左列特征，再点右列对应的工地比喻：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="oo-left"></div>
+        <div id="oo-right"></div>
+      </div>
+      <button class="btn" id="oo-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（含 1 道先前知识点交错题）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>25 页的喷泉模型就是面向对象迭代的典型过程；28 页「高内聚低耦合」在类与消息机制中得到天然实现。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>类图六种关系（依赖/关联/聚合/组合/泛化/实现）就是本页 is-a 与复用话题的图形化，见 <b>30 · UML建模</b>；</li><li>「对扩展开放、对修改关闭」的多态应用，在 <b>46 · 设计原则与GoF总览</b> 成文为开闭原则；</li><li>用继承与多态组织起来的分层思想，是 <b>33 · 软件架构概念与4+1视图</b> 中逻辑视图的地基。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>重载 Overload</th><th>重写 Override</th></tr>
+      <tr><td>差异点</td><td>同名不同参数，同类内定义多套</td><td>同名同参数，子类重新定义父类方法</td></tr>
+      <tr><td>绑定时机</td><td>编译期静态绑定（看参数）</td><td>运行期动态绑定（看对象实际类型）</td></tr>
+      <tr><td>易错点</td><td>以为返回值不同就能构成重载</td><td>以为参数不同也算重写</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">重载是「同名多副面孔，编译期挑」，重写是「子类顶替父班，运行期定」。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——图纸和房子、遥控器和家电……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 类=图纸，对象=房子；对象=属性+操作，彼此只靠消息通信。</li><li>② 封装藏细节降耦合，继承表达 is-a 促复用，多态让同一消息有不同响应。</li><li>③ 重载编译期按参数挑方法，重写运行期按实际类型挑方法——时机是考试命门。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '29', domain: 'se', loc: 'construction', root: '..',
+  title: '面向对象基础', prev: '28-coupling-cohesion.html', prevTitle: '28 · 模块设计与内聚耦合',
+  next: '30-uml.html', nextTitle: '30 · UML建模',
+  keywords: ['封装','继承','多态','类','对象','重载','重写','消息']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题 ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·25】25 页学过，典型面向对象、迭代无间隙的过程模型是？',
+    opts: [
+      { t: '瀑布模型', why: '瀑布线性串行，与迭代无间隙相反。' },
+      { t: '喷泉模型', why: '对。喷泉=面向对象+迭代无间隙——本页学的类与多态正是它的方法论基础。' },
+      { t: '增量模型', why: '增量按功能分批交付，不特指面向对象。' }
+    ],
+    ans: 1, tag: '回忆:25', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '同一个类里定义了三个同名方法 rent(date)、rent(date, days)、rent(date, days, count)，这是？',
+      opts: [
+        { t: '重写，运行期按对象类型绑定', why: '重写要求子类覆写父类「同名同参」方法，这里参数各不相同。' },
+        { t: '重载，编译期按参数选择', why: '对。同名不同参数=重载；编译器看实参在编译期就确定调哪个。' },
+        { t: '多态的动态绑定', why: '多态依赖重写+运行期绑定，此处是编译期行为。' },
+        { t: '封装', why: '封装是隐藏细节，与方法命名无关。' }
+      ],
+      ans: 1, tag: '重载重写', src: '仿真题' },
+    { q: '关于「类与对象」，正确的是？',
+      opts: [
+        { t: '类是对象的实例', why: '说反了：对象是类的实例。' },
+        { t: '对象是类的实例，类是创建对象的模板', why: '对。图纸（类）盖出房子（对象）。' },
+        { t: '一个类只能创建一个对象', why: '一套图纸能盖 N 栋楼，实例数量没有这种限制。' },
+        { t: '对象之间直接共享各自的内部属性', why: '对象间通过消息（调用操作）通信，不直接共享内部状态。' }
+      ],
+      ans: 1, tag: '类与对象', src: '仿真题' },
+    { q: '把内部数据和操作捆绑、只暴露必要接口的特性是？它的直接好处是？',
+      opts: [
+        { t: '封装；修改内部实现不影响调用方', why: '对。前台窗口不变，配电室怎么改造都不影响报修的人——降低耦合。' },
+        { t: '继承；代码自动复用', why: '继承复用父类，与隐藏细节无关。' },
+        { t: '多态；同一接口不同实现', why: '多态管「一令多应」，不负责藏细节。' },
+        { t: '抽象；提取共性', why: '抽象是提取共性的过程，封装才是「藏」。' }
+      ],
+      ans: 0, tag: '封装', src: '仿真题' },
+    { q: '【交错复习·25】需求频繁变化、强调迭代交付的面向对象项目，25 页中最匹配的过程模型是？',
+      opts: [
+        { t: '瀑布模型', why: '瀑布线性一次交付，无迭代。' },
+        { t: '喷泉模型', why: '对。喷泉模型面向对象、各阶段重叠迭代无间隙，与 OO 项目天然匹配。' },
+        { t: '原型模型', why: '原型用于探明需求，不是完整的 OO 开发过程模型。' }
+      ],
+      ans: 1, tag: '交错复习:25', src: '仿真题' },
+    { q: '子类重新定义父类的同名同参数方法，调用时按对象的实际类型在运行期决定执行哪个版本。这一机制是？',
+      opts: [
+        { t: '重载', why: '重载编译期按参数挑，与此处「运行期按实际类型」不符。' },
+        { t: '重写（覆盖）+ 动态绑定，是多态的实现基础', why: '对。同名同参、运行期定版本，正是重写与多态。' },
+        { t: '继承本身', why: '继承只是承接父类成员，「换掉实现」要靠重写。' },
+        { t: '消息传递', why: '消息是通信形式，决定执行哪个版本的是动态绑定。' }
+      ],
+      ans: 1, tag: '多态', src: '仿真题' }
+  ], { kpId: '29', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '停车场收费系统：普通车、货车、军警车计费规则不同，且未来还会增加新能源车。现有实现是一个 charge(vehicleType) 函数，内部用大量 if-else 按类型分支计费；每新增一种车型都要改这个函数并重新测试全部分支。',
+    q: '(1) 用面向对象观点指出该设计的两个问题；(2) 给出基于三大特征的改造方案；(3) 说明改造后「新增新能源车」的成本变化及原理。',
+    ref: '(1) 问题：①charge 函数按类型分支，所有车型的职责挤在一起，低内聚；②新增类型必须修改既有函数，违背「改一处只动一处」，属于对修改开放的高耦合设计。(2) 改造：抽象出「车辆」父类封装公共属性（车牌、入场时间）与计费接口；各车型子类继承父类并重写计费方法实现各自规则（继承+重写）；入口程序只向「车辆」这一抽象接口发送「计费」消息，运行期动态绑定到实际子类的实现（多态）。(3) 新增新能源车只需新增一个子类并实现计费方法，入口与既有子类零改动——因为多态把「选哪个实现」推迟到运行期，新类型自动纳入统一消息机制，符合「对扩展开放、对修改关闭」。',
+    points: ['指出 if-else 集中分支的低内聚与「改动扩散」问题', '方案覆盖三大特征：父类封装/子类继承重写/多态动态绑定', '说明新增车型成本从「改旧代码+全量回归」降为「只增不改」并讲清原理'],
+    frame: '答题框架：诊断（术语化）→重构（三大特征各就各位）→收益推演（用多态机制解释成本下降）。',
+    kpId: '29'
+  });
+  CX.renderCase('#case2', {
+    stem: '代码评审中看到：类 Square 继承自类 Rectangle（正方形是长方形），但 Square 重写了设置宽度的方法，使设置宽的同时强制同步高。此后凡是把 Square 传给以 Rectangle 为参数的排版模块，出现长宽不符的异常。',
+    q: '(1) 该继承关系违反了面向对象的什么原则性约定？(2) 说明「为复用代码而继承」的风险；(3) 给出更稳妥的替代设计思路。',
+    ref: '(1) 违反了里氏替换约定：任何父类出现的地方子类必须能无感替换。Square 重写后破坏了 Rectangle「宽高可独立设置」的行为契约，替换后行为不一致，说明这不是真正的 is-a 行为等价。(2) 风险：只为拿现成代码而继承，会让子类继承一堆用不上或需要「扭曲实现」的成员；父类一旦修改，子类被迫跟着变（脆弱基类问题），与 28 页「高耦合」同源——继承是最强的类间耦合之一。(3) 替代思路：若二者只是共享部分数据，可抽公共父类「四边形」（只含真正共性行为），Square 与 Rectangle 平行继承；或 Square 内部组合（持有）一个 Rectangle 实现复用——复用优先组合而非继承。',
+    points: ['点出 is-a 必须伴随行为可替换（里氏替换思想）', '说明「为复用而继承」导致脆弱基类/强耦合', '给出抽取公共父类或组合复用的替代方案'],
+    frame: '答题框架：先判关系性质（真 is-a?）→说风险（机制层面）→给替代（平行继承/组合）。',
+    kpId: '29'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '家电遥控器：同一颗「音量+」键，按在电视上电视变响，按在音箱上音箱变响，按在机顶盒上没反应（实现为空）。这最贴近面向对象的哪个概念？',
+    opts: [
+      { t: '封装：遥控器藏了电路细节', why: '藏细节是真的，但题眼是「同一操作、不同设备不同响应」。' },
+      { t: '多态：同一消息，不同设备不同响应', why: '对。「音量+」是同一消息，电视/音箱/机顶盒各自实现，机顶盒空实现也是一种响应。' },
+      { t: '继承：遥控器继承自电视', why: '遥控器与设备不是 is-a 关系。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['25'], 'prev');
+  CX.depChain('#bridge-next', ['30', '46'], 'next');
+
+  /* ---- 动画：类→对象实例化 + 多态广播 ---- */
+  var stage = CX.utils.$('demo1-stage');
+  var N = 3;
+  var CREWS = [['电工班', '布线', 'var(--accent)'], ['瓦工班', '砌墙', 'var(--ok)'], ['木工班', '吊顶', 'var(--bad)'], ['油漆班', '刷漆', 'var(--accent-2)'], ['玻璃班', '装窗', 'var(--text-dim)']];
+  function draw(t) {
+    var s = '<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="类实例化与多态">';
+    s += '<rect width="720" height="300" rx="12" fill="var(--bg-soft)"/>';
+    /* 图纸 */
+    s += '<rect x="24" y="40" width="130" height="90" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="89" y="70" text-anchor="middle" font-size="14" fill="var(--accent)">类：住宅图纸</text>';
+    s += '<text x="89" y="92" text-anchor="middle" font-size="11" fill="var(--text-dim)">属性：门牌/住户</text>';
+    s += '<text x="89" y="110" text-anchor="middle" font-size="11" fill="var(--text-dim)">操作：开工/交付</text>';
+    var built = Math.min(N, Math.ceil(t * (N + 1) * 0.9));
+    for (var i = 0; i < built; i++) {
+      var x = 210 + i * 100, hh = 60 + (i % 3) * 14;
+      s += '<rect x="' + x + '" y="' + (200 - hh) + '" width="72" height="' + hh + '" rx="4" fill="var(--card)" stroke="var(--ok)" stroke-width="2"/>';
+      s += '<path d="M ' + (x - 4) + ' ' + (200 - hh) + ' L ' + (x + 36) + ' ' + (200 - hh - 18) + ' L ' + (x + 76) + ' ' + (200 - hh) + ' z" fill="var(--ok)" opacity=".5"/>';
+      s += '<text x="' + (x + 36) + '" y="216" text-anchor="middle" font-size="11" fill="var(--text-dim)">对象' + (i + 1) + '·' + CREWS[i][0] + '</text>';
+    }
+    s += '<text x="178" y="46" font-size="16" fill="var(--text-dim)">→ 实例化</text>';
+    /* 广播消息 */
+    if (t > 0.55) {
+      var mx = 40 + (t - 0.55) * 2.2 * 640;
+      s += '<line x1="89" y1="150" x2="' + Math.min(mx, 700) + '" y2="150" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4"/>';
+      s += '<text x="' + Math.min(mx + 30, 660) + '" y="144" font-size="13" fill="var(--accent)">消息：开工！</text>';
+    }
+    /* 多态响应 */
+    if (t > 0.7) {
+      for (var j = 0; j < built; j++) {
+        var x2 = 210 + j * 100;
+        s += '<text x="' + (x2 + 36) + '" y="' + (200 - 60 - (j % 3) * 14 - 26) + '" text-anchor="middle" font-size="12" fill="' + CREWS[j][2] + '">' + CREWS[j][0] + '：' + CREWS[j][1] + '</text>';
+      }
+    }
+    s += '<text x="360" y="252" text-anchor="middle" font-size="13" fill="var(--text-dim)">一套图纸（类）盖 ' + N + ' 栋楼（对象）；「开工」一声（同一消息），各班组各干各的（多态）</text>';
+    s += '<text x="360" y="276" text-anchor="middle" font-size="12" fill="' + (t > 0.7 ? 'var(--ok)' : 'var(--text-dim)') + '">响应不同 = 每个对象自己知道怎么实现，调用方（总指挥）无需知道细节（封装）</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (t < 0.3) cap = '第一步：类是图纸，只有一份；对象是照图盖出的房子，可以有很多栋';
+    else if (t < 0.55) cap = '第二步：实例化——第 ' + built + ' 栋楼落成，每栋有各自的门牌与住户（属性值各不相同）';
+    else if (t < 0.7) cap = '第三步：总指挥广播同一句消息「开工」，不关心各班组怎么干';
+    else cap = '第四步：各对象按自己的实现响应（多态）；怎么干的细节被封在各对象内部（封装）';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 11, onTick: draw });
+  var insl = CX.utils.$('ins-slider');
+  insl.addEventListener('input', function () {
+    N = +insl.value;
+    CX.utils.$('ins-out').textContent = N + ' 栋';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：重载 vs 重写判断 ---- */
+  (function () {
+    var items = [
+      { t: '同一个类里：send(text) 与 send(text, priority) 两个方法并存', ans: 0,
+        why: '同名不同参数、同一个类——重载，编译期按实参挑选。' },
+      { t: '子类把父类的 move(x, y) 重新实现为贴墙移动', ans: 1,
+        why: '子类覆写父类同名同参方法——重写，运行期按实际类型执行。' },
+      { t: '调用 obj.calc(3, 5) 时，编译器按参数个数直接确定要调的版本', ans: 0,
+        why: '编译期就能确定版本——这是重载的静态绑定特征。' },
+      { t: '变量声明为「车辆」，实际指向卡车对象，调 refuel() 执行的是卡车的版本', ans: 1,
+        why: '运行期看对象实际类型选版本——重写+动态绑定（多态）。' }
+    ];
+    var box = CX.utils.$('ov-list'), idx = 0, okCnt = 0;
+    function render() {
+      if (idx >= items.length) {
+        box.innerHTML = '<p>判断完成：答对 ' + okCnt + '/' + items.length + '。</p>';
+        CX.utils.$('lab1-fb').textContent = okCnt === items.length ? '✅ 全对。判据三步：看位置（同类/子类）、看签名（不同参/同参）、看时机（编译/运行）。' : '三步判据：位置→签名→时机，按顺序走一遍错题。';
+        CX.utils.$('lab1-fb').className = okCnt === items.length ? 'lab-feedback ok' : 'lab-feedback bad';
+        return;
+      }
+      box.innerHTML = '<p><b>' + (idx + 1) + '. ' + items[idx].t + '</b></p>' +
+        '<button class="btn" data-o="0">重载 Overload</button> <button class="btn" data-o="1">重写 Override</button>';
+      CX.utils.$$('button[data-o]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var o = +b.getAttribute('data-o'), fbx = CX.utils.$('lab1-fb');
+          if (o === items[idx].ans) { okCnt++; fbx.textContent = '✅ 对：' + items[idx].why; fbx.className = 'lab-feedback ok'; }
+          else { fbx.textContent = '❌ 判错了。三步检查：①发生在同类还是子类？②参数相同还是不同？③编译期还是运行期定版本？——' + items[idx].why; fbx.className = 'lab-feedback bad'; }
+          idx++; setTimeout(render, 900);
+        });
+      });
+    }
+    render();
+  })();
+
+  /* ---- 实验二：三大特征匹配 ---- */
+  (function () {
+    var pairs = [['封装', '只经售楼处窗口办事，不开放配电室'], ['继承', '精装房沿用毛坯房格局再添装修'], ['多态', '对讲机喊「开工」，各班组各干各的']];
+    var lBox = CX.utils.$('oo-left'), rBox = CX.utils.$('oo-right');
+    var selL = null, donePairs = 0;
+    function build() {
+      selL = null; donePairs = 0; lBox.innerHTML = ''; rBox.innerHTML = '';
+      pairs.forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+        d.addEventListener('click', function () {
+          CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+          d.classList.add('sel'); selL = d;
+          CX.utils.$('lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的工地比喻。';
+        });
+        lBox.appendChild(d);
+      });
+      CX.shuffle(pairs).forEach(function (p) {
+        var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+        d.addEventListener('click', function () {
+          if (!selL) { CX.utils.$('lab2-fb').textContent = '先点左列一个特征。'; return; }
+          if (selL.dataset.k === d.dataset.v) {
+            selL.style.opacity = .35; d.style.opacity = .35; selL.classList.remove('sel'); selL = null; donePairs++;
+            CX.utils.$('lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/3';
+            CX.utils.$('lab2-fb').className = 'lab-feedback ok';
+          } else {
+            CX.utils.$('lab2-fb').textContent = '❌ 不对应。「藏细节」是封装、「接格局」是继承、「一声令下各干各的」是多态。';
+            CX.utils.$('lab2-fb').className = 'lab-feedback bad';
+          }
+        });
+        rBox.appendChild(d);
+      });
+    }
+    build();
+    CX.utils.$('oo-reset').addEventListener('click', function () { build(); CX.utils.$('lab2-fb').textContent = ''; });
+  })();
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

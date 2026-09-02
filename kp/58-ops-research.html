@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>58 · 管理科学与决策分析 · 架构师学堂</title>
+<meta name="description" content="线性规划找最优配比，决策树给不确定性算期望 EMV，排队论算窗口开几个，四大决策准则各选各的方案。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">项目管理与管理数学</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="56-schedule-cpm.html">前置 56</a></span>
+    <h1>58 · 管理科学与决策分析</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">线性规划找最优配比，决策树算期望，排队论定窗口。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>云服务商要扩容：A 型机柜利润 3 千/台、B 型利润 2 千/台。机房每周工时只够装 5 台（不分型号），材料只够供 8 份（A 耗 2 份、B 耗 1 份）。销售总监拍板：「A 利润高，全造 A！」算下来是 <strong>4 台 A、利润 12 千</strong>。<b>这真的是最优吗？有没有更好的配比？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>不是最优。设 A 装 x 台、B 装 y 台：max z=3x+2y，约束 x+y≤5（工时）、2x+y≤8（材料）、x,y≥0。<strong>线性规划的最优解必在可行域顶点上</strong>——把 4 个顶点全试一遍：(0,0)→0；(4,0)→12；(3,2)→3×3+2×2=<strong>13</strong>；(0,5)→10。最优是 <strong>3 台 A + 2 台 B，利润 13 千</strong>：少装 1 台腾出的工时和材料，正好多装 2 台 B——「利润率最高」不等于「总利润最高」，<strong>配比问题要用模型算，不要用直觉拍</strong>。这正是本页四个模型（线性规划/决策论/决策树/排队论）共同的使命。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>56 · 进度管理与关键路径</b>——压缩工期「花钱最少」的取舍，本页给它一个正规数学框架：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p><strong>管理科学（运筹学）</strong>把「有限的资源怎么分配最划算」「不确定的事怎么决策」变成可计算的模型。综合知识常考四件套：<strong>线性规划</strong>（资源约束下求最优配比）、<strong>决策论</strong>（不知概率时按准则选方案）、<strong>决策树</strong>（知概率时算期望值 EMV）、<strong>排队论</strong>（随机到达的服务系统算队长与等待）。博弈论只需概念级了解：研究「各方互相考虑对方策略」的决策，纳什均衡是各方都不愿单独改变策略的稳定局面。</p>
+      <h3>解决什么问题</h3>
+      <p>直觉在三类问题前失灵：①多约束下的配比（全造利润高的产品反而总利润低）；②不确定性（畅销滞销各是多少时该建大厂还是小厂）；③随机排队（多开窗口闲置、少开窗口爆满）。模型把这些「感觉」换成「数字」。</p>
+      <h3>核心机制</h3>
+      <p><strong>① 线性规划（两变量图解法）</strong>：写目标函数 max z=ax+by 与约束不等式 → 画可行域（约束围成的凸多边形）→ 画等值线（z 相同的直线族）→ <strong>等值线沿利润增大方向平移，最后离开可行域碰到的顶点就是最优解</strong>（最优解必在顶点，逐点代入亦可）。</p>
+      <p><strong>② 决策论四准则</strong>（对收益矩阵按行算）：</p>
+      <table class="tbl">
+        <tr><th>准则</th><th>做法</th><th>口诀</th><th>风险态度</th></tr>
+        <tr><td>乐观法（max-max）</td><td>各方案取最大收益，再取最大</td><td>大中取大</td><td>敢冒险</td></tr>
+        <tr><td>悲观法（max-min）</td><td>各方案取最小收益，再取最大</td><td>小中取大</td><td>怕风险</td></tr>
+        <tr><td>后悔值法（min-max regret）</td><td>各状态「理想值−收益」=后悔值，取各方案最大后悔值，再取最小</td><td>大中取小（后悔）</td><td>怕遗憾</td></tr>
+        <tr><td>等可能法（拉普拉斯）</td><td>各状态概率均等，收益求平均，取最大</td><td>平均主义</td><td>中立</td></tr>
+      </table>
+      <p><strong>③ 决策树与 EMV</strong>：方框=决策点、圆圈=机会点、三角=结局。EMV=Σ(概率×损益)−投资；<strong>各方案 EMV 比大小，大者胜</strong>。它把「不确定」折成一个钱数，是概率已知时的标准工具（58 页风险定量分析就靠它）。</p>
+      <p><strong>④ 排队论 M/M/1</strong>（单窗口、到达与服务均为泊松/负指数分布）：λ=平均到达率、μ=平均服务率、<strong>ρ=λ/μ 为服务强度（利用率先，ρ&lt;1 系统才稳定）</strong>；L=ρ/(1−ρ) 系统平均人数（含正在服务的）；Lq=ρ²/(1−ρ) 排队平均人数；W=1/(μ−λ) 平均逗留时间；Wq=λ/[μ(μ−λ)] 平均等待时间。小算例：λ=8 人/小时、μ=10 人/小时 → ρ=0.8，L=0.8/0.2=4 人，W=1/2 小时=30 分钟，Wq=8/(10×2)×60=24 分钟。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>模型</th><th>输入</th><th>输出</th><th>一步算错的高发点</th></tr>
+        <tr><td>线性规划</td><td>目标函数+约束</td><td>最优配比与最优值</td><td>顶点漏试/约束方向画反</td></tr>
+        <tr><td>决策论</td><td>收益矩阵（无概率）</td><td>选中的方案</td><td>后悔值忘用「各状态列内」的理想值相减</td></tr>
+        <tr><td>决策树</td><td>概率+损益+投资</td><td>EMV 与方案选择</td><td>忘减投资/概率和不为 1</td></tr>
+        <tr><td>排队论</td><td>λ、μ</td><td>ρ、L、W 等</td><td>ρ≥1 还硬算（系统不稳定）；L 与 Lq、W 与 Wq 口径混</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①线性规划最优解在<strong>顶点</strong>，「内部点」绝不最优；两条约束同时取等的交点若在可行域内常是答案；②悲观法是<strong>小中取大</strong>（先各取最坏再挑最好的最坏），别与后悔值法的「大中取小」混；③后悔值按<strong>列</strong>（各自然状态内）找理想值相减，不是按行；④EMV 必须扣投资再比较，且各分支概率之和为 1；⑤排队论先查 ρ=λ/μ&lt;1 才有稳态解，W 是「逗留」（排队+服务），Wq 才是「纯等待」，二者别混。</div>
+      <h3>专业英语小贴士</h3>
+      <p>linear programming（线性规划）；expected monetary value（期望货币值，EMV）；queueing theory（排队论）；regret value（后悔值）；Nash equilibrium（纳什均衡）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>指挥部做决策像<b>老练的家宴掌勺人</b>：冰箱里料有限（约束条件），要让全桌吃值最大化（目标函数）——<strong>线性规划</strong>是把冰箱翻一遍后定菜单；不知道客人几点到，但「宁叮早到别扑空」或「宁可少备别浪费」是两种性格——<strong>决策论四准则</strong>就是给不同性格各配一套点菜规则；听说「七成客人爱吃辣」，按人数期望备菜——<strong>决策树 EMV</strong>；后厨一个窗口忙不过来，加窗口还是限流——<strong>排队论</strong>算队伍多长。失效边界：这些模型假设「数字可信」，若概率是拍脑袋、工期是许愿，模型输出只是把错觉算得很精确——先审数据，再算模型。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>冰箱有限料配最优菜单</td><td>约束下求目标最大</td><td>成立</td></tr>
+      <tr><td>菜单定在「角落组合」而非随手一配</td><td>最优解在可行域顶点</td><td>成立</td></tr>
+      <tr><td>按七成爱吃辣备菜</td><td>EMV 概率加权</td><td>成立（前提概率靠谱）</td></tr>
+      <tr><td>「多开窗口一定更好」</td><td>服务水平与成本正相关</td><td><b>失效</b>：窗口多到闲置，ρ 太低反而亏——排队论算的是平衡点</td></tr>
+      <tr><td>概率拍脑袋也能用 EMV</td><td>模型输出可靠</td><td><b>失效</b>：垃圾进垃圾出，先审数据</td></tr>
+    </table>
+    <div class="rhyme">线性规划画区域，等值线推顶点住；<br>乐观大中取其大，悲观小里挑大户；<br>后悔矩阵列减行，最大后悔挑最小；<br>期望减投再比武，排队 rho 小一等。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画演示线性规划<strong>图解法</strong>：灰色可行域由两条约束围成，利润等值线随播放向外平移，<strong>最后碰到的顶点即最优解</strong>。拖动「B 型利润」滑块改变目标函数斜率，亲眼看最优点从顶点 (3,2) 跳到 (4,0) 或 (0,5)。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>B 型单价 k <input type="range" id="k-slider" min="5" max="60" step="5" value="20"> <span id="k-out">2.0 千/台</span></label>
+      <span class="kf-caption" id="k-cap">z=3x+2y：最优点 (3,2)，z=13 千。</span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（参数实验）：M/M/1 排队计算器 + 服务水平挑战</h4>
+      <p class="foreshadow">拖动到达率 λ 与服务率 μ，观察ρ、L、W 的变化：</p>
+      <label>到达率 λ <input type="range" id="q-lam" min="10" max="120" step="5" value="80"> <span id="q-lam-out">8.0 人/时</span></label>
+      <label>服务率 μ <input type="range" id="q-mu" min="20" max="160" step="5" value="100"> <span id="q-mu-out">10.0 人/时</span></label>
+      <div id="q-out" class="foreshadow" style="margin-top:6px"></div>
+      <p class="foreshadow"><b>挑战</b>：<button class="btn" id="q-ch-btn">出挑战目标</button> <span id="q-ch-goal" style="font-weight:700">（先出题）</span> 调好后点验收：</p>
+      <button class="btn" id="q-ch-check">验收我的参数</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（拖拽排序）：后悔值法的五步计算</h4>
+      <p class="foreshadow">把卡片拖进槽，排出后悔值法的正确步骤：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（连线匹配）：决策准则 ↔ 口诀与公式</h4>
+      <p class="foreshadow">先点左列一个准则，再点右列对应做法：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab3-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为先前知识点交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div>
+    <div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>56 · 进度管理与关键路径的「压缩方案择优」是资源约束下做取舍的朴素版；本页把这类取舍升级成标准模型。57 页 EAC「按当前绩效外推」与决策树 EMV 同宗：都是拿比率与概率预报终局。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「容量按负载配、资源按队列扩」的思想在 <b>59 · 大数据架构</b> 变成集群扩容与资源调度问题；</li><li>排队论的单窗口直觉，也是 <b>40 · 中间件与事件驱动</b> 里消息队列削峰的数学底子。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>决策论（四准则）</th><th>决策树（EMV）</th></tr>
+      <tr><td>差异点</td><td><strong>不知道概率</strong>，按决策者风险态度选规则</td><td><strong>知道概率</strong>，把不确定性折成期望钱数比大小</td></tr>
+      <tr><td>易错点</td><td>悲观法「小中取大」与后悔值法「大中取小」步骤混淆；同一矩阵不同准则可以选不同方案（都对）</td><td>忘减投资；把「期望值最大」当成「稳赚」——EMV 高只说明平均占优，风险厌恶时仍可能选小厂</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">有概率用 EMV 加权比大小；没概率按性格选准则——乐观/悲观/后悔/等可能各有各的答案。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是 12 岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——用有限的零花钱买零食，怎么搭配最划算，就是把所有组合试一遍……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 线性规划：画可行域、推等值线，最优解必在顶点——逐顶点代入是最稳的考场做法。</li>
+    <li>② 决策论四准则对同一矩阵可给不同答案：乐观大中取大、悲观小中取大、后悔值大中取小、等可能求平均；有概率则用决策树 EMV=Σ概率×损益−投资。</li>
+    <li>③ 排队论 M/M/1：先验 ρ=λ/μ&lt;1，再算 L、Lq、W、Wq；W 是逗留、Wq 是纯等待。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '58', domain: 'pm', loc: 'command', root: '..',
+  title: '管理科学与决策分析',
+  prev: '57-earned-value.html', prevTitle: '57 · 成本估算与挣值分析',
+  next: '59-bigdata.html', nextTitle: '59 · 大数据架构',
+  keywords: ['线性规划', '可行域', '决策树', '期望值', '后悔值', '排队论', '服务强度', '乐观准则']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 56） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·56】要把总工期压缩 1 天且花钱最少，压缩对象必须满足什么条件？',
+    opts: [
+      { t: '压缩成本最低的任意活动', why: '漏了关键前提：不在关键路径上的活动压了不缩总工期。' },
+      { t: '关键路径上、单位压缩成本最低的活动（压后需重算关键路径）', why: '对：只有关键活动压缩才缩短总工期；每压一步还要重算，因为关键路径可能搬家。' },
+      { t: '工期最长的活动', why: '工期长短与能否压缩总工期无直接关系，位置（是否在关键路径）才关键。' }
+    ],
+    ans: 1, tag: '回忆:56', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '线性规划：max z=3x+2y，约束 x+y≤5，2x+y≤8，x,y≥0。最优解是？',
+      opts: [
+        { t: 'x=3，y=2，z=13', why: '对：可行域顶点 (0,0)、(4,0)、(3,2)、(0,5) 逐一代入：0、12、13、10——顶点 (3,2) 最优。' },
+        { t: 'x=4，y=0，z=12', why: '这是「全造利润高的 A」，漏了顶点 (3,2)；逐顶点代入就不会漏。' },
+        { t: 'x=0，y=5，z=10', why: '(0,5) 是可行顶点但不最优；利润率与总量要一起看。' },
+        { t: 'x=2.5，y=2.5，z=12.5', why: '线性规划最优解在顶点，中点绝不优于两端顶点；且 (2.5,2.5) 违反 2x+y≤8（=7.5 未违反但非顶点）。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '收益矩阵（畅销/一般/滞销）：甲 50/20/−10；乙 40/25/0；丙 30/20/10。按悲观法（小中取大）应选？',
+      opts: [
+        { t: '方案甲', why: '甲是乐观法（max-max=50）的选择，它的最坏值 −10 是三者中最惨的。' },
+        { t: '方案丙', why: '对：各方案最坏值甲 −10、乙 0、丙 10——小中取大，丙的最坏情况最好。' },
+        { t: '方案乙', why: '乙是等可能法（均值≈21.7）与后悔值法（最大后悔 10 最小）的选择，不是悲观法。' },
+        { t: '信息不足无法决策', why: '悲观法恰好不需要概率，矩阵本身够了。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '决策树：建大厂投资 200 万，畅销（概率 0.6）年收益 80 万、滞销（0.4）年收益 −30 万，经营 10 年；建小厂投资 100 万，畅销年收益 40 万、滞销年收益 10 万。按 EMV 应选？',
+      opts: [
+        { t: '建大厂，EMV=160 万', why: '大厂 EMV=(0.6×80+0.4×(−30))×10−200=(48−12)×10−200=160 万，但被小厂反超。' },
+        { t: '建小厂，EMV=180 万', why: '对：小厂 EMV=(0.6×40+0.4×10)×10−100=(24+4)×10−100=180 万＞160 万，期望更优。' },
+        { t: '两方案一样', why: '160≠180，期望值可分高下。' },
+        { t: '都不建', why: '两方案 EMV 均远大于 0（不投资的基准），没有放弃的理由。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: 'M/M/1 排队系统：λ=6 人/小时，μ=8 人/小时。顾客平均逗留时间 W 是？',
+      opts: [
+        { t: '30 分钟', why: '对：W=1/(μ−λ)=1/2 小时=30 分钟（含被服务时间）。' },
+        { t: '22.5 分钟', why: '那是 Wq=λ/[μ(μ−λ)]=6/16 小时=22.5 分钟——纯等待，别与逗留混。' },
+        { t: '45 分钟', why: '公式记混了；先算 μ−λ=2，W=1/2 小时。' },
+        { t: '75 分钟', why: '数值无来源；稳态下先验证 ρ=6/8=0.75<1 再代公式。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '【交错复习:57】项目 BAC=150 万，检查点 EV=80 万、AC=100 万，且成本偏差预计持续。按典型偏差口径 EAC 为多少？',
+      opts: [
+        { t: '187.5 万', why: '对：CPI=EV/AC=0.8，EAC=BAC/CPI=150/0.8=187.5 万，将超支 37.5 万。' },
+        { t: '170 万', why: '误用 AC+(BAC−EV)=100+70=170——那是非典型（一次性偏差）口径。' },
+        { t: '120 万', why: '方向反了：CPI<1 是超支，完工成本只会高于 150 万。' },
+        { t: '150 万', why: 'BAC 是预算基准，有持续性超支时完工估算必然超过它。' }
+      ],
+      ans: 0, tag: '交错复习:57', src: '仿真题' }
+  ], { kpId: '58', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    stem: '某公司考虑为新园区建设数据中心：建大厂（大机房）需投资 300 万元；建小厂（小机房）投资 160 万元；也可不建（EMV=0）。经营期 10 年。市场预测：畅销概率 0.7，届时大厂年收益 100 万元、小厂年收益 50 万元；滞销概率 0.3，大厂年收益 −20 万元、小厂年收益 20 万元。',
+    q: '(1) 画出决策树（注明决策点、机会点、概率与损益）；(2) 计算各方案 EMV 并给出决策；(3) 若畅销概率降为 0.5，结论是否变化？请重算说明；(4) 指出 EMV 决策的一个局限性。',
+    ref: '(1) 决策点□引出三支：建大厂、建小厂、不建；每支机会点○按畅销/滞销分叉，标概率 0.7/0.3 与年收益，末端减投资。(2) 建大厂 EMV=(0.7×100+0.3×(−20))×10−300=(70−6)×10−300=340 万元；建小厂 EMV=(0.7×50+0.3×20)×10−160=(35+6)×10−160=250 万元；不建=0。max{340,250,0}=340，选建大厂。(3) 概率改为 0.5/0.5：大厂=(0.5×100+0.5×(−20))×10−300=(50−10)×10−300=100 万元；小厂=(0.5×50+0.5×20)×10−160=(25+10)×10−160=190 万元——结论反转，改为建小厂。说明 EMV 结论对概率敏感，概率估计要给出依据或做敏感性分析。(4) 局限：EMV 只反映平均收益，不反映风险承受力——决策者风险厌恶时可能宁选期望低但下行风险小的方案（如本题小厂滞销仍 +20）；且期望值依赖概率与收益估计的准确性。',
+    points: ['决策树三要素齐全（决策点/机会点/概率损益），结构正确', '两个 EMV 计算含「×10 年再减投资」的完整过程（340 与 250），选大厂', '重算 0.5 概率情形（100 与 190）并明确说出「结论反转」', '局限性落到「期望≠稳赚/风险态度/概率依赖」任一实质点'],
+    frame: '答题框架：画树（□→○→△三层）→ 逐支 EMV=Σ概率×损益×年数−投资 → 比大小给决策 → 换概率做敏感性 → 用局限收尾体现批判性。',
+    kpId: '58'
+  });
+  CX.renderCase('#case2', {
+    stem: '某云厂商新产线生产 A、B 两档服务器：A 每台利润 5 千元，耗机时 6 小时；B 每台利润 4 千元，耗机时 4 小时。每周机时上限 24 小时；两种服务器共用装配人力，每台均耗 1 人日，每周人力上限 5 人日。销售建议「A 利润高，全造 A」。',
+    q: '(1) 建立线性规划模型（决策变量、目标函数、约束）；(2) 用图解法/顶点法求最优配比与最大利润，并评价「全造 A」；(3) 指出哪些资源是瓶颈（约束取等），若每周机时能增加 1 小时，最大利润约增加多少？',
+    ref: '(1) 设每周造 A x 台、B y 台：max z=5x+4y（千元）；s.t. 6x+4y≤24（机时），x+y≤5（人力），x,y≥0。(2) 顶点枚举：(0,0)→0；(4,0)→20（此时人力只用 4，机时满）；(0,5)→20（人力满，机时 20）；两约束交点：6x+4y=24 且 x+y=5 → 解得 x=2、y=3，z=10+12=22。最优配比 A 2 台、B 3 台，最大利润 22 千元。「全造 A」是顶点 (4,0)，利润 20 千＜22 千——单台利润高不等于总利润高，B 耗资源少、组合更划算。(3) 机时约束 6×2+4×3=24 取等、人力约束 2+3=5 取等，两者都是瓶颈资源。机时增至 25：交点变为 6x+4y=25、x+y=5 → 2x=5 → x=2.5、y=2.5，z=12.5+10=22.5 千——最大利润约增加 0.5 千元/机时（即机时的影子价格）。',
+    points: ['模型三件套完整：决策变量、目标函数、约束（含非负），数值与题面一致', '顶点全部代入：(4,0)=20、(0,5)=20、(2,3)=22，选 (2,3) 并点评「全造A」错误原因', '判断双约束同时取等=双瓶颈，影子价格计算思路正确（约 0.5 千/机时）'],
+    frame: '答题框架：设变量 → 写目标与约束 → 列顶点/画图求交点 → 逐点代入比大小 → 用「约束取等=瓶颈」收尾并给资源增值的量化建议。',
+    kpId: '58'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '某系统要上风控引擎：自研需投入且结果不确定——成功（概率 0.8）可获收益 100 万，失败（0.2）亏损 60 万（损益均已含研发投入）；外购确定获净收益 50 万。按 EMV 应如何决策？',
+    opts: [
+      { t: '自研：EMV=68 万＞50 万', why: '对：EMV=0.8×100+0.2×(−60)=80−12=68 万，期望更高。选型决策与建厂决策同构：画分支、乘概率、比大小。' },
+      { t: '外购：因为确定不亏', why: '确定性值钱，但 EMV 口径下 50<68；若决策者风险厌恶可另议——那已不是 EMV 规则。' },
+      { t: '自研：因为成功概率高达 0.8', why: '只看概率不看损益是常见错法：0.8×(−60) 的下行也要计入。' }
+    ],
+    ans: 0, tag: '变式迁移', src: '仿真题'
+  }], { mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['56', '57'], 'prev');
+  CX.depChain('#bridge-next', ['59', '40'], 'next');
+
+  /* ================= 动画：线性规划图解法 ================= */
+  var stage = CX.utils.$('demo1-stage');
+  function PX(x) { return 70 + x * 85; }
+  function PY(y) { return 335 - y * 50; }
+  var verts = [[0, 0], [4, 0], [3, 2], [0, 5]];
+  function bestVert(k) {
+    var bi = 0, bz = -1e9;
+    verts.forEach(function (v, i) {
+      var z = 3 * v[0] + k * v[1];
+      if (z > bz) { bz = z; bi = i; }
+    });
+    return { i: bi, v: verts[bi], z: bz };
+  }
+  function drawLP(t) {
+    var k = (+CX.utils.$('k-slider').value) / 10;
+    var bv = bestVert(k);
+    var z = t * (bv.z + 2.5);
+    var s = '<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="700" height="380" rx="12" fill="var(--bg-soft)"/>';
+    /* 坐标轴 */
+    s += '<line x1="60" y1="345" x2="640" y2="345" stroke="var(--text-dim)" stroke-width="2"/>';
+    s += '<line x1="60" y1="345" x2="60" y2="30" stroke="var(--text-dim)" stroke-width="2"/>';
+    for (var g = 0; g <= 6; g++) {
+      s += '<text x="' + PX(g) + '" y="362" text-anchor="middle" font-size="11" fill="var(--text-dim)">' + g + '</text>';
+      if (g > 0) s += '<text x="50" y="' + (PY(g) + 4) + '" text-anchor="end" font-size="11" fill="var(--text-dim)">' + g + '</text>';
+    }
+    s += '<text x="350" y="376" text-anchor="middle" font-size="12" fill="var(--text-dim)">x（A 型/台）</text>';
+    s += '<text x="24" y="190" font-size="12" fill="var(--text-dim)" transform="rotate(-90 24 190)">y（B 型/台）</text>';
+    /* 可行域 */
+    var poly = verts.map(function (v) { return PX(v[0]) + ',' + PY(v[1]); }).join(' ');
+    s += '<polygon points="' + poly + '" fill="var(--accent)" opacity=".16"/>';
+    /* 约束线 */
+    s += '<line x1="' + PX(0) + '" y1="' + PY(5) + '" x2="' + PX(5) + '" y2="' + PY(0) + '" stroke="var(--accent)" stroke-width="2"/>';
+    s += '<text x="' + PX(2.2) + '" y="' + (PY(3.4) - 8) + '" font-size="12" fill="var(--accent)">x+y=5（工时）</text>';
+    s += '<line x1="' + PX(0) + '" y1="' + PY(8) + '" x2="' + PX(4) + '" y2="' + PY(0) + '" stroke="var(--ok)" stroke-width="2"/>';
+    s += '<text x="' + PX(3.15) + '" y="' + (PY(1.2) + 20) + '" font-size="12" fill="var(--ok)">2x+y=8（材料）</text>';
+    /* 等值线 3x+ky=z */
+    if (z > 0.01) {
+      var xi = z / 3, yi = z / k;
+      var p1x = PX(0), p1y = PY(yi), p2x = PX(xi), p2y = PY(0);
+      if (yi > 6.6) { var xx = (z - k * 6.6) / 3; p1x = PX(xx); p1y = PY(6.6); }
+      if (xi > 6.6) { var yy = (z - 3 * 6.6) / k; p2x = PX(6.6); p2y = PY(yy); }
+      s += '<line x1="' + p1x + '" y1="' + p1y + '" x2="' + p2x + '" y2="' + p2y + '" stroke="var(--bad)" stroke-width="2.5" stroke-dasharray="9 5"/>';
+      s += '<text x="' + (p2x - 14) + '" y="' + (p2y - 10) + '" text-anchor="end" font-size="12.5" font-weight="700" fill="var(--bad)">z=' + z.toFixed(1) + '</text>';
+    }
+    /* 顶点 */
+    verts.forEach(function (v, i) {
+      var isBest = t >= 0.999 || z >= bv.z - 0.05;
+      s += '<circle cx="' + PX(v[0]) + '" cy="' + PY(v[1]) + '" r="5" fill="' + (isBest && i === bv.i ? 'var(--bad)' : 'var(--card)') + '" stroke="var(--text-dim)" stroke-width="1.5"/>';
+      s += '<text x="' + (PX(v[0]) + 9) + '" y="' + (PY(v[1]) + 4) + '" font-size="11.5" fill="var(--text-dim)">(' + v[0] + ',' + v[1] + ')</text>';
+    });
+    if (t >= 0.999 || z >= bv.z - 0.05) {
+      s += '<circle cx="' + PX(bv.v[0]) + '" cy="' + PY(bv.v[1]) + '" r="11" fill="none" stroke="var(--bad)" stroke-width="2.5" opacity=".8"/>';
+      s += '<text x="' + PX(bv.v[0]) + '" y="' + (PY(bv.v[1]) - 18) + '" text-anchor="middle" font-size="13.5" font-weight="800" fill="var(--bad)">最优点 (' + bv.v[0] + ',' + bv.v[1] + ') z=' + bv.z.toFixed(1) + '</text>';
+    }
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap = '等值线 z=3x+' + k.toFixed(1) + 'y 外移中：碰到顶点 (' + bv.v[0] + ',' + bv.v[1] + ') 时 z=' + bv.z.toFixed(1) + ' 千，再往外就离开可行域——它就是最优解。';
+    if (k < 1.5 - 1e-9) cap += '（k<1.5：A 太划算，最优跳到 (4,0) 全造 A）';
+    else if (k > 3 + 1e-9) cap += '（k>3：B 太划算，最优跳到 (0,5) 全造 B）';
+    CX.setCap('#demo1-ctl', cap);
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 20, duration: 14, onTick: drawLP });
+  var ks = CX.utils.$('k-slider');
+  ks.addEventListener('input', function () {
+    CX.utils.$('k-out').textContent = (+ks.value / 10).toFixed(1) + ' 千/台';
+    drawLP(anim ? anim.t : 0);
+  });
+  CX.utils.$('k-out').textContent = '2.0 千/台';
+  drawLP(0);
+
+  /* ================= 实验一：排队计算器 ================= */
+  function qCalc() {
+    var lam = (+CX.utils.$('q-lam').value) / 10;
+    var mu = (+CX.utils.$('q-mu').value) / 10;
+    CX.utils.$('q-lam-out').textContent = lam.toFixed(1) + ' 人/时';
+    CX.utils.$('q-mu-out').textContent = mu.toFixed(1) + ' 人/时';
+    var rho = mu > 0 ? lam / mu : 99;
+    var html;
+    if (rho >= 1) {
+      html = 'ρ=λ/μ=' + rho.toFixed(2) + ' ≥ 1：<b>系统不稳定</b>，队列无限积压，L、W 无稳态解。先提高服务率 μ 或降低到达率 λ，再谈指标。';
+    } else {
+      var L = rho / (1 - rho), Lq = rho * rho / (1 - rho);
+      var W = 1 / (mu - lam), Wq = lam / (mu * (mu - lam));
+      html = 'ρ=' + rho.toFixed(2) + '（利用率，需<1）｜L=' + L.toFixed(2) + ' 人（系统平均，含服务中）｜Lq=' + Lq.toFixed(2) + ' 人（排队平均）<br>' +
+        'W=' + (W * 60).toFixed(1) + ' 分钟（平均逗留）｜Wq=' + (Wq * 60).toFixed(1) + ' 分钟（平均纯等待）';
+    }
+    CX.utils.$('q-out').innerHTML = html;
+    return { lam: lam, mu: mu, rho: rho };
+  }
+  ['q-lam', 'q-mu'].forEach(function (id) { CX.utils.$(id).addEventListener('input', qCalc); });
+  qCalc();
+  var qGoals = [
+    { g: '让平均逗留 W ≤ 15 分钟，且 ρ ≤ 0.85', ok: function (r) { return r.mu > r.lam && (1 / (r.mu - r.lam)) * 60 <= 15 + 1e-9 && r.rho <= 0.85 + 1e-9; },
+      hint: 'W=1/(μ−λ) 小时：要么提高 μ、要么降低 λ，把 μ−λ 拉到 ≥4 人/时；同时盯 ρ=λ/μ 不许超 0.85。' },
+    { g: '让 ρ 恰好 = 0.75（利用率压到 75%）', ok: function (r) { return Math.abs(r.rho - 0.75) < 0.026; },
+      hint: 'ρ=λ/μ，让 λ 与 μ 呈 3:4（如 6 与 8、7.5 与 10）。' }
+  ];
+  var qGi = -1;
+  CX.utils.$('q-ch-btn').addEventListener('click', function () {
+    qGi = (qGi + 1) % qGoals.length;
+    CX.utils.$('q-ch-goal').textContent = '目标' + (qGi + 1) + '：' + qGoals[qGi].g;
+    CX.utils.$('lab1-fb').textContent = '';
+  });
+  CX.utils.$('q-ch-check').addEventListener('click', function () {
+    var fb = CX.utils.$('lab1-fb');
+    if (qGi < 0) { fb.textContent = '先点「出挑战目标」领取任务。'; fb.className = 'lab-feedback'; return; }
+    var r = qCalc(), g = qGoals[qGi];
+    if (g.ok(r)) {
+      fb.textContent = '✅ 达成！λ=' + r.lam + '、μ=' + r.mu + '，ρ=' + r.rho.toFixed(2) + '。' + g.hint;
+      fb.className = 'lab-feedback ok';
+    } else {
+      var why = [];
+      if (r.rho >= 1) why.push('当前 ρ=' + r.rho.toFixed(2) + ' ≥ 1，系统都不稳定，谈不上达标——先把 μ 拉到大于 λ');
+      else {
+        var Wmin = (1 / (r.mu - r.lam)) * 60;
+        if (g.g.indexOf('15 分钟') >= 0 && Wmin > 15) why.push('当前 W=' + Wmin.toFixed(1) + ' 分钟 > 15：W=1/(μ−λ)，需 μ−λ≥4 人/时');
+        if (g.g.indexOf('0.85') >= 0 && r.rho > 0.85) why.push('当前 ρ=' + r.rho.toFixed(2) + ' > 0.85：ρ=λ/μ，降 λ 或升 μ');
+        if (g.g.indexOf('0.75') >= 0 && Math.abs(r.rho - 0.75) >= 0.026) why.push('当前 ρ=' + r.rho.toFixed(2) + ' ≠ 0.75：让 λ:μ=3:4');
+      }
+      fb.textContent = '❌ 未达成：' + (why.join('；') || '再核对目标条件。') + ' ' + g.hint;
+      fb.className = 'lab-feedback bad';
+    }
+  });
+
+  /* ================= 实验二：拖拽排序（后悔值法） ================= */
+  var pool = CX.utils.$('drag-pool');
+  var slot = CX.utils.$('drag-slot');
+  var order = ['列出各方案在各自然状态下的收益矩阵', '按列（每个自然状态）找出理想收益（本状态最大值）', '用理想收益减去各收益，得后悔值矩阵', '取每个方案的最大后悔值', '在最大后悔值中选最小者，对应方案即为所选'];
+  CX.shuffle(order.map(function (t) { return { t: t }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('lab2-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        var hints = {
+          0: '一切从收益矩阵出发，没有矩阵谈不上后悔。',
+          1: '后悔=「本来可以拿多少 − 实际拿了多少」，所以先找每列的最大值（理想值）。',
+          2: '有了列理想值才能相减生成后悔值矩阵——相减是按列进行的。',
+          3: '后悔值法怕的是「最遗憾的瞬间」：每个方案先取最大后悔（最遗憾程度）。',
+          4: '最后大中取小：谁的「最大遗憾」最小，谁当选。'
+        };
+        fb.textContent = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。' + hints[i];
+        fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：列矩阵 → 按列找理想值 → 相减得后悔值 → 各方案取最大后悔 → 大中取小。';
+    fb.className = 'lab-feedback ok';
+  });
+
+  /* ================= 实验三：连线匹配 ================= */
+  var pairs = [
+    ['乐观法', '大中取大：各方案取最大收益再取最大'],
+    ['悲观法', '小中取大：各方案取最小收益再取最大'],
+    ['后悔值法', '大中取小：各方案最大后悔值再取最小'],
+    ['等可能法', '各状态概率均等，收益求平均取最大'],
+    ['决策树 EMV', 'Σ(概率×损益)−投资，取期望最大']
+  ];
+  var lBox = CX.utils.$('match-left'), rBox = CX.utils.$('match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('lab3-fb').textContent = '已选「' + p[0] + '」，请在右列点它的做法。';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('lab3-fb').textContent = '先点左列一个准则。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('lab3-fb').textContent = '✅ 配对成功 ' + donePairs + '/5';
+          CX.utils.$('lab3-fb').className = 'lab-feedback ok';
+        } else {
+          CX.utils.$('lab3-fb').textContent = '❌ 「' + selL.dataset.k + '」不是「' + d.textContent + '」。判断锚点：有概率用 EMV；没概率看性格——乐观/悲观取大小，后悔值先减再取，等可能求平均。';
+          CX.utils.$('lab3-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('lab3-fb').textContent = ''; });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

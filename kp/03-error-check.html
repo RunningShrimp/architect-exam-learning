@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · 校验码与纠错 · 架构师学堂</title>
+<meta name="description" content="数据会出错，靠冗余位发现甚至纠正——像信封上的校验编号。">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">计算机系统与硬件</span><span class="badge freq">考频 ★★★☆☆</span><span class="badge diff">难度 ★★★☆☆</span>
+    <span class="badge dep"><a href="02-number-system.html">前置 02</a></span>
+    <h1>03 · 校验码与纠错</h1>
+  </div>
+
+  <section class="sec" id="sec1"><h2><span class="secno">1</span>一句话核心</h2>
+    <p class="core-line">数据会出错，靠冗余位发现甚至纠正——像信封上的校验编号。</p>
+    <div id="city-map"></div>
+  </section>
+
+  <section class="sec" id="sec2"><h2><span class="secno">2</span>先想后学：真实工程场景</h2>
+    <div class="callout"><span class="t">🏗️ 场景</span>某金融机房采购服务器内存，销售推荐 ECC 内存，比普通内存贵三成。运维说：「我们市电稳得很，这钱花得冤。」半年后机器偶发蓝屏，日志里是内存位翻转导致的内核崩溃。问题：<b>位翻转为什么会发生？ECC 靠什么把它救回来？普通「奇偶校验」为什么救不回来？</b></div>
+    <details class="fold"><summary>💡 点开看思路与答案</summary>
+      <p>宇宙射线、电压毛刺都会让某个存储单元的电平翻转，这不是「稳不稳」的态度问题，是概率问题——内存越大、时间越长，翻转几乎必然出现。<strong>奇偶校验</strong>只加 1 位，能发现「奇数个位翻转」却不知道是哪一位，更纠不了；<strong>ECC（海明码思路）</strong>把数据分组做多组奇偶，出错后用各组校验结果拼出一个「错误位置编号」，把那一位取反就完成纠错——这一切的数学基础就是本页的码距、海明分组与 CRC。</p>
+    </details>
+    <h3>30秒温故知新</h3>
+    <p>回忆前置点 <b>02 · 进制转换与数据表示</b>——校验码的一切运算都发生在二进制位串上：</p>
+    <div id="quiz-recall"></div>
+  </section>
+
+  <section class="sec" id="sec3"><h2><span class="secno">3</span>知识卡片</h2>
+    <div id="tts-bar"></div>
+    <div class="kc-text" id="kc-text">
+      <h3>是什么</h3>
+      <p>校验码=在数据位之外<strong>主动添加的冗余位</strong>。按能力分两档：<strong>检错码</strong>只能发现「出错了」（奇偶校验、CRC），处理办法是丢弃重传；<strong>纠错码</strong>还能算出「错在哪」并自动纠正（海明码）。衡量能力的根本尺度是<strong>码距</strong>（任意两个合法码字间最少不同的位数）。</p>
+      <h3>解决什么问题</h3>
+      <p>传输线有噪声、内存有位翻转、磁盘有坏道——物理世界不承诺比特安然无恙。校验码用少量冗余换取「错误可见」甚至「错误自愈」，是可靠性（06 页 RAID）、安全存储的基石。</p>
+      <h3>核心机制</h3>
+      <p><strong>码距定能力</strong>（教材口径）：检测 e 位错需码距 d ≥ e+1；纠正 t 位错需 d ≥ 2t+1。直观理解：合法码字之间至少隔多远，决定了错误把一个码字「推到」另一个合法码字之前能不能被看出来。</p>
+      <p><strong>海明码</strong>：r 位校验位护住 k 位数据，需满足 <code>2^r ≥ k+r+1</code>。校验位放在 2 的幂次位置（第 1、2、4、8…位），每个校验位负责「位号二进制中含相应权位」的所有位，做偶校验。接收端把各组校验结果拼成 syndrome（如 S₄S₂S₁），它恰好等于出错位的位号，取反即纠。</p>
+      <p><strong>4 位数据实例（仿真演示用）</strong>：数据 1011（D₄D₃D₂D₁=1,0,1,1），r=3，编排后 7 位为 H₁..H₇ = <b>0,1,1,0,0,1,1</b>（H₁=P₁, H₂=P₂, H₃=D₁, H₄=P₄, H₅=D₂, H₆=D₃, H₇=D₄）。验证三组偶校验：{H₁,H₃,H₅,H₇}=0,1,0,1 含两个 1；{H₂,H₃,H₆,H₇}=四个 1；{H₄,H₅,H₆,H₇}=两个 1，全部合法。若 H₅ 翻转，重新校验得 syndrome=101，即第 5 位错，取反纠正。</p>
+      <p><strong>CRC（循环冗余校验）</strong>：约定一个生成多项式 G（如 G(x)=x³+x+1，即 1011），发送方在信息码后补 r=3 个 0，用 G 做模 2 除法（异或减法），余数作 FCS 拼在后面发送；接收方用同一个 G 再除，<strong>余数为 0 即认定无错</strong>。实例：信息码 1010，G=1011：1010000÷1011 得余数 011，发送 1010 011。</p>
+      <h3>关键细节</h3>
+      <table class="tbl">
+        <tr><th>编码</th><th>冗余来源</th><th>能力</th><th>典型场景</th></tr>
+        <tr><td>奇偶校验</td><td>1 位，使整组 1 的个数为偶/奇</td><td>发现奇数个位错；不能定位、不能纠</td><td>串口通信、内存条的基础校验</td></tr>
+        <tr><td>海明码</td><td>分组奇偶（r 位按 2 的幂嵌位）</td><td>纠 1 位错（配合附加位可检 2 位）</td><td>ECC 内存</td></tr>
+        <tr><td>CRC</td><td>模 2 除法余数（FCS）</td><td>检突发错能力强；不定位、一般不纠错</td><td>以太网帧、磁盘扇区、zip</td></tr>
+      </table>
+      <div class="callout trap"><span class="t">⚠️ 易错点</span>①公式方向别背反：是 <code>2^r ≥ k+r+1</code>（r 是校验位个数），写成 2^k 就全错；②CRC 考题里「模 2 除法」是<strong>异或</strong>不是普通减法，不借位不进位；③奇偶校验「只能发现奇数个位错」——两位同时翻转反而查不出，这是它能力的硬边界；④码距 d=3 的编码「纠 1 位」或「检 2 位」只能二选一用，同时纠 1 检 2 需要更大码距。</div>
+      <h3>专业英语小贴士</h3>
+      <p>parity check（奇偶校验）；Hamming distance（汉明距离，即码距）；CRC = Cyclic Redundancy Check（循环冗余校验）；FEC = Forward Error Correction（前向纠错，收端直接纠错不必重传）。</p>
+    </div>
+  </section>
+
+  <section class="sec" id="sec4"><h2><span class="secno">4</span>生活类比与口诀</h2>
+    <p>奇偶校验像<strong>行李挂牌</strong>：出门前数一下共几件把数写在牌上，到了一看对不上就知道丢没丢，但不知道丢的是哪件。海明码像<strong>快递单上的分区编号</strong>：每件行李按「路线含哪几段」分别登记在多张清单上，丢了任何一件，几张清单一交叉就能算出它掉在哪一段，原路找回。CRC 像<strong>整箱货的封条编号</strong>：按约定公式算出一个短号贴在箱外，路上箱体一变形封条就对不上——但封条只会喊「坏了」，不会告诉你坏的是哪件。</p>
+    <table class="tbl">
+      <tr><th>类比项</th><th>概念项</th><th>成立/失效</th></tr>
+      <tr><td>行李挂牌数件数</td><td>奇偶校验</td><td>成立（丢一件能发现）</td></tr>
+      <tr><td>多张清单交叉定位</td><td>海明分组校验定位</td><td>成立（一次只丢一件时）</td></tr>
+      <tr><td>封条坏了知道哪件坏</td><td>CRC 定位</td><td><b>失效</b>：CRC 只检错不定位，纠错靠重传</td></tr>
+      <tr><td>丢两件挂牌也对不上</td><td>偶数个位错漏检</td><td>成立：这正是奇偶校验的能力边界</td></tr>
+    </table>
+    <div class="rhyme">奇偶一位查单错，双错过门它没辙；<br>海明纠一靠分组，校验坐镇幂次座；<br>二的 r 次要盖住，数据加校验加一；<br>模二除法留余数，接收再除零通过。</div>
+  </section>
+
+  <section class="sec" id="sec5"><h2><span class="secno">5</span>动画演示</h2>
+    <p>这段动画完整演示海明码「编码 → 出错 → 定位 → 纠正」：数据 1011 编成 7 位海明码，拖动「出错位」滑块人为翻转任何一位，看接收端如何用三组校验拼出错误位置。</p>
+    <div class="demo-stage" id="demo1-stage"></div>
+    <div class="anim-controls" id="demo1-extra" style="margin-top:8px">
+      <label>出错位 <input type="range" id="err-slider" min="0" max="7" value="0"> <span id="err-out">0（无错）</span></label>
+      <span class="kf-caption" id="err-calc"></span>
+    </div>
+    <div id="demo1-ctl"></div>
+  </section>
+
+  <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
+    <div class="lab" id="lab1">
+      <h4>实验一（连线匹配）：编码 ↔ 冗余思想与能力</h4>
+      <p class="foreshadow">先点左列一个编码，再点右列对应描述：</p>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div id="match-left"></div>
+        <div id="match-right"></div>
+      </div>
+      <button class="btn" id="match-reset">重置</button>
+      <div class="lab-feedback" id="lab2-fb"></div>
+    </div>
+    <div class="lab" id="lab2">
+      <h4>实验二（参数实验）：海明校验位个数计算器 + 挑战</h4>
+      <p class="foreshadow">拖滑块选数据位数 k，观察满足 <code>2^r ≥ k+r+1</code> 的最小 r：</p>
+      <label>数据位数 k <input type="range" id="k-slider" min="1" max="11" value="4"> <span id="k-out">4 位</span></label>
+      <p id="r-out" class="foreshadow"></p>
+      <p class="foreshadow">挑战：ECC 内存条要护住 <b>8 位数据</b>，最少需要几位校验位？</p>
+      <button class="btn" data-r="3">r = 3</button>
+      <button class="btn" data-r="4">r = 4</button>
+      <button class="btn" data-r="5">r = 5</button>
+      <button class="btn" data-r="8">r = 8</button>
+      <div class="lab-feedback" id="lab-r-fb"></div>
+    </div>
+    <div class="lab" id="lab3">
+      <h4>实验三（拖拽排序）：CRC 发送方工作步骤</h4>
+      <p class="foreshadow">把卡片拖进槽，排出 CRC 从补零到验收的流程：</p>
+      <div id="drag-pool" style="min-height:50px"></div>
+      <div class="drag-slot" id="drag-slot"></div>
+      <button class="btn" id="drag-check">检查顺序</button>
+      <div class="lab-feedback" id="lab1-fb"></div>
+    </div>
+  </section>
+
+  <section class="sec" id="sec7"><h2><span class="secno">7</span>随堂测试</h2>
+    <h3>仿真单选 ×5（第 5 题为交错复习）</h3>
+    <div id="quiz-main"></div>
+    <h3>案例分析 ×2</h3>
+    <div id="case1"></div><div id="case2"></div>
+    <h3>变式迁移</h3>
+    <p>换个场景考同一概念：</p>
+    <div id="quiz-variant"></div>
+  </section>
+
+  <section class="sec" id="sec8"><h2><span class="secno">8</span>概念桥</h2>
+    <h3>向前：我建立在这些已学点之上</h3><div id="bridge-prev"></div>
+    <p>02 页给了二进制位串与位运算：海明码的「位号分组」就是位号的按权展开，CRC 的模 2 除法就是逐位异或。</p>
+    <h3>向后：我为这些后续点埋下伏笔</h3><div id="bridge-next"></div>
+    <ul class="foreshadow"><li>「多块盘一组算一个奇偶」的 RAID 5，就是本页奇偶校验在磁盘阵列的放大版（<b>06 · 可靠性与RAID</b>）；</li>
+    <li>以太网帧尾的 FCS 字段就是 CRC：到 <b>21 · 局域网与以太网</b> 会再遇到它。</li></ul>
+    <h3>易混概念对比</h3>
+    <table class="tbl"><tr><th></th><th>海明码</th><th>CRC</th></tr>
+      <tr><td>差异点</td><td>冗余位按 2 的幂嵌入，分组做奇偶</td><td>整帧补零后模 2 除法，余数作 FCS</td></tr>
+      <tr><td>易错点</td><td>以为海明能纠多位（标准海明只纠 1 位）</td><td>以为 CRC 余数能当「位置编号」用（它不定位）</td></tr>
+      <tr><td>一句话区分</td><td colspan="2">海明码自带「定位手册」能自己修，CRC 只会喊「这帧坏了」等着重传。</td></tr></table>
+  </section>
+
+  <section class="sec" id="sec9"><h2><span class="secno">9</span>费曼检验</h2>
+    <p>假设听众是12岁孩子，用大白话解释本知识点，关键词会自动点亮：</p>
+    <textarea id="feynman-input" placeholder="比如：你可以这样讲——寄快递时在箱子上贴封条，路上磕了碰了封条会破……"></textarea>
+    <div id="feynman-feedback"></div>
+  </section>
+
+  <section class="sec" id="sec10"><h2><span class="secno">10</span>小结</h2>
+    <ul class="summary-3"><li>① 码距定能力：检 e 位错需 d≥e+1，纠 t 位错需 d≥2t+1；奇偶校验码距 2，只能发现奇数个位错。</li><li>② 海明码：2^r ≥ k+r+1，校验位坐 2 的幂位置，按位号二进制分组，syndrome 直接给出出错位号。</li><li>③ CRC：信息码补 r 个 0、模 2 除法取余数作 FCS，接收方同除余数为 0 判无错；它检错强但不纠错。</li></ul>
+    <div id="kp-nav" class="kp-nav"></div>
+  </section>
+</main>
+<footer class="site-footer">架构师学堂 · 例题均为原创仿真题 · 进度保存在本机浏览器</footer>
+<script>
+window.KP_CONF = {
+  id: '03', domain: 'hw', loc: 'foundation', root: '..',
+  title: '校验码与纠错',
+  prev: '02-number-system.html', prevTitle: '02 · 进制转换与数据表示',
+  next: '04-pipeline.html', nextTitle: '04 · 指令系统与流水线',
+  keywords: ['码距','奇偶校验','海明码','CRC','模2除法','生成多项式','检错','纠错']
+};
+</script>
+<script>
+window.KP_BOOT = function (CX) {
+  /* ---- 回忆题（前置 02） ---- */
+  CX.renderQuiz('#quiz-recall', [{
+    q: '【回忆·02】负数在机器中用补码表示，求负数补码的规则是？',
+    opts: [
+      { t: '符号位写 1，其余照抄绝对值', why: '那是原码；补码要多走一步。' },
+      { t: '绝对值二进制逐位取反后加 1', why: '对。反码+1；正数则三码相同，不用折腾。' },
+      { t: '直接在绝对值前加个负号位', why: '机器里没有「负号」这个字符，一切都要落在 0/1 规则上。' }
+    ],
+    ans: 1, tag: '回忆:02', src: '仿真题'
+  }], { mode: 'recall' });
+
+  /* ---- 随堂 5 题 ---- */
+  CX.renderQuiz('#quiz-main', [
+    { q: '用海明码保护 4 位数据，至少需要的校验位数 r 是？',
+      opts: [
+        { t: '2', why: '2²=4 ≥ 4+2+1=7 不成立，两位校验位分组不够用。' },
+        { t: '3', why: '对。2³=8 ≥ 4+3+1=8 恰好成立，r=3 是最小值（7 位海明码）。' },
+        { t: '4', why: '满足条件但不是「最少」：2⁴=16 远大于 8，浪费 1 位。' },
+        { t: '与数据位数相同', why: '那是 r=k=4 的浪费方案，公式只要求数量关系。' }
+      ],
+      ans: 1, tag: '计算', src: '仿真题' },
+    { q: '某编码的码距 d=3，下列说法正确的是？',
+      opts: [
+        { t: '能纠 2 位错', why: '纠 t 位需 d≥2t+1，d=3 只够纠 1 位。' },
+        { t: '能检 3 位错', why: '检 e 位需 d≥e+1，检 3 位要 d≥4。' },
+        { t: '能纠 1 位错，或检测 2 位错（二选一使用）', why: '对。d=3 满足 2×1+1=3（纠 1）也满足 2+1=3（检 2），但同一套译码规则只能选一种用法。' },
+        { t: '任何错误都能被发现', why: '超过能力范围的错误会把一个合法码字推成另一个合法码字，正好漏检。' }
+      ],
+      ans: 2, tag: '概念', src: '仿真题' },
+    { q: '信息码 110 采用生成多项式 G=1011 做 CRC，附加 3 位后发送的码字是？',
+      opts: [
+        { t: '110001', why: '对。110000÷1011 模 2 除法余 001，FCS=001，发送 110001；接收方再除余 0。' },
+        { t: '110011', why: '余数算错：第三步异或后余 001 不是 011，可回验 110011÷1011 余数不为 0。' },
+        { t: '110101', why: 'FCS=101 不对，模 2 除法要逐位异或、不借位，按步骤重除一遍。' },
+        { t: '110111', why: 'FCS=111 错；提示：第一步 1100⊕1011=0111，别用普通减法。' }
+      ],
+      ans: 0, tag: '计算', src: '仿真题' },
+    { q: '关于奇偶校验，下列说法正确的是？',
+      opts: [
+        { t: '能定位出错位并自动纠正', why: '定位+纠正是海明码的本事，奇偶校验只有 1 位冗余，给不出位置。' },
+        { t: '只能发现奇数个位错，且不能纠错', why: '对。两位同时翻转时 1 的个数奇偶性不变，恰好漏检——这是它码距为 2 的硬边界。' },
+        { t: '任何个数的位错都能发现', why: '偶数个位错会互相抵消，检测不出来。' },
+        { t: '属于纠错码', why: '它只能「喊出错」，处理方式是丢弃重传，属检错码。' }
+      ],
+      ans: 1, tag: '概念', src: '仿真题' },
+    { q: '【交错复习·02】海明码把第 7 位（位号 7）交给第 1、2、4 组校验位共同看护，这样分组的依据是？',
+      opts: [
+        { t: '7 的二进制 111 同时含有 4、2、1 三个权位', why: '对。位号按权展开后含哪些权位，就归哪个校验组管——正是 02 页按权展开思想的直接应用。' },
+        { t: '7 是奇数所以归奇数组', why: '分组看的是位号的二进制权位，不是奇偶性。' },
+        { t: '7 是第 7 大的质数', why: '与质数无关，规则只认 2 的幂。' },
+        { t: '补码运算的结果', why: '补码管有符号数表示，与分组无关。' }
+      ],
+      ans: 0, tag: '交错复习:02', src: '仿真题' }
+  ], { kpId: '03', mode: 'test' });
+
+  /* ---- 案例分析 ---- */
+  CX.renderCase('#case1', {
+    no: 1,
+    stem: '某深空探测器的数传链路单比特误码率较高，且往返时延约 40 分钟。地面站提出了两种方案：方案 A「检错+重传（ARQ）」：每帧附 CRC，发现错误就请求重发；方案 B「前向纠错（FEC）」：每帧附带足够冗余（海明码思路扩展），收端直接纠正错误。',
+    q: '(1) 结合时延分析两方案各自的代价；(2) 说明本场景为何更倾向 FEC；(3) 指出地面服务器（时延小、误码低）应如何反过来选择。',
+    ref: '(1) A 的代价是重传往返：一次重传至少多等 40 分钟×2，链路利用率极低，但冗余开销小；B 的代价是每帧携带更多冗余位、编解码计算，但一次送达。(2) 深空链路误码率高且往返时延巨大，重传的「时间成本」远超冗余的「带宽成本」，所以倾向 FEC（这正是海明/纠错码思想的适用场景）。(3) 地面链路时延小、误码率低：重传一次的代价可忽略，用 CRC 检错+重传更划算——冗余少、实现简单。结论：纠错还是检错重传，取决于「误码率×重传代价」与「冗余代价」的权衡。',
+    points: ['能从「重传时延」角度量化 ARQ 的代价', '说出 FEC 用冗余换重传的权衡逻辑', '给出场景适配结论（深空 FEC / 地面 ARQ），不是一边倒'],
+    frame: '答题框架：先列两方案的资源账（带宽冗余 vs 时延重传）→代入场景参数比较→给出选择并说明边界条件。',
+    kpId: '03'
+  });
+  CX.renderCase('#case2', {
+    no: 2,
+    stem: '某 ECC 内存模块采用 7 位海明码保护 4 位数据（偶校验，P₁P₂P₄ 坐第 1、2、4 位）。CPU 写入数据 1100（D₄D₃D₂D₁=1,1,0,0），读回时发现存储单元第 6 位（H₆）发生了位翻转。',
+    q: '(1) 写出写入时编排好的 7 位海明码（H₁..H₇）；(2) 写出读回的位串；(3) 给出接收端计算 syndrome 并定位、纠正的完整过程。',
+    ref: '(1) D₁=0,D₂=0,D₃=1,D₄=1。P₁ 管 {1,3,5,7}：0⊕0⊕1=1 → H₁=1；P₂ 管 {2,3,6,7}：0⊕1⊕1=0 → H₂=0；P₄ 管 {4,5,6,7}：0⊕1⊕1=0 → H₄=0。海明码 H₁..H₇ = 1,0,0,0,0,1,1。(2) 第 6 位翻转后读回：1,0,0,0,0,0,1。(3) 重算三组：S₁={1,3,5,7}=1⊕0⊕0⊕1=偶→0；S₂={2,3,6,7}=0⊕0⊕0⊕1=奇→1；S₄={4,5,6,7}=0⊕0⊕0⊕1=奇→1。syndrome=S₄S₂S₁=110₂=6，即第 6 位错；把 H₆ 取反恢复 1，数据 D₄D₃D₂D₁=1100 完整找回。',
+    points: ['三组校验位计算正确（P₁P₂P₄=100）', '读回位串正确反映第 6 位翻转', 'syndrome 计算与「结果=出错位号」的解释完整'],
+    frame: '答题框架：编排（先数据后校验）→模拟故障→逐组校验→拼 syndrome→定位取反→回读验证数据一致。',
+    kpId: '03'
+  });
+
+  /* ---- 变式迁移 ---- */
+  CX.renderQuiz('#quiz-variant', [{
+    q: '商品条形码最后一位是根据前各位加权算出的「校验位」，扫码枪算不对就拒绝录入。这与本页哪个思想同源？',
+    opts: [
+      { t: '流水线分段', why: '流水线是并行执行思想，与校验无关。' },
+      { t: '用冗余位检错：数据之外附加一位按规则算出的码', why: '对。条形码校验位就是加在数据后的冗余位，检错不能纠错——和奇偶校验/CRC 同一思想。' },
+      { t: '浮点规格化', why: '规格化管表示精度，与检错无关。' }
+    ],
+    ans: 1, tag: '变式迁移', src: '仿真题'
+  }], { kpId: '03', mode: 'variant' });
+
+  /* ---- 概念桥 ---- */
+  CX.depChain('#bridge-prev', ['02'], 'prev');
+  CX.depChain('#bridge-next', ['06']);
+
+  /* ---- 动画：海明码 编码-出错-定位-纠正 ---- */
+  var stage = CX.utils.$('#demo1-stage');
+  var errPos = 0;                      /* 0=无错, 1..7 */
+  var BASE = [0, 1, 1, 0, 0, 1, 1];    /* H1..H7 = P1,P2,D1,P4,D2,D3,D4 (数据1011) */
+  function draw(t) {
+    var recv = BASE.slice();
+    if (errPos > 0) recv[errPos - 1] ^= 1;
+    var S1 = recv[0] ^ recv[2] ^ recv[4] ^ recv[6];
+    var S2 = recv[1] ^ recv[2] ^ recv[5] ^ recv[6];
+    var S4 = recv[3] ^ recv[4] ^ recv[5] ^ recv[6];
+    var syn = S4 * 4 + S2 * 2 + S1;
+    var phase = t < 0.25 ? 0 : (t < 0.55 ? 1 : (t < 0.8 ? 2 : 3));
+    var s = '<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">';
+    s += '<rect width="760" height="300" rx="12" fill="var(--bg-soft)"/>';
+    var labels = ['P₁', 'P₂', 'D₁', 'P₄', 'D₂', 'D₃', 'D₄'];
+    var i, x;
+    for (i = 0; i < 7; i++) {
+      x = 40 + i * 96;
+      var isCheck = (i === 0 || i === 1 || i === 3);
+      var bad = (errPos - 1 === i) && phase >= 2;
+      var fixed = (syn - 1 === i) && phase === 3 && syn > 0;
+      var fill = bad ? 'var(--bad)' : (fixed ? 'var(--ok)' : (isCheck && phase >= 1 ? 'var(--card-2)' : 'var(--card)'));
+      var stroke = bad ? 'var(--bad)' : (fixed ? 'var(--ok)' : (isCheck ? 'var(--accent-2)' : 'var(--line)'));
+      s += '<rect x="' + x + '" y="70" width="80" height="56" rx="8" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2"/>';
+      s += '<text x="' + (x + 40) + '" y="93" text-anchor="middle" font-size="12" fill="var(--text-dim)">位' + (i + 1) + ' ' + labels[i] + '</text>';
+      var shown = phase === 0 ? '?' : recv[i];
+      s += '<text x="' + (x + 40) + '" y="118" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)">' + shown + '</text>';
+    }
+    s += '<text x="40" y="52" font-size="13" fill="var(--text-dim)">数据 1011（D₄D₃D₂D₁）→ 7 位海明码：校验位坐在 2 的幂位置（位 1、2、4，橙色框）</text>';
+    /* 分组图 */
+    var groups = [[1, 3, 5, 7, 'S₁组（位号含权1）'], [2, 3, 6, 7, 'S₂组（位号含权2）'], [4, 5, 6, 7, 'S₄组（位号含权4）']];
+    var gy = 165;
+    for (i = 0; i < 3; i++) {
+      var g = groups[i], on = phase >= 3;
+      s += '<text x="40" y="' + (gy + i * 30) + '" font-size="13" fill="var(--text-dim)">' + g[4] + '：</text>';
+      var j;
+      for (j = 0; j < 4; j++) {
+        var pos = g[j] - 1;
+        var gx = 210 + j * 44;
+        var ones = recv[pos] === 1;
+        s += '<rect x="' + gx + '" y="' + (gy + i * 30 - 17) + '" width="30" height="22" rx="5" fill="' + (ones ? 'var(--accent-2)' : 'var(--card-2)') + '" opacity="' + (on ? '.95' : '.45') + '"/>';
+        s += '<text x="' + (gx + 15) + '" y="' + (gy + i * 30 - 1) + '" text-anchor="middle" font-size="12" font-weight="700" fill="' + (ones ? 'var(--bg)' : 'var(--text-dim)') + '">' + recv[pos] + '</text>';
+      }
+      var val = [S1, S2, S4][i];
+      if (on) s += '<text x="410" y="' + (gy + i * 30) + '" font-size="14" font-weight="700" fill="' + (val ? 'var(--bad)' : 'var(--ok)') + '">→ S' + (i === 0 ? '₁' : (i === 1 ? '₂' : '₄')) + ' = ' + val + (val ? '（本组奇了！）' : '（偶，正常）') + '</text>';
+    }
+    s += '<text x="620" y="170" font-size="15" font-weight="700" fill="var(--text)">syndrome</text>';
+    s += '<text x="620" y="200" font-size="20" font-weight="700" fill="' + (syn ? 'var(--bad)' : 'var(--ok)') + '">' + S4 + S2 + S1 + '₂ = ' + syn + '</text>';
+    s += '<text x="40" y="272" font-size="13" fill="var(--text-dim)">syndrome 的数值 = 出错位号：0 表示无错；1~7 直接指出把哪一位取反</text>';
+    s += '</svg>';
+    stage.innerHTML = s;
+    var cap;
+    if (phase === 0) cap = '第一步：编排位置。校验位坐在 2 的幂位置（1、2、4），数据位依次填入其余座位。';
+    else if (phase === 1) cap = '第二步：按分组算偶校验，得到 H₁..H₇ = 0110011——合法码字整装待发。';
+    else if (phase === 2) cap = errPos ? ('第三步：传输中第 ' + errPos + ' 位翻转（红框）——接收方还不知道。') : '第三步：本次未设出错位（红框不出现），码字完好到达。';
+    else cap = syn ? ('第四步：三组校验拼出 syndrome=' + syn + '，恰等于出错位号——把该位取反即完成纠正。') : '第四步：三组全偶，syndrome=0——没有位出错，直接放行。';
+    CX.setCap('#demo1-ctl', cap);
+    CX.utils.$('#err-calc').textContent = '当前设置：出错位=' + (errPos || '无') + '；预期 syndrome=' + (errPos || 0) + '。';
+  }
+  var anim = CX.makeAnim('#demo1-ctl', { steps: 12, duration: 12, onTick: draw });
+  var eS = CX.utils.$('#err-slider');
+  eS.addEventListener('input', function () {
+    errPos = parseInt(eS.value, 10);
+    CX.utils.$('#err-out').textContent = errPos ? (errPos + '（翻转位' + errPos + '）') : '0（无错）';
+    draw(anim.t || 0);
+  });
+
+  /* ---- 实验一：连线匹配 ---- */
+  var pairs = [
+    ['奇偶校验', '加 1 位使 1 的个数为偶，能发现奇数个位错'],
+    ['海明码', '按位号分组做多组奇偶，能定位并纠正 1 位错'],
+    ['CRC', '模 2 除法余数作 FCS，检突发错靠重传处理'],
+    ['码距', '合法码字间的最小距离，决定检错纠错能力']
+  ];
+  var lBox = CX.utils.$('#match-left'), rBox = CX.utils.$('#match-right');
+  var selL = null, donePairs = 0;
+  function buildMatch() {
+    selL = null; donePairs = 0;
+    lBox.innerHTML = ''; rBox.innerHTML = '';
+    pairs.forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[0]; d.dataset.k = p[0];
+      d.addEventListener('click', function () {
+        CX.utils.$$('.match-opt', lBox).forEach(function (x) { x.classList.remove('sel'); });
+        d.classList.add('sel'); selL = d;
+        CX.utils.$('#lab2-fb').textContent = '已选「' + p[0] + '」，请在右列点它的描述。';
+        CX.utils.$('#lab2-fb').className = 'lab-feedback';
+      });
+      lBox.appendChild(d);
+    });
+    CX.shuffle(pairs).forEach(function (p) {
+      var d = document.createElement('div'); d.className = 'drag-item match-opt'; d.textContent = p[1]; d.dataset.v = p[0];
+      d.addEventListener('click', function () {
+        if (!selL) { CX.utils.$('#lab2-fb').textContent = '先点左列一个编码。'; return; }
+        if (selL.dataset.k === d.dataset.v) {
+          selL.style.opacity = .35; d.style.opacity = .35; selL.style.borderColor = 'var(--ok)'; d.style.borderColor = 'var(--ok)';
+          selL.classList.remove('sel'); selL = null; donePairs++;
+          CX.utils.$('#lab2-fb').textContent = '✅ 配对成功 ' + donePairs + '/4';
+          CX.utils.$('#lab2-fb').className = 'lab-feedback ok';
+        } else {
+          var k = selL.dataset.k;
+          var hint = '❌ 「' + k + '」不对应这条。分辨口诀：只喊错的是奇偶和 CRC（奇偶管 1 位、CRC 管一串），能自己修的是海明；而「决定一切能力上限」的是码距这个幕后指标。';
+          CX.utils.$('#lab2-fb').textContent = hint;
+          CX.utils.$('#lab2-fb').className = 'lab-feedback bad';
+        }
+      });
+      rBox.appendChild(d);
+    });
+  }
+  buildMatch();
+  CX.utils.$('#match-reset').addEventListener('click', function () { buildMatch(); CX.utils.$('#lab2-fb').textContent = ''; });
+
+  /* ---- 实验二：参数实验 ---- */
+  var kS = CX.utils.$('#k-slider');
+  function minR(k) {
+    var r = 1;
+    while (Math.pow(2, r) < k + r + 1) r++;
+    return r;
+  }
+  function syncK() {
+    var k = parseInt(kS.value, 10);
+    CX.utils.$('#k-out').textContent = k + ' 位';
+    var r = minR(k);
+    CX.utils.$('#r-out').textContent = 'k=' + k + ' 时：2^' + r + '=' + Math.pow(2, r) + ' ≥ ' + k + '+' + r + '+1=' + (k + r + 1) + ' ✓ → 最少 r=' + r + '，编码总长 ' + (k + r) + ' 位，码效率 ' + (100 * k / (k + r)).toFixed(0) + '%';
+  }
+  kS.addEventListener('input', syncK); syncK();
+  CX.utils.$$('.lab button[data-r]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var fb = CX.utils.$('#lab-r-fb');
+      var pick = parseInt(b.getAttribute('data-r'), 10);
+      if (pick === 4) {
+        fb.textContent = '✅ 正确：2⁴=16 ≥ 8+4+1=13。r=3 时 8 < 12 不够分组，r=5 浪费。';
+        fb.className = 'lab-feedback ok';
+      } else if (pick === 3) {
+        fb.textContent = '❌ r=3 不够。错在这一步：代入公式 2³=8，而 8+3+1=12，8<12 不满足——校验组数不足以覆盖所有位。';
+        fb.className = 'lab-feedback bad';
+      } else if (pick === 5) {
+        fb.textContent = '❌ r=5 满足条件但不是「最少」。错在这一步：审题问的是最小值，先试小的——r=4 时 16≥13 已成立。';
+        fb.className = 'lab-feedback bad';
+      } else {
+        fb.textContent = '❌ r=8 是拿数据位数当校验位数了。错在这一步：公式里 r 是校验位、k 才是数据位，二者别代入反。';
+        fb.className = 'lab-feedback bad';
+      }
+    });
+  });
+
+  /* ---- 实验三：拖拽排序 ---- */
+  var order = [
+    '信息码后补 r 个 0（r=生成多项式最高次数）',
+    '用生成多项式 G 对补零位串做模 2 除法（异或）',
+    '反复异或消掉首位 1，直到余数位数少于 G',
+    '把 r 位余数作为 FCS 拼在信息码后发送',
+    '接收方用同一个 G 再除一次，余数为 0 判无错'
+  ];
+  var pool = CX.utils.$('#drag-pool'), slot = CX.utils.$('#drag-slot');
+  CX.shuffle(order.map(function (t, i) { return { t: t, i: i }; })).forEach(function (it) {
+    var d = document.createElement('div');
+    d.className = 'drag-item'; d.draggable = true; d.textContent = it.t; d.dataset.t = it.t;
+    d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text', it.t); });
+    pool.appendChild(d);
+  });
+  slot.addEventListener('dragover', function (e) { e.preventDefault(); slot.classList.add('hot'); });
+  slot.addEventListener('dragleave', function () { slot.classList.remove('hot'); });
+  slot.addEventListener('drop', function (e) {
+    e.preventDefault(); slot.classList.remove('hot');
+    var t = e.dataTransfer.getData('text');
+    var src = pool.querySelector('[data-t="' + t + '"]');
+    if (src) slot.appendChild(src);
+  });
+  CX.utils.$('#drag-check').addEventListener('click', function () {
+    var got = Array.prototype.map.call(slot.children, function (c) { return c.dataset.t; });
+    var fb = CX.utils.$('#lab1-fb');
+    if (got.length < 5) { fb.textContent = '还有 ' + (5 - got.length) + ' 张卡片没拖进槽。'; fb.className = 'lab-feedback bad'; return; }
+    for (var i = 0; i < 5; i++) {
+      if (got[i] !== order[i]) {
+        var hint;
+        if (i === 0) hint = '第 1 步错了：必须先「补 r 个 0」给余数腾位置——不补零就没法做除法。';
+        else if (i === 4) hint = '最后一步错了：FCS 拼好后发送，接收方「再除一次」是验收动作，要放在收尾。';
+        else hint = '第 ' + (i + 1) + ' 步错了：你放了「' + got[i] + '」。主线是：补零 → 除 → 余数当 FCS → 发送 → 接收方复除，接收方动作永远在发送之后。';
+        fb.textContent = hint; fb.className = 'lab-feedback bad'; return;
+      }
+    }
+    fb.textContent = '✅ 正确：补零 → 模 2 除 → 余数作 FCS → 发送 → 接收方复除余 0 验收。';
+    fb.className = 'lab-feedback ok';
+  });
+};
+</script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>
