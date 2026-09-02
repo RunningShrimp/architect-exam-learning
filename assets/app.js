@@ -589,6 +589,20 @@ document.addEventListener('DOMContentLoaded', function () {
     else html += '<a class="next" href="' + conf.root + '/review.html"><span class="dir">已经是最后一站 →</span>🔁 去复习中心巩固</a>';
     navEl.innerHTML = html;
   }
+  /* 移动端底部快捷导航（仅详情页注入；样式仅 ≤768px 显示） */
+  var qn = document.createElement('nav');
+  qn.className = 'mobile-quicknav';
+  var qnLink = function (href, icon, label, cls) {
+    return '<a href="' + href + '"' + (cls ? ' class="' + cls + '"' : '') + '><span class="qi">' + icon + '</span><span>' + label + '</span></a>';
+  };
+  qn.innerHTML =
+    (conf.prev ? qnLink(conf.root + '/kp/' + conf.prev, '⬅️', '上一站', 'qn-prev') : qnLink(conf.root + '/index.html', '⬅️', '起点', 'qn-prev')) +
+    qnLink(conf.root + '/index.html', '🗺️', '城市地图') +
+    qnLink(conf.root + '/review.html', '🔁', '复习') +
+    qnLink(conf.root + '/graph.html', '🕸️', '图谱') +
+    (conf.next ? qnLink(conf.root + '/kp/' + conf.next, '➡️', '下一站', 'qn-next') : qnLink(conf.root + '/review.html', '➡️', '去复习', 'qn-next'));
+  document.body.appendChild(qn);
+
   if (typeof window.KP_BOOT === 'function') {
     try { window.KP_BOOT(CX); } catch (e) { console.error('KP_BOOT error:', e); }
   }

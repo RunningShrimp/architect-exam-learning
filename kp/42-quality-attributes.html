@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>42 · 质量属性与质量场景 · 架构师学堂</title>
 <meta name="description" content="质量属性要落成六要素场景：源、激、环、器、响应、度量，度量必须带数字才算数。">
 <link rel="manifest" href="../manifest.webmanifest">
@@ -49,7 +49,7 @@
         <tr><td>3</td><td>环境 environment</td><td>发生时系统处于什么状态？</td><td>系统正常运行时</td></tr>
         <tr><td>4</td><td>制品 artifact</td><td>作用在系统的哪个部件？</td><td>数据库主从集群</td></tr>
         <tr><td>5</td><td>响应 response</td><td>系统做了什么活动？</td><td>完成切换，服务保持可用</td></tr>
-        <tr><td>6</td><td>响应度量 response measure</td><td>做到什么程度？<b>必须量化</b></td><td>200ms 内完成、数据零丢失（RPO=0）</td></tr>
+        <tr><td>6</td><td>响应度量 response measure</td><td>做到什么程度？<b>必须量化</b></td><td>200ms 内完成、数据零丢失（RPO=0；RPO 即恢复点目标，指系统可容忍的最大数据丢失量）</td></tr>
       </table>
       <h3>关键细节</h3>
       <p><strong>六大常用属性的度量口径</strong>（教材主流口径，属性还有可移植性、互操作性等扩展项）：</p>

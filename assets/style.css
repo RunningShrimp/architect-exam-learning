@@ -271,19 +271,72 @@ footer.site-footer { text-align: center; color: var(--text-dim); font-size: .8re
 .pct { font-size: .82rem; color: var(--text-dim); min-width: 76px; text-align: right; }
 
 /* ---------- 响应式 ---------- */
+/* 移动端增强：触控目标 ≥44px、防 iOS 输入缩放、刘海安全区、底部快捷导航 */
+html { -webkit-text-size-adjust: 100%; }
+body { -webkit-tap-highlight-color: transparent; }
+button, .btn, .icon-btn, .q-opt, .drag-item, .dep-chip { touch-action: manipulation; }
+input[type="range"] { height: 28px; }
+
+/* 底部快捷导航（仅移动端显示，app.js 在详情页注入） */
+.mobile-quicknav { display: none; }
+
+@media (max-width: 768px) {
+  .mobile-quicknav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    display: flex; justify-content: space-around; align-items: stretch;
+    background: color-mix(in srgb, var(--bg) 94%, transparent);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-quicknav a {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 6px 2px; min-height: 44px; justify-content: center;
+    border-radius: 10px; color: var(--text-dim); font-size: .72rem; line-height: 1.2;
+    text-align: center;
+  }
+  .mobile-quicknav a .qi { font-size: 1.15rem; }
+  .mobile-quicknav a:active { background: var(--card-2); }
+  .mobile-quicknav a.qn-prev, .mobile-quicknav a.qn-next { color: var(--text); }
+  .wrap, main.wrap { padding-bottom: 92px; }
+}
+
 @media (max-width: 640px) {
   body { font-size: 15px; }
-  .topbar { flex-wrap: wrap; padding: 8px 10px; }
-  .topbar nav { order: 3; flex-basis: 100%; overflow-x: auto; }
-  .sec { padding: 14px; }
-  .kp-head h1 { font-size: 1.28rem; }
-  .q-opt { padding: 8px 10px; }
+  .topbar {
+    flex-wrap: wrap; padding: 8px 10px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  }
+  .topbar nav { order: 3; flex-basis: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .topbar nav a { padding: 8px 12px; } /* 顶栏链接也是触控目标 */
+  .topbar .brand { font-size: .95rem; }
+  .sec { padding: 14px 12px; }
+  .kp-head h1 { font-size: 1.22rem; }
+  /* 触控目标加大 */
+  .q-opt { padding: 12px; }
+  .btn, .icon-btn, .anim-controls button { min-height: 40px; padding: 8px 14px; }
+  .anim-controls { gap: 10px; }
+  .anim-controls input[type="range"], .tts-bar input[type="range"] { width: 120px; height: 32px; }
+  .dep-chip { padding: 8px 13px; }
+  .drag-item { padding: 10px 14px; }
+  #feynman-input { font-size: 16px; } /* 16px 防 iOS 聚焦自动放大 */
+  /* 宽表格与动画舞台横向滚动 */
   .tbl { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .demo-stage { overflow-x: auto; }
+  .q-exp ul { padding-left: 16px; }
+  .kp-nav a { min-height: 48px; }
+}
+
+@media (max-width: 400px) {
+  .kp-head h1 { font-size: 1.1rem; }
+  .badge { font-size: .72rem; padding: 2px 8px; }
+  .stat-card .num { font-size: 1.5rem; }
+  .mobile-quicknav a { font-size: .66rem; }
 }
 /* ---------- 打印 ---------- */
 @media print {
   body { background: #fff; color: #000; font-size: 12px; }
-  .topbar, .tts-bar, .anim-controls, .btn, .icon-btn, .kp-nav, #city-map, .lab, footer.site-footer { display: none !important; }
+  .topbar, .tts-bar, .anim-controls, .btn, .icon-btn, .kp-nav, #city-map, .lab, .mobile-quicknav, footer.site-footer { display: none !important; }
   .sec { border: none; box-shadow: none; padding: 6px 0; page-break-inside: avoid; }
   a { color: #000; }
   details.fold { border: 1px solid #999; }
