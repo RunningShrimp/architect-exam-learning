@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>POC-2 · 缓存仓库动画 · 架构师学堂</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .cs-root { position: relative; height: 62vh; min-height: 400px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #101828; }
+  .cs-hud { position: absolute; z-index: 5; top: 8px; left: 8px; right: 8px; display: flex; gap: 10px; flex-wrap: wrap; font-size: .8rem; color: #cfd8ec; pointer-events: none; }
+  .cs-hud .cs-tier { background: rgba(10,16,30,.75); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; font-weight: 700; color: #ffb84d; }
+  .cs-hud .cs-fps { background: rgba(10,16,30,.75); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; }
+  .cs-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .cs-label { position: absolute; transform: translate(-50%, -130%); font-size: .72rem; color: #e8edf7; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+  .cache-ctl { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 10px 0; font-size: .92rem; }
+  .stat b { color: var(--accent-2); }
+</style>
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">POC · 隔离实验页</span><span class="badge">不进入学习路径</span>
+    <h1>POC-2 · 缓存命中率 → 仓库人流实时动画</h1>
+    <p class="foreshadow">隐喻沿用全站口径：缓存=社区便利店（近），数据库=远处超市。拖动命中率滑块，顾客流实时变化；
+    平均访问时间 T = h×1.2s + (1−h)×7s 同步重算。同一份 <a href="./config-cache.json">JSON 配置</a> + 同一引擎，四层降级可用 <code>?renderer=…</code> 强制实测。</p>
+    <div class="cache-ctl">
+      <label>命中率 h <input type="range" id="h-slider" min="0" max="100" value="80"> <span id="h-out">80%</span></label>
+      <span class="stat">平均访问时间 <b id="t-avg">2.6s</b></span>
+      <span class="stat">在场顾客 <b id="c-out">0</b></span>
+      <button class="btn" id="btn-probe">🔎 视觉探针</button>
+      <a class="btn" href="./city3d.html">→ POC-1 城市地图</a>
+    </div>
+    <div class="probe-out" id="probe-out"></div>
+  </div>
+  <div id="stage"></div>
+</main>
+<footer class="site-footer">POC 页 · 可整体删除</footer>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.min.js",
+    "three/webgpu": "./vendor/three.webgpu.min.js",
+    "three/tsl": "./vendor/three.tsl.min.js"
+} }
+</script>
+<script>
+/* POC-2 专属动画（3D 层）：顾客沿街道走向便利店（命中）或超市（未命中+回程） */
+window.CityAnims = window.CityAnims || {};
+window.CityAnims.cacheFlow = function (T, scene, cfg) {
+  const state = { h: cfg.h, pool: [] };
+  const mkCustomer = () => {
+    const m = new T.Mesh(new T.CapsuleGeometry(0.45, 0.9, 3, 8), new T.MeshLambertMaterial({ color: '#ffd166' }));
+    m.visible = false; scene.add(m);
+    return { mesh: m, active: false, phase: 0, t: 0, dur: 1, target: 0, lane: 0 };
+  };
+  for (let i = 0; i < cfg.count; i++) state.pool.push(mkCustomer());
+  const HOME = -30, SHOP_X = 12, MART_X = 38;
+  let spawnAcc = 0;
+  function spawn(t) {
+    const c = state.pool.find(p => !p.active);
+    if (!c) return;
+    const hit = Math.random() < state.h;
+    c.active = true; c.hit = hit;
+    c.target = hit ? SHOP_X : MART_X;
+    c.dur = hit ? cfg.ta * 2 : cfg.tb * 2;
+    c.t = 0; c.lane = (Math.random() * 2 - 1) * cfg.lane;
+    c.mesh.visible = true;
+    c.mesh.material.color.set(hit ? '#4dd08c' : '#ff9aa5');
+  }
+  return {
+    setH(h) { state.h = h; },
+    update(t, dt) {
+      spawnAcc += dt || 0.016;
+      if (spawnAcc > 0.5) { spawnAcc = 0; spawn(t); }
+      let active = 0;
+      state.pool.forEach(c => {
+        if (!c.active) return;
+        active++;
+        c.t += (dt || 0.016) / c.dur;
+        let p = c.t;
+        if (p >= 1.6) { c.active = false; c.mesh.visible = false; return; }
+        let x, z = c.lane + 2.6;
+        if (p < 0.5) x = HOME + (c.target - HOME) * (p / 0.5);         /* 去程 */
+        else {                                                          /* 回程（命中：直接回；未命中：拎货回） */
+          x = c.target + (HOME - c.target) * ((p - 0.5) / 0.5);
+          if (!c.hit) c.mesh.scale.setScalar(1.25);                     /* 拎着购物袋 */
+        }
+        if (p < 0.5 || c.hit) c.mesh.scale.setScalar(1);
+        c.mesh.position.set(x, 0.9 + Math.abs(Math.sin(t * 8 + c.lane * 7)) * 0.18, z);
+      });
+      window.__activeCustomers = active;
+    }
+  };
+};
+</script>
+<script>
+window.__cityTier = null;
+window.addEventListener('load', async function () {
+  const r = await CityScene.boot(document.getElementById('stage'), './config-cache.json', {
+    onTier(t) {
+      window.__cityTier = t;
+      document.title = 'POC-2 [' + t + '] · 缓存仓库动画';
+    }
+  });
+  window.__cityBoot = r;
+  /* 动画实例由引擎返回，滑块实时回写 */
+  const anim = r.impl && r.impl.anims && r.impl.anims[0];
+  window.__cacheAnimRef = anim;
+  const slider = document.getElementById('h-slider');
+  const sync = () => {
+    document.getElementById('h-out').textContent = slider.value + '%';
+    const h = slider.value / 100;
+    document.getElementById('t-avg').textContent = (h * 1.2 + (1 - h) * 7).toFixed(1) + 's';
+  };
+  slider.addEventListener('input', () => {
+    sync();
+    if (window.__cacheAnimRef) window.__cacheAnimRef.setH(slider.value / 100);
+  });
+  sync();
+  setInterval(() => { document.getElementById('c-out').textContent = window.__activeCustomers ?? 0; }, 300);
+});
+document.getElementById('btn-probe').addEventListener('click', async () => {
+  const out = document.getElementById('probe-out');
+  out.textContent = '探针采样中…';
+  const res = await window.CityProbe.sample();
+  out.innerHTML = res.map(r => '<div>' + (r.ok === true ? '✅' : r.ok === false ? '❌' : '⚪') + ' ' + r.name +
+    (r.got ? ' — 实测 rgb(' + r.got.join(',') + ') 期望 rgb(' + r.want.join(',') + ')' : (r.note || '')) + '</div>').join('');
+});
+</script>
+<script type="module" src="./engine.js"></script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

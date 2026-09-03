@@ -1,0 +1,25 @@
+{
+  "meta": { "scene": "cache3d", "metaphor": "缓存 = 社区便利店，未命中回源 = 去远处超市", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [30, 26, 44], "target": [0, 0, 0], "fov": 50, "theta": 0, "phi": 1.0, "r": 70 },
+  "roads": [
+    { "x": 0, "z": 0, "w": 90, "d": 4, "color": "#31405f" }
+  ],
+  "zones": [
+    { "id": "home", "label": "家（应用）",   "icon": "🏠", "x": -30, "z": -6, "w": 8, "d": 8, "h": 5, "color": "#5a6b8c" },
+    { "id": "shop", "label": "无人售货柜(Cache)", "icon": "🤖", "x": 12,  "z": -7, "w": 4, "d": 4, "h": 5, "color": "#4dd08c" },
+    { "id": "mart", "label": "超市(DB)",      "icon": "🏬", "x": 38,  "z": -8, "w": 10, "d": 8, "h": 8, "color": "#ff6b7a" }
+  ],
+  "nodes": [
+    { "id": "n05", "label": "05 存储层次与Cache", "icon": "📦", "x": 12, "z": 6, "w": 3, "d": 3, "h": 3, "color": "#ffd166", "link": "../kp/05-cache-memory.html" },
+    { "id": "n38", "label": "38 缓存与微服务",    "icon": "🏬", "x": 38, "z": 4, "w": 3, "d": 3, "h": 3, "color": "#ffb0b8", "link": "../kp/38-microservices.html" }
+  ],
+  "labels": true,
+  "anim": [
+    { "type": "cacheFlow", "h": 0.8, "count": 14, "ta": 0.9, "tb": 7, "lane": 2 }
+  ],
+  "probe": [
+    { "name": "便利店屋顶(绿色)", "x": 12, "y": 4.2, "z": -7, "color": [77, 208, 140], "tol": 60 }
+  ]
+}

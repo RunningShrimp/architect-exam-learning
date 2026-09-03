@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>POC 目录 · 架构师学堂（隔离实验区）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">POC · 隔离实验区</span><span class="badge">随时可整体删除</span>
+    <h1>框架 / 3D 引入评估 · POC 目录</h1>
+    <p class="foreshadow">本目录验证「部分引入」方案（ADR 方案 B）：vendor 自托管、import maps 免构建、按需加载、四层渲染降级。
+    本目录页不加载任何 vendor（入口零依赖）。拍板前不合并、不部署。</p>
+    <ul class="summary-3">
+      <li><a href="./city3d.html">POC-1 · 3D 城市知识地图</a> —— 11 城市分区 + 6 个可点击知识节点（跳转 kp 页），拖拽/缩放/触控，WebGPU→WebGL2→Canvas2D→SVG 降级链。</li>
+      <li><a href="./cache3d.html">POC-2 · 缓存命中率仓库动画</a> —— 命中率滑块 → 顾客流实时变化（隐喻：缓存=便利店，回源=超市），呼应 05 页口径。</li>
+      <li><a href="./config-city.json">场景配置示例</a> —— 场景 = JSON 配置 + 共享引擎（AI 可维护性实验的载体）。</li>
+    </ul>
+    <p class="foreshadow">强制渲染层：<code>?renderer=webgpu|webgl|canvas2d|svg</code>（加在页面 URL 后）。</p>
+  </div>
+</main>
+<footer class="site-footer">POC 实验区 · 不进 precache · 不影响其他页面性能预算</footer>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

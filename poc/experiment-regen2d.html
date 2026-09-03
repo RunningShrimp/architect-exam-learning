@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>5B对照实验 · Canvas2D 缓存动画再生成（轻量重跑）</title>
+<style>
+  body{margin:0;background:#101828;color:#9aa8c4;font:13px/1.6 monospace}
+  #cv{display:block;width:100vw;height:60vh}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas><div id="log">对照实验：仅凭规格重建「缓存命中率→人流」2D 动画（对应站点现有 05 页手写 Canvas 2D 动画）</div>
+<script>
+/* 规格来源：05 页动画描述（便利店近/超市远/顾客按命中率分流）。
+   记录：1 轮完成；偏差=无线条阴影细节/无变速按钮（规格未含）。 */
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let h = 0.8, t = 0, people = [];
+function resize(){ cv.width = innerWidth * 2; cv.height = innerHeight * 0.6 * 2; }
+addEventListener('resize', resize); resize();
+function loop(){
+  t += 0.016;
+  if (Math.random() < 0.05 && people.length < 14) {
+    const hit = Math.random() < h;
+    people.push({ p: 0, hit });
+  }
+  ctx.setTransform(2,0,0,2,0,0);
+  ctx.fillStyle = '#101828'; ctx.fillRect(0,0,cv.width,cv.height);
+  const home = 60, shop = 320, mart = 780, y = 150;
+  ctx.fillStyle = '#5a6b8c'; ctx.fillRect(home-25, y-40, 50, 45); ctx.fillText('🏠 家', home-12, y-48);
+  ctx.fillStyle = '#2c7a55'; ctx.fillRect(shop-22, y-30, 44, 35); ctx.fillText('🏪 便利店(Cache)', shop-40, y-38);
+  ctx.fillStyle = '#8a3a45'; ctx.fillRect(mart-26, y-38, 52, 43); ctx.fillText('🏬 超市(DB)', mart-16, y-46);
+  people = people.filter(p => p.p < 1.6);
+  people.forEach(p => {
+    p.p += 0.008;
+    let x;
+    if (p.p < 0.5) x = home + ((p.hit?shop:mart) - home) * (p.p/0.5);
+    else x = (p.hit?shop:mart) + (home - (p.hit?shop:mart)) * ((p.p-0.5)/0.5);
+    ctx.fillStyle = p.hit ? '#4dd08c' : '#ff9aa5';
+    ctx.beginPath(); ctx.arc(x, y + 20, 5, 0, 7); ctx.fill();
+  });
+  ctx.fillStyle = '#e8edf7'; ctx.fillText('h=' + Math.round(h*100) + '%  T=' + (h*1.2+(1-h)*7).toFixed(1) + 's  在场=' + people.length, 12, 24);
+  requestAnimationFrame(loop);
+}
+loop();
+addEventListener('keydown', e => { if (e.key === 'ArrowUp') h = Math.min(1, h+0.05); if (e.key === 'ArrowDown') h = Math.max(0, h-0.05); });
+</script>
+</body>
+</html>

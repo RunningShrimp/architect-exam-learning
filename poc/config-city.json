@@ -1,0 +1,40 @@
+{
+  "meta": { "scene": "city3d", "metaphor": "软件系统 = 一座城市", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [40, 34, 40], "target": [0, 0, 0], "fov": 50, "theta": 1.2, "phi": 0.85, "r": 95 },
+  "roads": [
+    { "x": 0, "z": -14, "w": 84, "d": 3, "color": "#31405f" },
+    { "x": 0, "z": 14, "w": 84, "d": 3, "color": "#31405f" },
+    { "x": -22, "z": 0, "w": 3, "d": 84, "color": "#31405f" },
+    { "x": 22, "z": 0, "w": 3, "d": 84, "color": "#31405f" }
+  ],
+  "zones": [
+    { "id": "hw",    "label": "地基与电厂",  "icon": "🏗️", "x": -30, "z": -26, "w": 12, "d": 10, "h": 6,  "color": "#44546e" },
+    { "id": "os",    "label": "市政厅",      "icon": "🏛️", "x": 0,   "z": -28, "w": 14, "d": 10, "h": 9,  "color": "#5a6b8c" },
+    { "id": "db",    "label": "中央档案馆",  "icon": "📚", "x": 30,  "z": -26, "w": 12, "d": 10, "h": 7,  "color": "#d4b06a" },
+    { "id": "net",   "label": "道路邮政",    "icon": "🚦", "x": -30, "z": 0,   "w": 10, "d": 10, "h": 5,  "color": "#4da3ff" },
+    { "id": "se",    "label": "建设工地",    "icon": "🧱", "x": 30,  "z": 0,   "w": 12, "d": 12, "h": 4,  "color": "#8a5a44" },
+    { "id": "arch",  "label": "城市规划馆",  "icon": "🗺️", "x": 0,   "z": 0,   "w": 16, "d": 12, "h": 11, "color": "#ffb84d" },
+    { "id": "qa",    "label": "质检评估院",  "icon": "🔍", "x": -32, "z": 26,  "w": 10, "d": 10, "h": 6,  "color": "#4dd08c" },
+    { "id": "pt",    "label": "标准图纸馆",  "icon": "📐", "x": -8,  "z": 28,  "w": 10, "d": 8,  "h": 5,  "color": "#9a86ff" },
+    { "id": "citadel","label": "城防司法局", "icon": "🛡️", "x": 16,  "z": 28,  "w": 10, "d": 9,  "h": 8,  "color": "#ff6b7a" },
+    { "id": "newtown","label": "未来新城",   "icon": "🌆", "x": 36,  "z": 28,  "w": 10, "d": 9,  "h": 12, "color": "#6be0d2" }
+  ],
+  "nodes": [
+    { "id": "n33", "label": "33 架构概念",      "icon": "🗺️", "x": 4,  "z": 4,  "w": 3, "d": 3, "h": 6,  "color": "#ffd166", "link": "../kp/33-arch-concepts.html" },
+    { "id": "n34", "label": "34 架构风格",      "icon": "🏙️", "x": -5, "z": 3,  "w": 3, "d": 3, "h": 5,  "color": "#ffd166", "link": "../kp/34-styles-dataflow.html" },
+    { "id": "n14", "label": "14 数据库模式",    "icon": "📚", "x": 30, "z": -20, "w": 3, "d": 3, "h": 4, "color": "#ffe08a", "link": "../kp/14-db-schema.html" },
+    { "id": "n20", "label": "20 网络分层",      "icon": "🚦", "x": -30, "z": 7,  "w": 3, "d": 3, "h": 4, "color": "#9cd0ff", "link": "../kp/20-osi-tcpip.html" },
+    { "id": "n42", "label": "42 质量属性",      "icon": "🔍", "x": -32, "z": 20, "w": 3, "d": 3, "h": 4, "color": "#a8f0c8", "link": "../kp/42-quality-attributes.html" },
+    { "id": "n59", "label": "59 大数据架构",    "icon": "🌆", "x": 36,  "z": 23, "w": 3, "d": 3, "h": 5, "color": "#b0fff4", "link": "../kp/59-bigdata.html" },
+    { "id": "n17", "label": "17 规范化理论",    "icon": "🗄️", "x": 26, "z": -18, "w": 2.5, "d": 2.5, "h": 3, "color": "#ffe08a", "link": "../kp/17-normalization.html" },
+    { "id": "n25", "label": "25 软件过程模型",  "icon": "🧱", "x": 26, "z": 6,  "w": 2.5, "d": 2.5, "h": 3, "color": "#e0a884", "link": "../kp/25-process-models.html" },
+    { "id": "n50", "label": "50 密码学基础",    "icon": "🛡️", "x": 16, "z": 22, "w": 2.5, "d": 2.5, "h": 3, "color": "#ffb3bc", "link": "../kp/50-crypto.html" }
+  ],
+  "labels": true,
+  "probe": [
+    { "name": "城市规划馆屋顶(琥珀色)", "x": 0, "y": 10.5, "z": 0, "color": [255, 184, 77], "tol": 60 },
+    { "name": "档案馆屋顶(金色)",       "x": 30, "y": 6.5, "z": -26, "color": [212, 176, 106], "tol": 60 }
+  ]
+}

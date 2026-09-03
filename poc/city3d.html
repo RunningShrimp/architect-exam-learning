@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>POC-1 · 3D 城市知识地图 · 架构师学堂</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  .cs-root { position: relative; height: 72vh; min-height: 420px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #101828; }
+  .cs-hud { position: absolute; z-index: 5; top: 8px; left: 8px; right: 8px; display: flex; gap: 10px; flex-wrap: wrap; font-size: .8rem; color: #cfd8ec; pointer-events: none; }
+  .cs-hud .cs-tier { background: rgba(10,16,30,.75); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; font-weight: 700; color: #ffb84d; }
+  .cs-hud .cs-fps { background: rgba(10,16,30,.75); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; }
+  .cs-hud .cs-tip { color: #9aa8c4; }
+  .cs-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .cs-label { position: absolute; transform: translate(-50%, -130%); font-size: .72rem; color: #e8edf7; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+  .probe-out { font-size: .85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">POC · 隔离实验页</span><span class="badge">不进入学习路径</span>
+    <h1>POC-1 · 3D 城市知识地图</h1>
+    <p class="foreshadow">同一份 <a href="./config-city.json">JSON 场景配置</a>，四层降级：WebGPU → WebGL2（自动回退）→ Canvas2D → SVG。
+    可用 <code>?renderer=webgl / canvas2d / svg</code> 强制档位实测。点击发光楼块跳转对应知识点；拖拽旋转、滚轮/双指缩放。vendor 仅本页按需加载（<a href="./vendor/three.webgpu.min.js">three r185</a> 自托管，无 CDN）。</p>
+    <p><button class="btn" id="btn-probe">🔎 运行视觉探针（关键帧像素比对）</button>
+    <a class="btn" href="./cache3d.html">→ POC-2 缓存仓库动画</a></p>
+    <div class="probe-out" id="probe-out"></div>
+  </div>
+  <div id="stage"></div>
+</main>
+<footer class="site-footer">POC 页 · 可整体删除 · 不影响其他页面性能预算</footer>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.min.js",
+    "three/webgpu": "./vendor/three.webgpu.min.js",
+    "three/tsl": "./vendor/three.tsl.min.js"
+} }
+</script>
+<script>
+window.__cityTier = null;
+window.addEventListener('load', async function () {
+  const r = await CityScene.boot(document.getElementById('stage'), './config-city.json', {
+    onTier(t) {
+      window.__cityTier = t;
+      document.title = 'POC-1 [' + t + '] · 3D 城市知识地图';
+    }
+  });
+  window.__cityBoot = r;
+});
+document.getElementById('btn-probe').addEventListener('click', async () => {
+  const out = document.getElementById('probe-out');
+  out.textContent = '探针采样中…';
+  const res = await window.CityProbe.sample();
+  out.innerHTML = res.map(r => '<div>' + (r.ok === true ? '✅' : r.ok === false ? '❌' : '⚪') + ' ' + r.name +
+    (r.got ? ' — 实测 rgb(' + r.got.join(',') + ') 期望 rgb(' + r.want.join(',') + ')' : (r.note || '')) + '</div>').join('');
+});
+</script>
+<script type="module" src="./engine.js"></script>
+<script defer src="../assets/app.js"></script>
+</body>
+</html>

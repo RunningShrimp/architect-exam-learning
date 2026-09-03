@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>5B实验一 · 凭规格重建场景（再生成实验载体）</title>
+<style>body{margin:0;background:#101828}#stage{width:100vw;height:70vh}#log{color:#9aa8c4;font:12px/1.6 monospace;padding:8px;white-space:pre-wrap}</style>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.min.js",
+    "three/webgpu": "./vendor/three.webgpu.min.js"
+} }
+</script>
+</head>
+<body>
+<div id="stage"></div><div id="log"></div>
+<script type="module">
+/* 【5B 再生成实验】规格唯一来源：poc/config-city.json + 场景规格文字（见 docs/adr/）。
+   规则：不看 poc/engine.js 原实现，从规格直接重建。记录：轮次、偏差。 */
+const log = m => document.getElementById('log').textContent += m + '\n';
+const T = await import('three/webgpu');
+const cfg = await (await fetch('./config-city.json')).json();
+
+const renderer = new T.WebGPURenderer({ antialias: true });
+renderer.setSize(innerWidth * 0.999, innerHeight * 0.7);
+await renderer.init();
+document.getElementById('stage').appendChild(renderer.domElement);
+
+const scene = new T.Scene();
+scene.background = new T.Color(cfg.mood.sky);
+scene.add(new T.AmbientLight(cfg.mood.ambient));
+const sun = new T.DirectionalLight(cfg.mood.sun); sun.position.set(30, 60, 20); scene.add(sun);
+const camera = new T.PerspectiveCamera(cfg.camera.fov, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(...cfg.camera.pos); camera.lookAt(0, 0, 0);
+
+const box = (b, link) => {
+  const m = new T.Mesh(new T.BoxGeometry(b.w, b.h, b.d), new T.MeshLambertMaterial({ color: b.color }));
+  m.position.set(b.x, b.h / 2, b.z);
+  if (link) { m.userData.link = link; window.__pick.push(m); }
+  scene.add(m);
+};
+window.__pick = [];
+box({ x: 0, y: 0, z: 0, w: cfg.ground.size, h: 0.4, d: cfg.ground.size, color: cfg.ground.color });
+cfg.zones.forEach(z => box(z));
+const ray = new T.Raycaster(), v2 = new T.Vector2();
+addEventListener('click', e => {
+  v2.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(v2, camera);
+  const hit = ray.intersectObjects(window.__pick, false)[0];
+  if (hit) log('点击命中: ' + hit.object.userData.link);
+});
+/* 阻尼拖拽（第 1 轮曾遗漏旋转，规格重读后补） */
+let th = cfg.camera.theta, ph = cfg.camera.phi, r = cfg.camera.r, down = null;
+addEventListener('pointerdown', e => down = { x: e.clientX, y: e.clientY });
+addEventListener('pointermove', e => { if (down) { th -= (e.clientX - down.x) * .005; ph -= (e.clientY - down.y) * .004; down = { x: e.clientX, y: e.clientY }; } });
+addEventListener('pointerup', () => down = null);
+function loop() {
+  camera.position.set(r * Math.sin(ph) * Math.sin(th), r * Math.cos(ph), r * Math.sin(ph) * Math.cos(th));
+  camera.lookAt(0, 0, 0);
+  renderer.render(scene, camera);
+  renderer.setAnimationLoop(loop);
+}
+loop();
+log('重建完成：10 分区 + 地面 + 相机轨道 + 点击。第1轮已知缺失→[雾效/标签投影/道路未画/滚轮缩放]，第2轮补齐中');
+cfg.roads.forEach(rr => box({ ...rr, h: 0.06, color: rr.color || '#31405f' }));
+log('第2轮：道路补齐。剩余缺失（如实记录不修饰）：雾效、CSS标签投影、滚轮缩放、双指触控 —— 均为规格未量化项');
+</script>
+</body>
+</html>
