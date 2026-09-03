@@ -1,6 +1,12 @@
 # ADR-001：是否为学习站引入 React 类框架与 Three.js/WebGPU
 
-状态：**待拍板（GO / NO-GO）** · 日期：2026-09-02 · 决策人：学员
+状态：**已批准 GO（方案 B）并于 2026-09-02 开始实施** · 决策人：学员拍板「开始实施」
+实施记录：期一 3D 知识图谱页（graph3d.html，入口在 2D 图谱页）✅；
+期二首批 3 个嵌入（kp/05 缓存、kp/40 负载均衡、kp/37 请求分层，折叠块懒加载 iframe，关闭态零 vendor 实测=0）✅；
+实施中发现并落地：engine 迁移至 assets/scene-engine.js（正式资产）、vendor 提升至根 /vendor、
+scene-embed.html 通用嵌入壳（静态 import map 规避动态注入竞态）、SW v8 对带 query 请求直连。
+遗留观察：iframe 首启窗口 three 偶发不可用会按设计落 Canvas2D 档（31FPS 可用），待后续加探活重试；
+three 层像素探针不可用（跨版本一致），视觉回归用截图+SSIM 与 Canvas2D 档探针替代。
 评估人：前端架构评估师（AI） · 关联实验：poc/ 目录（可整体删除）
 
 ## 0. 硬边界（不可逾越）

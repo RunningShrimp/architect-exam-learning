@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D 场景嵌入 · 架构师学堂</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  html,body{margin:0;background:#101828}
+  .cs-root{position:relative;height:100vh;min-height:360px}
+  .cs-hud{position:absolute;z-index:5;top:8px;left:8px;right:8px;display:flex;gap:8px;flex-wrap:wrap;font-size:.78rem;color:#cfd8ec;pointer-events:none}
+  .cs-hud .cs-tier{background:rgba(10,16,30,.78);border:1px solid #2e3a57;border-radius:999px;padding:2px 10px;font-weight:700;color:#ffb84d}
+  .cs-hud .cs-fps{background:rgba(10,16,30,.78);border:1px solid #2e3a57;border-radius:999px;padding:2px 10px}
+  .cs-labels{position:absolute;inset:0;z-index:3;pointer-events:none}
+  .cs-label{position:absolute;transform:translate(-50%,-130%);font-size:.72rem;color:#e8edf7;text-shadow:0 1px 3px #000;white-space:nowrap}
+  #ctl{position:relative;z-index:6;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 12px;font:13px/1.4 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:#cfd8ec}
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "vendor/three.module.min.js",
+    "three/webgpu": "vendor/three.webgpu.min.js",
+    "three/tsl": "vendor/three.tsl.min.js"
+} }
+</script>
+</head>
+<body>
+<div id="stage" class="cs-root" style="height:100vh"></div>
+<div id="ctl"></div>
+<script>
+/* 场景型控制条（iframe 模式）：按配置类型自动接线滑块 */
+window.CityEmbedControls = function (animRef, sceneType) {
+  const ctl = document.getElementById('ctl');
+  if (sceneType === 'cache') {
+    ctl.innerHTML = '<label>命中率 h <input type="range" id="e-h" min="0" max="100" value="80"> <span id="e-h-out">80%</span></label>' +
+      '<span>平均访问时间 T = h×1.2s + (1−h)×7s = <b id="e-t">2.6s</b></span>';
+    const s = ctl.querySelector('#e-h');
+    const sync = () => {
+      ctl.querySelector('#e-h-out').textContent = s.value + '%';
+      const h = s.value / 100;
+      ctl.querySelector('#e-t').textContent = (h * 1.2 + (1 - h) * 7).toFixed(1) + 's';
+      if (animRef) animRef.setWeights([h, 1 - h]);
+    };
+    s.addEventListener('input', sync); sync();
+  } else if (sceneType === 'balancer') {
+    ctl.innerHTML = '<label>到达强度 <input type="range" id="e-r" min="0" max="100" value="60"> <span id="e-r-out">60%</span></label>' +
+      '<span>闸口（负载均衡器）按强度把车流分到三条服务通道</span>';
+    const s = ctl.querySelector('#e-r');
+    const sync = () => { ctl.querySelector('#e-r-out').textContent = s.value + '%'; if (animRef) animRef.setRate(0.15 + s.value / 100 * 2.85); };
+    s.addEventListener('input', sync); sync();
+  } else if (sceneType === 'layers') {
+    ctl.innerHTML = '<label>并发请求数 <input type="range" id="e-c" min="10" max="100" value="40"> <span id="e-c-out">4 个</span></label>' +
+      '<span>请求经表现层 → 逻辑层 → 数据层往返</span>';
+    const s = ctl.querySelector('#e-c');
+    const sync = () => { ctl.querySelector('#e-c-out').textContent = Math.round(s.value / 10) + ' 个'; if (animRef) animRef.setRate(0.3 + s.value / 100 * 1.8); };
+    s.addEventListener('input', sync); sync();
+  } else ctl.remove();
+};
+</script>
+<script type="module" src="assets/scene-engine.js"></script>
+<script type="module" src="assets/city-anims.js"></script>
+<script type="module">
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const cfgPath = q.get('cfg') || 'assets/configs/scene-cache.json';
+  for (let i = 0; i < 40 && !(window.CityScene && window.CityAnims); i++) await new Promise(r => setTimeout(r, 250));
+  if (!window.CityScene) { document.getElementById('stage').innerHTML = '<div style="color:#ff8f9c;padding:16px">引擎加载失败</div>'; return; }
+  const cfg = await (await fetch(cfgPath, { cache: 'no-store' })).json();
+  const r = await window.CityScene.boot(document.getElementById('stage'), cfg, {
+    urls: { webgpu: 'vendor/three.webgpu.min.js' },
+    onTier(t) { document.title = '3D [' + t + '] · 架构师学堂'; }
+  });
+  window.CityEmbedControls(r.impl && r.impl.anims && r.impl.anims[0], cfg.meta && cfg.meta.scene);
+})();
+</script>
+</body>
+</html>

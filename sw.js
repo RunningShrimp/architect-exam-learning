@@ -4,9 +4,9 @@
    2. HTML 一律 network-first：保证学员正常刷新即见最新（离线才回退缓存）；
    3. 带版本资源 cache-first + 后台更新（stale-while-revalidate）；
    4. 音频按需缓存进独立 Cache，FIFO 上限 30MB，防存储无限膨胀。 */
-var SHELL_CACHE = 'architect-shell-v7';
-var PAGE_CACHE = 'architect-pages-v7';
-var AUDIO_CACHE = 'architect-audio-v7';
+var SHELL_CACHE = 'architect-shell-v8';
+var PAGE_CACHE = 'architect-pages-v8';
+var AUDIO_CACHE = 'architect-audio-v8';
 var AUDIO_LIMIT = 30 * 1024 * 1024; /* 30MB */
 var SHELL = [
   './', './index.html', './review.html', './graph.html',
@@ -65,6 +65,8 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  /* 带 query 的请求直连（实验模块按时间戳热更新，不读不写缓存） */
+  if (url.search) return;
 
   /* ① 页面导航：network-first，离线回退缓存（HTML 永远新鲜优先） */
   if (req.mode === 'navigate') {
