@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D 知识图谱（实验） · 架构师学堂</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .cs-root { position: relative; height: 72vh; min-height: 440px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #101828; }
+  .cs-hud { position: absolute; z-index: 5; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; flex-wrap: wrap; font-size: .78rem; color: #cfd8ec; pointer-events: none; }
+  .cs-hud .cs-tier { background: rgba(10,16,30,.78); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; font-weight: 700; color: #ffb84d; }
+  .cs-hud .cs-fps { background: rgba(10,16,30,.78); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; }
+  .cs-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .cs-label { position: absolute; transform: translate(-50%, -130%); font-size: .72rem; color: #e8edf7; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header id="topbar" class="topbar"></header>
+<main class="wrap">
+  <div class="kp-head">
+    <span class="badge">🧪 实验功能（ADR-001 期一）</span><span class="badge">2D 版仍是默认入口</span>
+    <h1>3D 知识图谱 · 城市夜景版</h1>
+    <p class="foreshadow">11 个知识域排成城市街区，楼越高=考频越高；<b style="color:var(--accent)">实线箭头</b>=依赖（先学起点），<b style="color:var(--accent-2)">虚线</b>=关联。
+    颜色=学习状态：<span style="color:var(--ok)">亮色=已学/测过</span>，暗灰=未学。拖拽旋转、滚轮/双指缩放，<b>点击楼块进入该知识点</b>。
+    渲染层自动降级：<span id="tier-out">检测中…</span>。配置由 <code>scripts/gen_graph3d.py</code> 从知识索引生成。</p>
+    <p><a class="btn" href="graph.html">← 返回 2D 知识图谱（默认）</a>
+       <button class="btn" id="btn-probe">🔎 视觉探针（自动断言）</button></p>
+    <div class="foreshadow" id="probe-out"></div>
+  </div>
+  <div id="stage"></div>
+</main>
+<footer class="site-footer">实验页 · vendor(three r185, MIT) 仅本页按需加载 · 进度着色读取本机 localStorage</footer>
+<script>
+window.__cityTier = null;
+(async function () {
+  const U = await import('./assets/scene-engine.js');
+  const cfg = await (await fetch('./assets/configs/scene-graph3d.json', { cache: 'no-store' })).json();
+  /* 进度着色：未学=暗灰，学过=域色，测过=偏金 */
+  const state = JSON.parse(localStorage.getItem('ce_v1_state') || '{}');
+  cfg.nodes.forEach(n => {
+    const pg = state.pages && state.pages[n.id];
+    if (pg && pg.best > 0) n.color = '#ffd166';
+    else if (pg && pg.visited) { /* 保持域色（已学更醒目） */ }
+    else n.color = '#4a5570';
+  });
+  const r = await window.CityScene.boot(document.getElementById('stage'), cfg, {
+    urls: { webgpu: '../vendor/three.webgpu.min.js' },
+    onTier(t) { window.__cityTier = t; document.getElementById('tier-out').textContent = t; document.title = '3D 图谱 [' + t + '] · 架构师学堂'; }
+  });
+  window.__cityBoot = r;
+})();
+document.getElementById('btn-probe').addEventListener('click', async () => {
+  const out = document.getElementById('probe-out');
+  out.textContent = '探针采样中…（three 层像素探针受限于托管画布，建议切 ?renderer=canvas2d 使用）';
+  if (window.CityProbe) {
+    const res = await window.CityProbe.sample();
+    out.innerHTML = res.map(r => '<div>' + (r.ok === true ? '✅' : r.ok === false ? '❌' : '⚪') + ' ' + r.name + (r.note ? ' — ' + r.note : '') + '</div>').join('');
+  }
+});
+</script>
+<script defer src="assets/app.js"></script>
+</body>
+</html>

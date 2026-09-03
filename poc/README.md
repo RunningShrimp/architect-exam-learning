@@ -12,7 +12,7 @@ python3 -m http.server 8000
 ```
 
 - 强制渲染层：页面 URL 加 `?renderer=webgpu|webgl|canvas2d|svg`
-- vendor：`vendor/` 内 three r185 自托管（MIT），仅 POC 页按需加载；import maps 免构建
+- vendor：three r185 自托管（MIT）已提升至根目录 `vendor/`；import maps 免构建；引擎正式版在 `assets/scene-engine.js`
 - 场景 = JSON 配置（config-*.json）+ 共享引擎（engine.js）——AI 维护改配置不改代码
 - 实验页：experiment-regen.html / experiment-regen2d.html（5B 再生成实验载体）
 - 本目录页面不进 Service Worker 预缓存；已实测非 POC 页零回归（docs/perf/report.md 方法）

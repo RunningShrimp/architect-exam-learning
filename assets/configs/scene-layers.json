@@ -1,0 +1,21 @@
+{
+  "meta": { "scene": "layers", "for": "kp/37", "metaphor": "三层架构=逐级审批：请求经表现层→逻辑层→数据层往返", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [6, 30, 50], "target": [0, 0, 0], "fov": 50, "theta": 0, "phi": 0.95, "r": 66 },
+  "zones": [
+    { "id": "client", "label": "客户端",  "icon": "💻", "x": -34, "z": 0,  "w": 8,  "d": 10, "h": 4, "color": "#5a6b8c" },
+    { "id": "pres",   "label": "表现层",  "icon": "🖥️", "x": -16, "z": 0,  "w": 14, "d": 12, "h": 1.2, "color": "#4da3ff" },
+    { "id": "logic",  "label": "逻辑层",  "icon": "⚙️", "x": 2,   "z": 0,  "w": 14, "d": 12, "h": 1.2, "color": "#ffb84d" },
+    { "id": "data",   "label": "数据层",  "icon": "🗄️", "x": 20,  "z": 0,  "w": 14, "d": 12, "h": 1.2, "color": "#4dd08c" }
+  ],
+  "nodes": [],
+  "anim": [ {
+    "type": "flow",
+    "count": 10, "speed": 0.45, "spawnEvery": 0.7,
+    "routes": [
+      { "waypoints": [[-34, 1, 0], [-16, 1.6, 0], [2, 1.6, 0], [20, 1.6, 0]], "color": "#e8edf7", "weight": 1 }
+    ]
+  } ],
+  "labels": true
+}

@@ -306,6 +306,15 @@ footer.site-footer { text-align: center; color: var(--text-dim); font-size: .8re
 .domain-row .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--ok)); border-radius: 999px; }
 .pct { font-size: .82rem; color: var(--text-dim); min-width: 76px; text-align: right; }
 
+/* ---------- 3D 实验嵌入块（ADR-001 期二，按需加载） ---------- */
+.cs-stage { position: relative; height: 52vh; min-height: 360px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #101828; }
+.cs-root { position: relative; }
+.cs-hud { position: absolute; z-index: 5; top: 8px; left: 8px; right: 8px; display: flex; gap: 8px; flex-wrap: wrap; font-size: .78rem; color: #cfd8ec; pointer-events: none; }
+.cs-hud .cs-tier { background: rgba(10,16,30,.78); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; font-weight: 700; color: #ffb84d; }
+.cs-hud .cs-fps { background: rgba(10,16,30,.78); border: 1px solid #2e3a57; border-radius: 999px; padding: 2px 10px; }
+.cs-labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.cs-label { position: absolute; transform: translate(-50%, -130%); font-size: .72rem; color: #e8edf7; text-shadow: 0 1px 3px #000; white-space: nowrap; }
+
 /* ---------- 响应式 ---------- */
 /* 移动端增强：触控目标 ≥44px、防 iOS 输入缩放、刘海安全区、底部快捷导航 */
 html { -webkit-text-size-adjust: 100%; }

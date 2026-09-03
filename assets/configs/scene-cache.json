@@ -1,0 +1,25 @@
+{
+  "meta": { "scene": "cache", "for": "kp/05", "metaphor": "缓存=便利店，回源=远处超市（全站统一口径）", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [30, 26, 44], "target": [0, 0, 0], "fov": 50, "theta": 0, "phi": 1.0, "r": 66 },
+  "roads": [ { "x": 0, "z": 2, "w": 90, "d": 4, "color": "#31405f" } ],
+  "zones": [
+    { "id": "home", "label": "家（应用）",    "icon": "🏠", "x": -30, "z": -7, "w": 8, "d": 8, "h": 5, "color": "#5a6b8c" },
+    { "id": "shop", "label": "便利店(Cache)", "icon": "🏪", "x": 12,  "z": -7, "w": 9, "d": 7, "h": 4, "color": "#4dd08c" },
+    { "id": "mart", "label": "超市(DB)",      "icon": "🏬", "x": 38,  "z": -8, "w": 10, "d": 8, "h": 8, "color": "#ff6b7a" }
+  ],
+  "nodes": [
+    { "id": "n05", "label": "05 存储层次与Cache", "icon": "📦", "x": 12, "z": 8, "w": 3, "d": 3, "h": 3, "color": "#ffd166", "link": "05-cache-memory.html" }
+  ],
+  "anim": [ {
+    "type": "flow",
+    "origin": [-30, 1, 0],
+    "count": 14, "speed": 0.5, "spawnEvery": 0.45,
+    "routes": [
+      { "waypoints": [[-30, 1, 0], [12, 1, -7]], "color": "#4dd08c", "weight": 0.8, "speedMul": 1.6 },
+      { "waypoints": [[-30, 1, 0], [38, 1, -8]], "color": "#ff9aa5", "weight": 0.2, "speedMul": 0.9 }
+    ]
+  } ],
+  "labels": true
+}

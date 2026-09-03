@@ -38,9 +38,9 @@
 <footer class="site-footer">POC 页 · 可整体删除</footer>
 <script type="importmap">
 { "imports": {
-    "three": "./vendor/three.module.min.js",
-    "three/webgpu": "./vendor/three.webgpu.min.js",
-    "three/tsl": "./vendor/three.tsl.min.js"
+    "three": "../vendor/three.module.min.js",
+    "three/webgpu": "../vendor/three.webgpu.min.js",
+    "three/tsl": "../vendor/three.tsl.min.js"
 } }
 </script>
 <script>
@@ -127,7 +127,7 @@ document.getElementById('btn-probe').addEventListener('click', async () => {
     (r.got ? ' — 实测 rgb(' + r.got.join(',') + ') 期望 rgb(' + r.want.join(',') + ')' : (r.note || '')) + '</div>').join('');
 });
 </script>
-<script type="module" src="./engine.js"></script>
+<script type="module" src="../assets/scene-engine.js"></script>
 <script defer src="../assets/app.js"></script>
 </body>
 </html>

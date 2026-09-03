@@ -1,0 +1,24 @@
+{
+  "meta": { "scene": "balancer", "for": "kp/40", "metaphor": "负载均衡=红绿灯/分流闸口：闸口把车流分到三条服务通道", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [10, 34, 52], "target": [0, 0, 0], "fov": 50, "theta": 0, "phi": 0.9, "r": 72 },
+  "roads": [ { "x": -6, "z": 0, "w": 60, "d": 4, "color": "#31405f" } ],
+  "zones": [
+    { "id": "gate", "label": "闸口(负载均衡器)", "icon": "🚦", "x": -6,  "z": 0,  "w": 4, "d": 8, "h": 3, "color": "#ffd166" },
+    { "id": "s1",   "label": "服务通道 1",       "icon": "🏪", "x": 32,  "z": -16, "w": 10, "d": 6, "h": 5, "color": "#4da3ff" },
+    { "id": "s2",   "label": "服务通道 2",       "icon": "🏪", "x": 32,  "z": 0,   "w": 10, "d": 6, "h": 5, "color": "#4dd08c" },
+    { "id": "s3",   "label": "服务通道 3",       "icon": "🏪", "x": 32,  "z": 16,  "w": 10, "d": 6, "h": 5, "color": "#c08bff" }
+  ],
+  "nodes": [],
+  "anim": [ {
+    "type": "flow",
+    "count": 12, "speed": 0.55, "spawnEvery": 0.5,
+    "routes": [
+      { "waypoints": [[-34, 1, 0], [-6, 1, 0], [32, 1, -16]], "color": "#4da3ff", "weight": 1 },
+      { "waypoints": [[-34, 1, 0], [-6, 1, 0], [32, 1, 0]],   "color": "#4dd08c", "weight": 1 },
+      { "waypoints": [[-34, 1, 0], [-6, 1, 0], [32, 1, 16]],  "color": "#c08bff", "weight": 1 }
+    ]
+  } ],
+  "labels": true
+}

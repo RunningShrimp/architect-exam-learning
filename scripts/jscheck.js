@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 const root = process.cwd();
-const files = ['index.html', 'review.html', 'graph.html', 'docs/demo-page.html',
+const files = ['index.html', 'review.html', 'graph.html', 'graph3d.html', 'docs/demo-page.html',
   ...fs.readdirSync('kp').filter(f => f.endsWith('.html')).map(f => 'kp/' + f)];
 let bad = 0, checked = 0;
 for (const f of files) {

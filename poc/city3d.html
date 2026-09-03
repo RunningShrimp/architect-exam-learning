@@ -23,7 +23,7 @@
     <span class="badge">POC · 隔离实验页</span><span class="badge">不进入学习路径</span>
     <h1>POC-1 · 3D 城市知识地图</h1>
     <p class="foreshadow">同一份 <a href="./config-city.json">JSON 场景配置</a>，四层降级：WebGPU → WebGL2（自动回退）→ Canvas2D → SVG。
-    可用 <code>?renderer=webgl / canvas2d / svg</code> 强制档位实测。点击发光楼块跳转对应知识点；拖拽旋转、滚轮/双指缩放。vendor 仅本页按需加载（<a href="./vendor/three.webgpu.min.js">three r185</a> 自托管，无 CDN）。</p>
+    可用 <code>?renderer=webgl / canvas2d / svg</code> 强制档位实测。点击发光楼块跳转对应知识点；拖拽旋转、滚轮/双指缩放。vendor 仅本页按需加载（<a href="../vendor/three.webgpu.min.js">three r185</a> 自托管，无 CDN）。</p>
     <p><button class="btn" id="btn-probe">🔎 运行视觉探针（关键帧像素比对）</button>
     <a class="btn" href="./cache3d.html">→ POC-2 缓存仓库动画</a></p>
     <div class="probe-out" id="probe-out"></div>
@@ -33,9 +33,9 @@
 <footer class="site-footer">POC 页 · 可整体删除 · 不影响其他页面性能预算</footer>
 <script type="importmap">
 { "imports": {
-    "three": "./vendor/three.module.min.js",
-    "three/webgpu": "./vendor/three.webgpu.min.js",
-    "three/tsl": "./vendor/three.tsl.min.js"
+    "three": "../vendor/three.module.min.js",
+    "three/webgpu": "../vendor/three.webgpu.min.js",
+    "three/tsl": "../vendor/three.tsl.min.js"
 } }
 </script>
 <script>
@@ -57,7 +57,7 @@ document.getElementById('btn-probe').addEventListener('click', async () => {
     (r.got ? ' — 实测 rgb(' + r.got.join(',') + ') 期望 rgb(' + r.want.join(',') + ')' : (r.note || '')) + '</div>').join('');
 });
 </script>
-<script type="module" src="./engine.js"></script>
+<script type="module" src="../assets/scene-engine.js"></script>
 <script defer src="../assets/app.js"></script>
 </body>
 </html>
