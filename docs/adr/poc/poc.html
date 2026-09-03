@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POC · 05 存储层次 3D 化可行性试点（源码存档）</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; background: #0f1420; color: #e8edf7; margin: 0; padding: 16px; line-height: 1.6; }
+  h1 { font-size: 1.2rem; } h2 { font-size: 1rem; color: #ffb84d; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; max-width: 860px; }
+  .card { border: 1px solid #2e3a57; border-radius: 10px; padding: 12px; background: #1b2437; }
+  .stage { width: 100%; height: 260px; background: #0a0e18; border-radius: 8px; position: relative; overflow: hidden; }
+  .stage canvas { width: 100% !important; height: 100% !important; display: block; }
+  .ctrl { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; font-size: .85rem; align-items: center; }
+  button { background: #212c44; color: #e8edf7; border: 1px solid #2e3a57; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  input[type=range] { width: 110px; }
+  .fps { color: #4dd08c; font-variant-numeric: tabular-nums; }
+  .loadbtn { background: #1667d9; border-color: #1667d9; font-weight: 600; }
+  .meta { color: #9aa8c4; font-size: .8rem; }
+  svg text { fill: #e8edf7; }
+</style>
+</head>
+<body>
+<h1>POC：05 存储层次 —— 3D 增强可行性试点</h1>
+<p class="meta">同屏并排：A 现有 2D（SVG，基线）｜B Three.js r185（点击后动态 import dist/three-esm.js）｜C OGL 1.0.11（动态 import dist/ogl-esm.js）。
+四控（播放/暂停/单步/变速）复用全站范式；3D 支持拖拽旋转。帧率为该舞台 rAF 实测。运行前需按 ADR-001 附录 A 构建 dist/。</p>
+<div class="grid">
+  <div class="card">
+    <h2>A · 现有 2D 基线（零增量）</h2>
+    <div class="stage" id="stage2d">
+      <svg viewBox="0 0 360 240" width="100%" height="100%"><g id="g2d"></g><text x="10" y="20" font-size="12" fill="#9aa8c4" id="cap2d"></text></svg>
+    </div>
+    <div class="ctrl">
+      <button data-act="play" data-t="2d">▶</button><button data-act="pause" data-t="2d">⏸</button>
+      <button data-act="step" data-t="2d">⏭</button><button data-act="reset" data-t="2d">↺</button>
+      <label>速度 <input type="range" data-role="speed" data-t="2d" min="0.25" max="3" step="0.25" value="1"> <span id="sp2d">1x</span></label>
+      <span class="fps" id="fps2d"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>B · Three.js 版（点击加载）</h2>
+    <div class="stage" id="stage3t"><span class="meta" style="position:absolute;left:10px;top:8px">未加载</span></div>
+    <div class="ctrl"><button class="loadbtn" id="load3t">⬇ 动态加载 Three.js</button><span id="st3t" class="meta"></span><span class="fps" id="fps3t"></span></div>
+    <div class="ctrl" id="ctl3t" style="display:none">
+      <button data-act="play" data-t="3t">▶</button><button data-act="pause" data-t="3t">⏸</button>
+      <button data-act="step" data-t="3t">⏭</button><button data-act="reset" data-t="3t">↺</button>
+      <label>速度 <input type="range" data-role="speed" data-t="3t" min="0.25" max="3" step="0.25" value="1"> <span id="sp3t">1x</span></label>
+    </div>
+  </div>
+  <div class="card">
+    <h2>C · OGL 版（点击加载）</h2>
+    <div class="stage" id="stage3o"><span class="meta" style="position:absolute;left:10px;top:8px">未加载</span></div>
+    <div class="ctrl"><button class="loadbtn" id="load3o">⬇ 动态加载 OGL</button><span id="st3o" class="meta"></span><span class="fps" id="fps3o"></span></div>
+    <div class="ctrl" id="ctl3o" style="display:none">
+      <button data-act="play" data-t="3o">▶</button><button data-act="pause" data-t="3o">⏸</button>
+      <button data-act="step" data-t="3o">⏭</button><button data-act="reset" data-t="3o">↺</button>
+      <label>速度 <input type="range" data-role="speed" data-t="3o" min="0.25" max="3" step="0.25" value="1"> <span id="sp3o">1x</span></label>
+    </div>
+  </div>
+  <div class="card"><h2>测量读数</h2><div class="meta" id="readout">…</div></div>
+</div>
+<script>
+/* 层数据与状态机（与主站 05 页同款四控范式） */
+var STEPS = [
+  'CPU 发出取数请求，先问最近的 Cache',
+  '命中：Cache 直接把数据交给 CPU（快路径 10ns）',
+  '本次未命中：请求沿层次下行去内存（200ns）',
+  '数据回填 Cache 副本，下次命中',
+  '结论：命中率 h 决定平均时间 T=h·t快+(1-h)·t慢'
+];
+function mkState() { return { playing: false, t: 0, speed: 1, frames: 0, fpsT: 0, fps: 0 }; }
+var S = { '2d': mkState(), '3t': mkState(), '3o': mkState() };
+var g2d = document.getElementById('g2d');
+function draw2d(t) {
+  var h = ''; var x = 40, w = 280, y0 = 220;
+  var heights = [34, 46, 58, 70], names = ['磁盘', '内存', 'Cache', 'CPU 寄存器'], colors = ['#4dd08c', '#4da3ff', '#ffb84d', '#ff6b7a'];
+  var cy = y0;
+  for (var i = 0; i < 4; i++) {
+    cy -= heights[i] + 6;
+    var iw = w - i * 34;
+    h += '<rect x="' + (x + i * 17) + '" y="' + cy + '" width="' + iw + '" height="' + heights[i] + '" rx="4" fill="' + colors[i] + '" opacity=".85"/>';
+    h += '<text x="' + (x + i * 17 + iw / 2) + '" y="' + (cy + heights[i] / 2 + 4) + '" text-anchor="middle" font-size="11">' + names[i] + '</text>';
+  }
+  var seg = (t % 1) * 4, idx = Math.min(3, Math.floor(seg)), f = seg - idx;
+  var yy = y0 - f * (y0 - 40);
+  h += '<circle cx="' + (x + w / 2) + '" cy="' + yy + '" r="6" fill="#fff" opacity=".9"/>';
+  h += '<text x="' + (x + w / 2 + 12) + '" y="' + (yy + 4) + '" font-size="11" fill="#ffd166">' + STEPS[Math.min(4, idx + 1)] + '</text>';
+  g2d.innerHTML = h;
+}
+var engines = {};
+function loop(now) {
+  ['2d', '3t', '3o'].forEach(function (k) {
+    var st = S[k];
+    st.frames++;
+    if (now - st.fpsT > 1000) { st.fps = st.frames; st.frames = 0; st.fpsT = now; var el = document.getElementById('fps' + k); if (el) el.textContent = st.fps + ' fps'; }
+    if (st.playing) { st.t += 0.008 * st.speed; if (st.t > 1) st.t -= 1; }
+    if (k === '2d') draw2d(st.t);
+    else if (engines[k] && st.playing) engines[k].draw(st.t);
+  });
+  document.getElementById('readout').innerHTML = 'FPS —— 2D: <b class="fps">' + (S['2d'].fps || '-') + '</b> · Three: <b class="fps">' + (S['3t'].fps || '-') + '</b> · OGL: <b class="fps">' + (S['3o'].fps || '-') + '</b>';
+  requestAnimationFrame(loop);
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-act]'); if (!b) return;
+  var st = S[b.dataset.t], a = b.dataset.act;
+  if (a === 'play') st.playing = true;
+  if (a === 'pause') st.playing = false;
+  if (a === 'step') st.t = (st.t + 0.2) % 1;
+  if (a === 'reset') { st.t = 0; st.playing = false; }
+});
+document.addEventListener('input', function (e) {
+  var r = e.target.closest('input[data-role=speed]'); if (!r) return;
+  S[r.dataset.t].speed = parseFloat(r.value);
+  document.getElementById('sp' + r.dataset.t).textContent = r.value + 'x';
+});
+S['2d'].playing = true;
+requestAnimationFrame(loop);
+
+/* B: Three.js（动态 import 库模式 bundle） */
+document.getElementById('load3t').addEventListener('click', function () {
+  var t0 = performance.now();
+  document.getElementById('st3t').textContent = '加载中…';
+  import('./dist/three-esm.js').then(function (THREE) {
+    document.getElementById('st3t').textContent = '已加载（含解析 ' + Math.round(performance.now() - t0) + 'ms）';
+    document.getElementById('ctl3t').style.display = '';
+    var stage = document.getElementById('stage3t');
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(stage.clientWidth, stage.clientHeight, false);
+    stage.appendChild(renderer.domElement);
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(50, stage.clientWidth / stage.clientHeight, 0.1, 100);
+    camera.position.set(4, 3, 5.5);
+    var group = new THREE.Group();
+    var heights = [0.55, 0.75, 0.95, 1.15], widths = [2.6, 2.1, 1.6, 1.1], colors = [0x4dd08c, 0x4da3ff, 0xffb84d, 0xff6b7a];
+    var y = -1.4;
+    for (var i = 0; i < 4; i++) {
+      var box = new THREE.Mesh(new THREE.BoxGeometry(widths[i], heights[i], widths[i]), new THREE.MeshStandardMaterial({ color: colors[i], transparent: true, opacity: 0.92 }));
+      box.position.y = y + heights[i] / 2; y += heights[i] + 0.08;
+      group.add(box);
+    }
+    scene.add(group, new THREE.AmbientLight(0xffffff, 0.7));
+    var dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(4, 6, 3); scene.add(dl);
+    var drag = false, px = 0, ry = 0;
+    stage.addEventListener('pointerdown', function (e) { drag = true; px = e.clientX; });
+    addEventListener('pointerup', function () { drag = false; });
+    stage.addEventListener('pointermove', function (e) { if (drag) { ry += (e.clientX - px) / 120; px = e.clientX; group.rotation.y = ry; } });
+    engines['3t'] = { draw: function (t) { camera.position.x = Math.sin(t * Math.PI * 2) * 5.5; camera.position.z = Math.cos(t * Math.PI * 2) * 5.5; camera.lookAt(0, -0.2, 0); renderer.render(scene, camera); } };
+    engines['3t'].draw(0.2);
+    S['3t'].playing = true;
+  }).catch(function (e) { document.getElementById('st3t').textContent = '加载失败 ' + e; });
+});
+
+/* C: OGL（动态 import 库模式 bundle） */
+document.getElementById('load3o').addEventListener('click', function () {
+  var t0 = performance.now();
+  document.getElementById('st3o').textContent = '加载中…';
+  import('./dist/ogl-esm.js').then(function (OGL) {
+    document.getElementById('st3o').textContent = '已加载（含解析 ' + Math.round(performance.now() - t0) + 'ms）';
+    document.getElementById('ctl3o').style.display = '';
+    var stage = document.getElementById('stage3o');
+    var renderer = new OGL.Renderer();
+    var gl = renderer.gl; gl.clearColor(0.04, 0.06, 0.09, 1);
+    stage.appendChild(gl.canvas);
+    var camera = new OGL.Camera(gl, { fov: 45 });
+    camera.position.set(0, 2.5, 6);
+    var scene = new OGL.Transform();
+    var y = -1.4, hs = [0.55, 0.75, 0.95, 1.15], ws = [2.6, 2.1, 1.6, 1.1];
+    var cols = [[0.30, 0.82, 0.55], [0.30, 0.64, 1.0], [1.0, 0.72, 0.30], [1.0, 0.42, 0.48]];
+    for (var i = 0; i < 4; i++) {
+      var box = new OGL.Mesh(gl, {
+        geometry: new OGL.Box(gl, { width: ws[i], height: hs[i], depth: ws[i] }),
+        program: new OGL.Program(gl, {
+          vertex: 'attribute vec3 position; attribute vec3 normal; uniform mat4 modelViewMatrix, projectionMatrix, normalMatrix; varying vec3 vN; void main(){ vN = normalize((normalMatrix*vec4(normal,0.)).xyz); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+          fragment: 'precision highp float; varying vec3 vN; uniform vec3 color; void main(){ float l = 0.55+0.45*dot(vN, normalize(vec3(0.5,0.9,0.7))); gl_FragColor = vec4(color*l,1.); }',
+          uniforms: { color: { value: cols[i] } },
+        }),
+      });
+      box.position.y = y + hs[i] / 2; y += hs[i] + 0.08;
+      box.setParent(scene);
+    }
+    function resize() { renderer.setSize(stage.clientWidth, stage.clientHeight); camera.perspective({ aspect: gl.canvas.width / gl.canvas.height }); }
+    resize(); addEventListener('resize', resize);
+    var drag = false, px = 0, ry = 0;
+    stage.addEventListener('pointerdown', function (e) { drag = true; px = e.clientX; });
+    addEventListener('pointerup', function () { drag = false; });
+    stage.addEventListener('pointermove', function (e) { if (drag) { ry += (e.clientX - px) / 120; px = e.clientX; scene.rotation.y = ry; } });
+    engines['3o'] = { draw: function (t) { scene.rotation.y = ry + t * Math.PI * 2; renderer.render({ scene, camera }); } };
+    engines['3o'].draw(0.2);
+    S['3o'].playing = true;
+  }).catch(function (e) { document.getElementById('st3o').textContent = '加载失败 ' + e; });
+});
+</script>
+</body>
+</html>
