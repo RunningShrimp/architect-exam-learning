@@ -53,7 +53,105 @@ window.CityEmbedControls = function (animRef, sceneType) {
     const s = ctl.querySelector('#e-c');
     const sync = () => { ctl.querySelector('#e-c-out').textContent = Math.round(s.value / 10) + ' 个'; if (animRef) animRef.setRate(0.3 + s.value / 100 * 1.8); };
     s.addEventListener('input', sync); sync();
+  } else if (sceneType === 'parking') {
+    ctl.innerHTML = '<label>车位数 S <input type="range" id="e-p" min="1" max="8" value="4"> <span id="e-p-out">4</span></label>' +
+      '<span>剩余车位 <b id="e-free">4</b> · 排队 <b id="e-q">0</b> 辆（S 为负即排队）</span>';
+    const s = ctl.querySelector('#e-p');
+    const sync = () => {
+      ctl.querySelector('#e-p-out').textContent = s.value;
+      if (animRef) animRef.setSlots(parseInt(s.value, 10));
+      const st = animRef && animRef.stats ? animRef.stats() : null;
+      if (st) {
+        ctl.querySelector('#e-free').textContent = st.free;
+        ctl.querySelector('#e-q').textContent = st.queue;
+      }
+    };
+    s.addEventListener('input', sync);
+    setInterval(sync, 500); sync();
+  } else if (sceneType === 'surge') {
+    ctl.innerHTML = '<label>便利店存活率 <input type="range" id="e-a" min="0" max="100" value="100"> <span id="e-a-out">100%</span></label>' +
+      '<span>超市(DB)排队 <b id="e-m">0</b> 人 —— 拉到 0% 看雪崩</span>';
+    const s = ctl.querySelector('#e-a');
+    const sync = () => {
+      ctl.querySelector('#e-a-out').textContent = s.value + '%';
+      if (animRef) animRef.setAlive(s.value / 100);
+      var mq = animRef && animRef.counters ? animRef.counters.martQueue : (window.__surgeMart || 0);
+      ctl.querySelector('#e-m').textContent = mq;
+    };
+    s.addEventListener('input', sync);
+    setInterval(sync, 500); sync();
   } else ctl.remove();
+};
+</script>
+<script type="module" src="assets/scene-engine.js"></script>
+<script type="module" src="assets/city-anims.js"></script>
+<script>
+/* Canvas2D 档的轻量代理模拟器（three 层不可用时保证嵌入块仍有活的模拟） */
+window.CitySim2D = function (cfg) {
+  const a = (cfg.anim && cfg.anim[0]) || {};
+  const type = a.type || 'flow';
+  const routes = a.routes || [];
+  const weights = routes.map(r => r.weight != null ? r.weight : 1 / Math.max(1, routes.length));
+  let rate = 1, slots = a.slots || 4, aliveRatio = 1;
+  const martRef = a.mart || { x: 38, z: -8 };
+  const agents = [];
+  let acc = 0, T0 = 0;
+  const speed = a.speed || 0.5;
+  function spawn() {
+    if (type === 'parking') {
+      const st = stats();
+      if (st.free > 0 && st.parked + st.queue < 14) agents.push({ kind: 'car', state: 'in', seg: 0, t: 0 });
+      else if (st.parked + st.queue < 14) agents.push({ kind: 'car', state: 'queue', q: st.queue });
+    } else if (type === 'surge') {
+      const shopsN = (a.shops || []).length;
+      const aliveN = Math.round(aliveRatio * shopsN);
+      let target, color;
+      if (aliveN === 0 || Math.random() > aliveRatio) { target = martRef; color = '#ff9aa5'; }
+      else { target = a.shops[Math.floor(Math.random() * aliveN)]; color = '#4dd08c'; }
+      agents.push({ kind: 'dot', from: a.origin || [-30, 0], to: [target.x, target.z], t: 0, color, dur: target === martRef ? 2.2 : 1.4 });
+    } else {
+      let pick = Math.random() * weights.reduce((x, y) => x + y, 0), ri = routes.length - 1;
+      for (let k = 0; k < routes.length; k++) { pick -= weights[k]; if (pick <= 0) { ri = k; break; } }
+      agents.push({ kind: 'dot', route: ri, seg: 0, t: 0, color: routes[ri].color });
+    }
+  }
+  function stats() {
+    const parked = agents.filter(x => x.kind === 'car' && x.state === 'parked').length;
+    const queue = agents.filter(x => x.kind === 'car' && x.state === 'queue').length;
+    return { free: Math.max(0, slots - parked), parked, queue };
+  }
+  return {
+    setWeights: w => w.forEach((v, i) => { if (weights[i] != null) weights[i] = v; }),
+    setRate: k => { rate = k; },
+    setSlots: n => { slots = Math.max(1, Math.min(8, n)); agents.forEach(x => { if (x.kind === 'car' && x.state === 'parked' && x.slot != null && x.slot >= slots) x.state = 'out'; }); },
+    setAlive: r => { aliveRatio = r; },
+    stats,
+    tick: function (ctx2, iso) {
+      acc += 0.016 * rate;
+      while (acc > 0.45) { acc -= 0.45; spawn(); }
+      ctx2.fillStyle = '#e8edf7';
+      for (let i = agents.length - 1; i >= 0; i--) {
+        const g = agents[i];
+        if (g.kind === 'car') {
+          const fromSlot = 14 + (g.slot % 4) * 3, toSlot = 14 + (g.slot % 4) * 3, fromZ = 8 + Math.floor(g.slot / 4) * 3.4;
+          g.t += 0.016 * 0.8;
+          let x, z;
+          if (g.state === 'in') { x = -26 + 40 * g.t; z = -6; if (g.t >= 1) { const st = stats(); if (st.free > 0) { g.state = 'parked'; g.slot = st.parked; g.t = 0; g.stay = 3; } else { g.state = 'queue'; g.q = st.queue; g.t = 0; } } }
+          else if (g.state === 'parked') { x = fromSlot; z = fromZ; g.stay -= 0.016; if (g.stay <= 0) { g.state = 'out'; g.t = 0; } }
+          else if (g.state === 'out') { x = fromSlot + 26 * g.t; z = fromZ - 6; if (g.t >= 1) { agents.splice(i, 1); continue; } }
+          else { x = -20 + g.q * 2.4; z = -12; }
+          const p = iso(x, z, 0.5);
+          ctx2.fillStyle = '#4da3ff'; ctx2.beginPath(); ctx2.arc(p.x, p.y, 3, 0, 7); ctx2.fill();
+        } else {
+          g.t += 0.016 * (g.dur ? 1 / g.dur : speed);
+          if (g.t >= 1) { agents.splice(i, 1); continue; }
+          const p = iso(g.from[0] + (g.to[0] - g.from[0]) * g.t, g.from[1] + (g.to[1] - g.from[1]) * g.t, 0.8);
+          ctx2.fillStyle = g.color; ctx2.beginPath(); ctx2.arc(p.x, p.y, 3, 0, 7); ctx2.fill();
+        }
+      }
+    },
+    counters: { get martQueue() { return agents.filter(x => x.kind === 'dot' && x.to && x.to[0] >= 30).length; }, get parking() { return stats(); } }
+  };
 };
 </script>
 <script type="module" src="assets/scene-engine.js"></script>
@@ -69,7 +167,22 @@ window.CityEmbedControls = function (animRef, sceneType) {
     urls: { webgpu: 'vendor/three.webgpu.min.js' },
     onTier(t) { document.title = '3D [' + t + '] · 架构师学堂'; }
   });
-  window.CityEmbedControls(r.impl && r.impl.anims && r.impl.anims[0], cfg.meta && cfg.meta.scene);
+  /* Canvas2D 档：接入轻量 2D 模拟器，保证滑块与代理流在兜底层也活着 */
+  let animRef = r.impl && r.impl.anims && r.impl.anims[0];
+  if (r.tier.indexOf('Canvas2D') >= 0) {
+    const sim = window.CitySim2D(cfg);
+    window.__sim2d = sim;
+    window.__cityAnim2d = function (ctx2, iso) { sim.tick(ctx2, iso); };
+    animRef = {
+      setWeights: w => sim.setWeights(w),
+      setRate: k => sim.setRate(k),
+      setSlots: n => sim.setSlots(n),
+      setAlive: v => sim.setAlive(v),
+      stats: () => sim.stats(),
+      counters: sim.counters
+    };
+  }
+  window.CityEmbedControls(animRef, cfg.meta && cfg.meta.scene);
 })();
 </script>
 </body>

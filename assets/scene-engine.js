@@ -353,7 +353,7 @@ function canvas2dImpl(container, labels, config, hud) {
       var p = iso(z.x, z.z, z.h + 2);
       return '<span class="cs-label" style="left:' + (p.x / cvs.clientWidth * 100) + '%;top:' + (p.y / cvs.clientHeight * 100) + '%">' + (z.icon ? z.icon + ' ' : '') + (z.label || '') + '</span>';
     }).join('');
-    if (window.__cityAnim2d) window.__cityAnim2d(ctx, iso, view);
+    if (window.__cityAnim2d) { try { window.__cityAnim2d(ctx, iso, view); } catch (e2a) { /* 单帧动画异常不终止绘制循环 */ } }
   }
   var drag = null, pinch = 0;
   cvs.style.touchAction = 'none';

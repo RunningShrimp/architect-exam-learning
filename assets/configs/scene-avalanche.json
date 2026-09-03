@@ -1,0 +1,24 @@
+{
+  "meta": { "scene": "surge", "for": "kp/19", "metaphor": "缓存雪崩=便利店集体打烊，全城涌向超市（DB）", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [4, 28, 48], "target": [4, 0, 0], "fov": 50, "theta": 0, "phi": 0.95, "r": 74 },
+  "roads": [ { "x": 4, "z": 2, "w": 90, "d": 4, "color": "#31405f" } ],
+  "zones": [
+    { "id": "mart", "label": "超市(DB)", "icon": "🏬", "x": 38, "z": -8, "w": 10, "d": 8, "h": 8, "color": "#ff6b7a" },
+    { "id": "home", "label": "住宅区",   "icon": "🏠", "x": -30, "z": -6, "w": 8, "d": 8, "h": 4, "color": "#5a6b8c" }
+  ],
+  "nodes": [
+    { "id": "n19", "label": "19 分布式数据库与NoSQL", "icon": "🌍", "x": -10, "z": 10, "w": 3, "d": 3, "h": 3, "color": "#ffd97a", "link": "19-distributed-db.html" }
+  ],
+  "anim": [ {
+    "type": "surge",
+    "count": 16,
+    "shops": [
+      { "x": 0,  "z": -7 }, { "x": 8,  "z": -7 }, { "x": 16, "z": -7 },
+      { "x": 0,  "z": 8 },  { "x": 8,  "z": 8 },  { "x": 16, "z": 8 }
+    ],
+    "mart": { "x": 38, "z": -8 }
+  } ],
+  "labels": true
+}

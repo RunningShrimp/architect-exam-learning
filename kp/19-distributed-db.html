@@ -106,6 +106,30 @@
     <div id="demo1-ctl"></div>
   </section>
 
+  
+<details class="fold" id="d3lab">
+<summary>🧪 3D 实验场：缓存雪崩立体演示（按需加载 three r185 ≈286KB，仅实验功能，关闭即零开销）</summary>
+<div id="d3-stage" class="cs-stage"></div>
+<div class="cache-ctl" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:10px 0;font-size:.92rem">
+  <label>便利店存活率 <input type="range" id="d3-a" min="0" max="100" value="100"> <span id="d3-a-out">100%</span></label>
+  <span>超市(DB)排队 <b id="d3-m">0</b> 人</span>
+</div>
+<div class="foreshadow">实验功能（ADR-001 期二）：城市隐喻 3D 化；渲染层自动降级 WebGPU→WebGL2→Canvas2D→SVG。</div>
+</details>
+<script>
+(function(){
+  var d = document.getElementById('d3lab'), inited = false;
+  d.addEventListener('toggle', function(){
+    if (!d.open || inited) return; inited = true;
+    var f = document.createElement('iframe');
+    f.src = '../scene-embed.html?cfg=assets/configs/scene-avalanche.json';
+    f.style.cssText = 'width:100%;height:56vh;min-height:380px;border:0;display:block';
+    document.getElementById('d3-stage').appendChild(f);
+    d.scrollIntoView({ block: 'nearest' });
+  });
+})();
+</script>
+
   <section class="sec" id="sec6"><h2><span class="secno">6</span>动手实验室</h2>
     <div class="lab" id="lab1">
       <h4>实验一（连线匹配）：缓存三灾 + 持久化 + 复制</h4>

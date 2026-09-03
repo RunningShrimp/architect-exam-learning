@@ -1,0 +1,16 @@
+{
+  "meta": { "scene": "parking", "for": "kp/10", "metaphor": "信号量S=剩余车位数，P=进场占位，V=离场放行，负值=排队车数", "version": 1 },
+  "mood": { "sky": "#101828", "fog": "#101828", "ambient": "#8899cc", "sun": "#ffe0b0" },
+  "ground": { "size": 90, "color": "#1a2438" },
+  "camera": { "pos": [6, 24, 40], "target": [2, 0, 0], "fov": 50, "theta": 0, "phi": 0.95, "r": 56 },
+  "roads": [ { "x": -4, "z": -6, "w": 80, "d": 4, "color": "#31405f" } ],
+  "zones": [
+    { "id": "lot",  "label": "停车场（资源池）", "icon": "🅿️", "x": 18, "z": 10, "w": 16, "d": 10, "h": 0.4, "color": "#22314e" },
+    { "id": "queue","label": "路口排队区",      "icon": "🚗", "x": -20, "z": -12, "w": 16, "d": 8, "h": 0.3, "color": "#22314e" }
+  ],
+  "nodes": [
+    { "id": "n10", "label": "10 同步互斥与PV操作", "icon": "🔑", "x": -6, "z": 12, "w": 3, "d": 3, "h": 3, "color": "#ffd166", "link": "10-pv-semaphore.html" }
+  ],
+  "anim": [ { "type": "parking", "slots": 4, "arriveEvery": 1.1, "stay": 3, "pool": 14 } ],
+  "labels": true
+}
